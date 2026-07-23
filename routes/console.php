@@ -1,0 +1,23 @@
+<?php
+
+use App\Jobs\MarkOverdueInvoicesJob;
+use App\Jobs\SendDueInvoiceReminderEmailsJob;
+use Illuminate\Foundation\Inspiring;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
+
+Artisan::command('inspire', function () {
+    $this->comment(Inspiring::quote());
+})->purpose('Display an inspiring quote');
+
+Schedule::job(new MarkOverdueInvoicesJob)
+    ->dailyAt('07:00')
+    ->timezone(config('app.timezone'))
+    ->withoutOverlapping()
+    ->name('mark-overdue-invoices');
+
+Schedule::job(new SendDueInvoiceReminderEmailsJob)
+    ->dailyAt('08:00')
+    ->timezone(config('app.timezone'))
+    ->withoutOverlapping()
+    ->name('send-due-invoice-reminders');

@@ -1,0 +1,149 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Serif:wght@600;700&display=swap');
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source "../**/*.blade.php";
+@source "../**/*.js";
+@source "../**/*.vue";
+
+@theme {
+    --font-sans: 'Inter', 'Segoe UI', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-serif: 'Noto Serif', Georgia, Cambria, 'Times New Roman', serif;
+
+    --color-brand-50: #eff6ff;
+    --color-brand-100: #dbeafe;
+    --color-brand-200: #bfdbfe;
+    --color-brand-300: #93c5fd;
+    --color-brand-400: #60a5fa;
+    --color-brand-500: #3b82f6;
+    --color-brand-600: #2563eb;
+    --color-brand-700: #1d4ed8;
+    --color-brand-800: #1e40af;
+    --color-brand-900: #172554;
+
+    --color-canvas: #f7f9fb;
+    --color-surface: #ffffff;
+    --color-surface-low: #f2f4f6;
+    --color-surface-high: #e6e8ea;
+    --color-ink: #0f172a;
+    --color-muted: #434655;
+    --color-line: #e2e8f0;
+    --color-outline: #737686;
+    --color-accent: #a855f7;
+    --color-accent-soft: #f3e8ff;
+    --color-success-soft: #dcfce7;
+    --color-warning-soft: #fce7f3;
+    --color-info-soft: #dbeafe;
+}
+
+@layer base {
+    html {
+        background: var(--color-canvas);
+    }
+
+    body {
+        min-width: 320px;
+        color: var(--color-ink);
+        background: var(--color-canvas);
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+    }
+
+    h1,
+    .display-heading {
+        font-family: var(--font-serif);
+        letter-spacing: -0.02em;
+    }
+
+    button,
+    a,
+    input,
+    select,
+    textarea {
+        transition-duration: 180ms;
+        transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+        transition-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    :focus-visible {
+        outline: 3px solid rgb(37 99 235 / 0.28);
+        outline-offset: 2px;
+    }
+}
+
+@layer components {
+    .bento-card {
+        border: 1px solid var(--color-line);
+        border-radius: 1rem;
+        background: white;
+        box-shadow: none;
+    }
+
+    .form-control {
+        width: 100%;
+        border: 1px solid var(--color-line);
+        border-radius: 0.5rem;
+        background: white;
+        color: var(--color-ink);
+        min-height: 2.75rem;
+        padding: 0.625rem 0.75rem;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+    }
+
+    .form-control:hover {
+        border-color: #c3c6d7;
+    }
+
+    .form-control:focus {
+        border-color: var(--color-brand-600);
+        box-shadow: 0 0 0 3px rgb(37 99 235 / 0.12);
+        outline: none;
+    }
+
+    .form-control::placeholder {
+        color: var(--color-outline);
+        opacity: 1;
+    }
+}
+
+[x-cloak] {
+    display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
+
+@media print {
+    @page {
+        size: A4;
+        margin: 12mm;
+    }
+
+    body {
+        background: white !important;
+    }
+
+    .print-hide {
+        display: none !important;
+    }
+
+    .invoice-preview-shell {
+        padding: 0 !important;
+    }
+
+    .invoice-paper {
+        max-width: none !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+}
