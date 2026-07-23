@@ -17,6 +17,7 @@ class GlobalAuthenticationMiddlewareTest extends TestCase
             '/dashboard',
             '/customers',
             '/products',
+            '/invoices',
             '/invoices/create',
             '/payments/receivables',
             '/reports/sales',

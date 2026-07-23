@@ -44,9 +44,26 @@ class ExampleTest extends TestCase
             ->assertSee('Peran &amp; akses', escape: false)
             ->assertSee('Log aktivitas')
             ->assertSee('Pengaturan')
+            ->assertSee(route('invoices.index'))
             ->assertSee(route('roles.index'))
             ->assertSee(route('activity-logs.index'))
             ->assertSee(route('settings.company-profile.edit'));
+    }
+
+    public function test_invoice_index_page_is_available(): void
+    {
+        $this->get('/invoices')
+            ->assertOk()
+            ->assertSee('Daftar Invoice - YokPrinting.ID')
+            ->assertSee('Daftar Invoice')
+            ->assertSee('Semua invoice')
+            ->assertSee('Cari invoice atau pelanggan')
+            ->assertSee('INV-2026-0084')
+            ->assertSee('PT Sinar Nusantara')
+            ->assertSee('INV-2026-0078')
+            ->assertSee('Overdue')
+            ->assertSee(route('invoices.create'))
+            ->assertSee('/payments/invoices/${invoice.number}', escape: false);
     }
 
     public function test_home_redirects_to_dashboard_page(): void
@@ -115,6 +132,7 @@ class ExampleTest extends TestCase
             ->assertSee('PT Sinar Nusantara')
             ->assertSee('INV-2026-0084')
             ->assertSee(route('settings.company-profile.edit'))
+            ->assertSee(route('invoices.index'))
             ->assertSee(route('invoices.create'));
     }
 
