@@ -172,14 +172,54 @@
 
                             <section class="rounded-xl bg-white p-5 border border-line sm:p-6" aria-labelledby="additional-info-heading">
                                 <h2 id="additional-info-heading" class="font-semibold text-ink">Informasi tambahan</h2>
-                                <div class="mt-5 grid gap-5 md:grid-cols-2">
+                                <div class="mt-5 grid gap-5 md:grid-cols-3">
+                                    <div>
+                                        <label for="production-status" class="mb-2 block text-sm font-medium text-ink">Status produksi</label>
+                                        <select id="production-status" name="production_status" class="form-control">
+                                            <option value="draft">Drafting</option>
+                                            <option value="awaiting_dp" selected>Menunggu DP</option>
+                                            <option value="design_acc">ACC Mockup/Desain</option>
+                                            <option value="in_production">Proses Sablon/Cetak</option>
+                                            <option value="ready_for_pickup">Siap Diambil/Kirim</option>
+                                            <option value="completed">Lunas & Selesai</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="dp-required-percent" class="mb-2 block text-sm font-medium text-ink">Minimal DP produksi</label>
+                                        <div class="relative">
+                                            <input
+                                                id="dp-required-percent"
+                                                name="dp_required_percent"
+                                                data-validation-field="dp_required_percent"
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                step="1"
+                                                value="50"
+                                                class="form-control pr-9"
+                                                :class="{ 'border-red-400 ring-2 ring-red-100': fieldErrors.dp_required_percent }"
+                                            >
+                                            <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted">%</span>
+                                        </div>
+                                        <p x-show="fieldErrors.dp_required_percent" x-text="fieldErrors.dp_required_percent" class="mt-1.5 text-xs font-medium text-red-700"></p>
+                                    </div>
+                                    <div>
+                                        <label for="mockup-url" class="mb-2 block text-sm font-medium text-ink">Link mockup</label>
+                                        <input id="mockup-url" name="mockup_url" type="url" class="form-control" placeholder="https://drive.google.com/...">
+                                    </div>
+                                </div>
+                                <div class="mt-5 grid gap-5 md:grid-cols-3">
                                     <div>
                                         <label for="notes" class="mb-2 block text-sm font-medium text-ink">Catatan untuk pelanggan</label>
                                         <textarea id="notes" name="notes" rows="4" class="form-control min-h-28" placeholder="Tulis catatan yang akan tampil di invoice">Terima kasih telah mempercayakan kebutuhan bisnis Anda kepada kami.</textarea>
                                     </div>
                                     <div>
                                         <label for="terms" class="mb-2 block text-sm font-medium text-ink">Syarat pembayaran</label>
-                                        <textarea id="terms" name="terms" rows="4" class="form-control min-h-28" placeholder="Tulis syarat pembayaran">Pembayaran dilakukan melalui transfer bank paling lambat pada tanggal jatuh tempo.</textarea>
+                                        <textarea id="terms" name="terms" rows="4" class="form-control min-h-28" placeholder="Tulis syarat pembayaran">Minimal DP 50% sebelum produksi. Pelunasan dilakukan sebelum barang dikirim atau diambil.</textarea>
+                                    </div>
+                                    <div>
+                                        <label for="design-notes" class="mb-2 block text-sm font-medium text-ink">Catatan desain/produksi</label>
+                                        <textarea id="design-notes" name="design_notes" rows="4" class="form-control min-h-28" placeholder="Contoh: Logo tengah, tinta hitam, jarak 2 cm dari bibir cup">Tinta hitam pekat, posisi logo tengah, tunggu ACC mockup sebelum naik produksi.</textarea>
                                     </div>
                                 </div>
                             </section>

@@ -28,19 +28,28 @@ class InvoicePaymentDetailApiTest extends TestCase
             'due_date' => now()->addDays(5)->toDateString(),
             'status' => Invoice::STATUS_SENT,
             'payment_status' => Invoice::PAYMENT_PARTIAL,
+            'production_status' => Invoice::PRODUCTION_DESIGN_ACC,
             'currency' => 'IDR',
             'subtotal' => 9000000,
             'discount_amount' => 0,
             'tax_amount' => 1000000,
             'total_amount' => 10000000,
+            'dp_required_percent' => 50,
+            'design_notes' => 'Logo tengah, tunggu ACC final.',
+            'mockup_url' => 'https://yokprinting.id/mockup/INV-2026-0084',
             'notes' => 'Terima kasih.',
             'terms' => 'Net 14.',
         ]);
         $invoice->items()->create([
-            'product_name' => 'Paket desain brand refresh',
-            'description' => 'Desain identitas visual.',
-            'quantity' => 1,
-            'unit_price' => 9000000,
+            'product_name' => 'Sablon Cup 16 Oz Oval',
+            'sku' => 'CUP-16OV-8G-2S',
+            'cup_size' => '16 Oz',
+            'cup_model' => 'Oval',
+            'grammage' => '8gr',
+            'screen_printing_color' => 'Hitam',
+            'sides' => 2,
+            'quantity' => 10000,
+            'unit_price' => 900,
             'subtotal' => 9000000,
             'total_amount' => 9000000,
         ]);
@@ -65,13 +74,18 @@ class InvoicePaymentDetailApiTest extends TestCase
             ->assertJsonPath('data.invoice.invoice_number', 'INV-2026-0084')
             ->assertJsonPath('data.invoice.payment_status', Invoice::PAYMENT_PARTIAL)
             ->assertJsonPath('data.invoice.payment_status_label', 'Parsial')
+            ->assertJsonPath('data.invoice.production_status', Invoice::PRODUCTION_DESIGN_ACC)
+            ->assertJsonPath('data.invoice.production_status_label', 'ACC Mockup/Desain')
             ->assertJsonPath('data.invoice.total_amount', 10000000)
             ->assertJsonPath('data.invoice.paid_amount', 4000000)
             ->assertJsonPath('data.invoice.remaining_amount', 6000000)
+            ->assertJsonPath('data.invoice.required_dp_amount', 5000000)
+            ->assertJsonPath('data.invoice.design_notes', 'Logo tengah, tunggu ACC final.')
             ->assertJsonPath('data.invoice.payment_progress', 40)
             ->assertJsonPath('data.customer.name', 'PT Sinar Nusantara')
-            ->assertJsonPath('data.items.0.product_name', 'Paket desain brand refresh')
-            ->assertJsonPath('data.items.0.unit_price', 9000000)
+            ->assertJsonPath('data.items.0.product_name', 'Sablon Cup 16 Oz Oval')
+            ->assertJsonPath('data.items.0.cup_size', '16 Oz')
+            ->assertJsonPath('data.items.0.unit_price', 900)
             ->assertJsonPath('data.payments.0.payment_number', 'PAY-20260723-0001')
             ->assertJsonPath('data.payments.0.method_label', 'Transfer BCA');
     }

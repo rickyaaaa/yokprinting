@@ -2,8 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Invoice;
+use App\Models\Product;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class StoreInvoiceDraftRequest extends FormRequest
@@ -33,6 +36,14 @@ class StoreInvoiceDraftRequest extends FormRequest
             'items.*.product_id' => ['required', 'integer', 'min:1'],
             'items.*.product_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'items.*.sku' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'items.*.cup_size' => ['sometimes', 'nullable', Rule::in(Product::CUP_SIZES)],
+            'items.*.cup_model' => ['sometimes', 'nullable', Rule::in(Product::CUP_MODELS)],
+            'items.*.grammage' => ['sometimes', 'nullable', Rule::in(Product::GRAMMAGES)],
+            'items.*.screen_printing_color' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'items.*.sides' => ['sometimes', 'nullable', 'integer', Rule::in([1, 2])],
+            'items.*.moq_quantity' => ['sometimes', 'nullable', 'integer', 'min:1'],
+            'items.*.order_increment' => ['sometimes', 'nullable', 'integer', 'min:1'],
+            'items.*.packaging_unit' => ['sometimes', 'nullable', 'string', 'max:20'],
             'items.*.description' => ['sometimes', 'nullable', 'string'],
             'items.*.quantity' => ['required', 'numeric', 'gt:0'],
             'items.*.price' => ['required', 'numeric', 'min:0'],
@@ -44,6 +55,17 @@ class StoreInvoiceDraftRequest extends FormRequest
             'tax.rate' => ['required', 'numeric', 'between:0,100'],
             'notes' => ['sometimes', 'nullable', 'string'],
             'terms' => ['sometimes', 'nullable', 'string'],
+            'production_status' => ['sometimes', Rule::in([
+                Invoice::PRODUCTION_DRAFT,
+                Invoice::PRODUCTION_AWAITING_DP,
+                Invoice::PRODUCTION_DESIGN_ACC,
+                Invoice::PRODUCTION_IN_PRODUCTION,
+                Invoice::PRODUCTION_READY_FOR_PICKUP,
+                Invoice::PRODUCTION_COMPLETED,
+            ])],
+            'design_notes' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'mockup_url' => ['sometimes', 'nullable', 'url', 'max:255'],
+            'dp_required_percent' => ['sometimes', 'numeric', 'between:0,100'],
             'template' => ['sometimes', 'string', 'max:50'],
             'theme_color' => ['sometimes', 'nullable', 'string', 'max:20'],
         ];
@@ -64,6 +86,29 @@ class StoreInvoiceDraftRequest extends FormRequest
                         'discount.value',
                         'Diskon persentase maksimal 100%.',
                     );
+                }
+
+                foreach ($this->input('items', []) as $index => $item) {
+                    $quantity = (int) ($item['quantity'] ?? 0);
+                    $minimum = (int) ($item['moq_quantity'] ?? 0);
+                    $increment = (int) ($item['order_increment'] ?? $minimum);
+                    $unit = $item['packaging_unit'] ?? 'pcs';
+
+                    if ($minimum > 0 && $quantity < $minimum) {
+                        $validator->errors()->add(
+                            "items.{$index}.quantity",
+                            "Jumlah item minimal {$minimum} {$unit}.",
+                        );
+
+                        continue;
+                    }
+
+                    if ($increment > 0 && $quantity % $increment !== 0) {
+                        $validator->errors()->add(
+                            "items.{$index}.quantity",
+                            "Jumlah item harus kelipatan {$increment} {$unit}.",
+                        );
+                    }
                 }
             },
         ];

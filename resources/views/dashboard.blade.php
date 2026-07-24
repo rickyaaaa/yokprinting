@@ -41,8 +41,8 @@
     ];
 
     $upcomingInvoices = [
-        ['customer' => 'PT Sinar Nusantara', 'invoice' => 'INV-2026-0084', 'amount' => 'Rp18.450.000', 'due' => '30 Jul', 'status' => 'Terkirim'],
-        ['customer' => 'CV Lautan Rasa', 'invoice' => 'INV-2026-0082', 'amount' => 'Rp12.750.000', 'due' => '2 Agu', 'status' => 'Menunggu'],
+        ['customer' => 'PT Sinar Nusantara', 'invoice' => 'INV-2026-0084', 'amount' => 'Rp18.450.000', 'due' => '30 Jul', 'status' => 'ACC desain'],
+        ['customer' => 'CV Lautan Rasa', 'invoice' => 'INV-2026-0082', 'amount' => 'Rp12.750.000', 'due' => '2 Agu', 'status' => 'Menunggu DP'],
         ['customer' => 'PT Bumi Lestari', 'invoice' => 'INV-2026-0078', 'amount' => 'Rp5.600.000', 'due' => 'Lewat 3 hari', 'status' => 'Lewat tempo'],
     ];
 
@@ -53,7 +53,14 @@
     ];
 
     $lowStockProducts = [
-        ['name' => 'Flyer promosi bulanan', 'sku' => 'PRM-FLYER-01', 'stock' => '6 rim', 'minimum' => '12 rim', 'urgency' => 'Butuh restock minggu ini'],
+        ['name' => 'Cup 16 Oz Oval 8gr', 'sku' => 'CUP-16OV-8G', 'stock' => '18.000 pcs', 'minimum' => '25.000 pcs', 'urgency' => 'Butuh restock minggu ini'],
+        ['name' => 'Tinta sablon hitam food grade', 'sku' => 'INK-BLK-FG', 'stock' => '4 kg', 'minimum' => '8 kg', 'urgency' => 'Prioritas produksi'],
+    ];
+
+    $productionQueue = [
+        ['invoice' => 'INV-2026-0084', 'customer' => 'PT Sinar Nusantara', 'spec' => '16 Oz Oval · 10.000 pcs · 2 sisi', 'status' => 'ACC Mockup', 'eta' => 'Mulai sablon hari ini', 'tone' => 'brand'],
+        ['invoice' => 'INV-2026-0082', 'customer' => 'CV Lautan Rasa', 'spec' => '12 Oz Datar · 8.000 pcs · 1 sisi', 'status' => 'Menunggu DP', 'eta' => 'Tahan produksi', 'tone' => 'warning'],
+        ['invoice' => 'INV-2026-0080', 'customer' => 'Kopi Pagi Group', 'spec' => '22 Oz Oval · 5.000 pcs · tinta custom', 'status' => 'Proses Sablon', 'eta' => 'Siap kirim 26 Jul', 'tone' => 'success'],
     ];
 @endphp
 
@@ -238,6 +245,38 @@
                                 </div>
                             </article>
                         @endforeach
+                    </section>
+
+                    <section class="mt-6 rounded-xl bg-white border border-line" aria-labelledby="production-queue-heading">
+                        <div class="flex flex-col gap-3 border-b border-line px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                            <div>
+                                <h2 id="production-queue-heading" class="font-semibold text-ink">Antrean produksi sablon cup</h2>
+                                <p class="mt-1 text-sm text-muted">Ringkasan status Design → DP → Print → Ship untuk order YokPrinting.</p>
+                            </div>
+                            <span class="w-fit rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">{{ count($productionQueue) }} order aktif</span>
+                        </div>
+                        <div class="grid gap-4 p-5 sm:p-6 lg:grid-cols-3">
+                            @foreach ($productionQueue as $order)
+                                @php
+                                    $queueClass = match ($order['tone']) {
+                                        'success' => 'bg-green-100 text-green-800',
+                                        'warning' => 'bg-yellow-100 text-yellow-900',
+                                        default => 'bg-brand-100 text-brand-800',
+                                    };
+                                @endphp
+                                <article class="rounded-lg border border-line bg-canvas p-4">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="min-w-0">
+                                            <p class="font-mono text-xs font-semibold text-muted">{{ $order['invoice'] }}</p>
+                                            <h3 class="mt-1 truncate text-sm font-semibold text-ink">{{ $order['customer'] }}</h3>
+                                        </div>
+                                        <span class="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold {{ $queueClass }}">{{ $order['status'] }}</span>
+                                    </div>
+                                    <p class="mt-4 text-sm leading-6 text-ink">{{ $order['spec'] }}</p>
+                                    <p class="mt-2 text-xs font-medium text-muted">{{ $order['eta'] }}</p>
+                                </article>
+                            @endforeach
+                        </div>
                     </section>
 
                     <div class="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
@@ -477,7 +516,7 @@
                                     @foreach ($upcomingInvoices as $invoice)
                                         @php
                                             $statusClass = match ($invoice['status']) {
-                                                'Terkirim' => 'bg-brand-100 text-brand-800',
+                                                'Terkirim', 'ACC desain' => 'bg-brand-100 text-brand-800',
                                                 'Lewat tempo' => 'bg-red-100 text-red-800',
                                                 default => 'bg-yellow-100 text-yellow-900',
                                             };

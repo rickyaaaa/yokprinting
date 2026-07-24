@@ -27,6 +27,8 @@ class InvoiceDraftController extends Controller
                 'id' => $invoice->getKey(),
                 'invoice_number' => $invoice->invoice_number,
                 'status' => $invoice->status,
+                'production_status' => $invoice->production_status,
+                'production_status_label' => $invoice->productionStatusLabel(),
                 'subtotal' => $invoice->subtotal,
                 'discount_amount' => $invoice->discount_amount,
                 'tax_amount' => $invoice->tax_amount,

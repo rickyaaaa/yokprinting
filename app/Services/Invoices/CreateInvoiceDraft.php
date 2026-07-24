@@ -45,11 +45,18 @@ class CreateInvoiceDraft
                 'tax_rate' => $totals['tax_rate'],
                 'tax_amount' => $totals['tax_amount'],
                 'total_amount' => $totals['total_amount'],
+                'production_status' => $data['production_status'] ?? Invoice::PRODUCTION_DRAFT,
+                'dp_required_percent' => $data['dp_required_percent'] ?? 50,
                 'notes' => $data['notes'] ?? null,
                 'terms' => $data['terms'] ?? null,
+                'design_notes' => $data['design_notes'] ?? null,
+                'mockup_url' => $data['mockup_url'] ?? null,
                 'template' => $data['template'] ?? 'default',
                 'theme_color' => $data['theme_color'] ?? null,
-                'metadata' => ['source' => 'invoice-draft-api'],
+                'metadata' => [
+                    'source' => 'invoice-draft-api',
+                    'business_vertical' => 'sablon-cup-fnb',
+                ],
             ]);
 
             $invoice->items()->createMany($totals['items']);

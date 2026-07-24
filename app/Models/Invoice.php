@@ -29,6 +29,18 @@ class Invoice extends Model
 
     public const PAYMENT_OVERDUE = 'overdue';
 
+    public const PRODUCTION_DRAFT = 'draft';
+
+    public const PRODUCTION_AWAITING_DP = 'awaiting_dp';
+
+    public const PRODUCTION_DESIGN_ACC = 'design_acc';
+
+    public const PRODUCTION_IN_PRODUCTION = 'in_production';
+
+    public const PRODUCTION_READY_FOR_PICKUP = 'ready_for_pickup';
+
+    public const PRODUCTION_COMPLETED = 'completed';
+
     /**
      * The model's default values for attributes.
      *
@@ -37,6 +49,7 @@ class Invoice extends Model
     protected $attributes = [
         'status' => self::STATUS_DRAFT,
         'payment_status' => self::PAYMENT_UNPAID,
+        'production_status' => self::PRODUCTION_DRAFT,
         'currency' => 'IDR',
         'subtotal' => 0,
         'discount_value' => 0,
@@ -44,6 +57,7 @@ class Invoice extends Model
         'tax_rate' => 0,
         'tax_amount' => 0,
         'total_amount' => 0,
+        'dp_required_percent' => 50,
         'template' => 'default',
     ];
 
@@ -60,6 +74,7 @@ class Invoice extends Model
         'due_date',
         'status',
         'payment_status',
+        'production_status',
         'currency',
         'subtotal',
         'discount_type',
@@ -68,8 +83,11 @@ class Invoice extends Model
         'tax_rate',
         'tax_amount',
         'total_amount',
+        'dp_required_percent',
         'notes',
         'terms',
+        'design_notes',
+        'mockup_url',
         'template',
         'theme_color',
         'metadata',
@@ -94,6 +112,7 @@ class Invoice extends Model
             'tax_rate' => 'decimal:2',
             'tax_amount' => 'decimal:2',
             'total_amount' => 'decimal:2',
+            'dp_required_percent' => 'decimal:2',
             'metadata' => 'array',
             'sent_at' => 'datetime',
             'viewed_at' => 'datetime',
@@ -149,5 +168,75 @@ class Invoice extends Model
         return $query
             ->whereDate('due_date', '<', today())
             ->whereNotIn('payment_status', [self::PAYMENT_PAID]);
+    }
+
+    /**
+     * Scope invoices by production workflow status.
+     */
+    public function scopeWithProductionStatus(Builder $query, string $status): Builder
+    {
+        return $query->where('production_status', $status);
+    }
+
+    /**
+     * Get the human-readable production workflow label.
+     */
+    public function productionStatusLabel(): string
+    {
+        return match ($this->production_status) {
+            self::PRODUCTION_AWAITING_DP => 'Menunggu DP',
+            self::PRODUCTION_DESIGN_ACC => 'ACC Mockup/Desain',
+            self::PRODUCTION_IN_PRODUCTION => 'Proses Sablon/Cetak',
+            self::PRODUCTION_READY_FOR_PICKUP => 'Siap Diambil/Kirim',
+            self::PRODUCTION_COMPLETED => 'Lunas & Selesai',
+            default => 'Drafting',
+        };
+    }
+
+    /**
+     * Sum verified payments as received DP/payment.
+     */
+    public function verifiedPaidAmount(): float
+    {
+        $payments = $this->relationLoaded('payments')
+            ? $this->payments
+            : $this->payments()->verified()->get();
+
+        return (float) $payments
+            ->where('status', Payment::STATUS_VERIFIED)
+            ->sum('amount');
+    }
+
+    /**
+     * Calculate outstanding balance from verified payments.
+     */
+    public function remainingAmount(): float
+    {
+        return max(0, (float) $this->total_amount - $this->verifiedPaidAmount());
+    }
+
+    /**
+     * Calculate the minimum DP required for print production.
+     */
+    public function requiredDpAmount(): float
+    {
+        return round((float) $this->total_amount * ((float) $this->dp_required_percent / 100), 2);
+    }
+
+    /**
+     * Get ordered production workflow steps for UI timelines.
+     *
+     * @return list<array{key: string, label: string}>
+     */
+    public static function productionWorkflow(): array
+    {
+        return [
+            ['key' => self::PRODUCTION_DRAFT, 'label' => 'Drafting'],
+            ['key' => self::PRODUCTION_AWAITING_DP, 'label' => 'Menunggu DP'],
+            ['key' => self::PRODUCTION_DESIGN_ACC, 'label' => 'ACC Mockup'],
+            ['key' => self::PRODUCTION_IN_PRODUCTION, 'label' => 'Produksi'],
+            ['key' => self::PRODUCTION_READY_FOR_PICKUP, 'label' => 'Siap Kirim'],
+            ['key' => self::PRODUCTION_COMPLETED, 'label' => 'Selesai'],
+        ];
     }
 }

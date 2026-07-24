@@ -179,7 +179,7 @@
             .notes {
                 margin-top: 24px;
                 padding: 13px 15px;
-                border-left: 3px solid #d6a84b;
+                border: 1px solid #deded5;
                 background: #f7f7f3;
                 page-break-inside: avoid;
             }
@@ -190,6 +190,57 @@
 
             .notes p + p {
                 margin-top: 8px;
+            }
+
+            .payment-summary {
+                width: 100%;
+                margin-top: 22px;
+                border-collapse: collapse;
+                page-break-inside: avoid;
+            }
+
+            .payment-summary td {
+                width: 33.333%;
+                padding: 12px 14px;
+                border: 1px solid #deded5;
+                vertical-align: top;
+            }
+
+            .payment-summary .label {
+                color: #68685f;
+                font-size: 8px;
+                font-weight: 700;
+                letter-spacing: .8px;
+                text-transform: uppercase;
+            }
+
+            .payment-summary .amount {
+                margin-top: 4px;
+                color: #154734;
+                font-size: 14px;
+                font-weight: 700;
+            }
+
+            .payment-summary .remaining .amount {
+                color: #9b1c1c;
+            }
+
+            .production-box,
+            .terms-box {
+                margin-top: 16px;
+                padding: 13px 15px;
+                border: 1px solid #deded5;
+                background: #fbfbf7;
+                page-break-inside: avoid;
+            }
+
+            .terms-box ol {
+                margin: 7px 0 0;
+                padding-left: 16px;
+            }
+
+            .terms-box li {
+                margin-bottom: 4px;
             }
 
             .footer {
@@ -257,6 +308,10 @@
                             <td class="muted">Status</td>
                             <td>{{ strtoupper($invoice->status) }}</td>
                         </tr>
+                        <tr>
+                            <td class="muted">Produksi</td>
+                            <td>{{ $invoice->productionStatusLabel() }}</td>
+                        </tr>
                     </table>
                 </td>
             </tr>
@@ -281,6 +336,11 @@
                             @endif
                             @if ($item->description)
                                 <div class="item-meta">{{ $item->description }}</div>
+                            @endif
+                            @if ($item->cup_size || $item->cup_model || $item->grammage)
+                                <div class="item-meta">
+                                    Spec: {{ collect([$item->cup_size, $item->cup_model, $item->grammage, $item->screen_printing_color ? 'Tinta '.$item->screen_printing_color : null, $item->sides ? $item->sides.' sisi' : null])->filter()->join(' / ') }}
+                                </div>
                             @endif
                         </td>
                         <td class="numeric">{{ rtrim(rtrim(number_format((float) $item->quantity, 4, ',', '.'), '0'), ',') }}</td>
@@ -316,6 +376,36 @@
             </table>
         </div>
 
+        <table class="payment-summary">
+            <tr>
+                <td>
+                    <div class="label">Minimal DP produksi</div>
+                    <div class="amount">{{ $invoice->currency }} {{ number_format($invoice->requiredDpAmount(), 0, ',', '.') }}</div>
+                    <div class="muted">{{ rtrim(rtrim(number_format((float) $invoice->dp_required_percent, 2, ',', '.'), '0'), ',') }}% dari total invoice</div>
+                </td>
+                <td>
+                    <div class="label">DP / pembayaran masuk</div>
+                    <div class="amount">{{ $invoice->currency }} {{ number_format($invoice->verifiedPaidAmount(), 0, ',', '.') }}</div>
+                    <div class="muted">Hanya pembayaran terverifikasi</div>
+                </td>
+                <td class="remaining">
+                    <div class="label">Sisa tagihan piutang</div>
+                    <div class="amount">{{ $invoice->currency }} {{ number_format($invoice->remainingAmount(), 0, ',', '.') }}</div>
+                    <div class="muted">Dilunasi sebelum kirim/ambil barang</div>
+                </td>
+            </tr>
+        </table>
+
+        <div class="production-box">
+            <p><strong>Rekening pembayaran:</strong> BCA 012 345 6789 a.n. YokPrinting Indonesia. Konfirmasi transfer via WhatsApp admin setelah pembayaran DP atau pelunasan.</p>
+            @if ($invoice->design_notes)
+                <p style="margin-top: 8px;"><strong>Catatan desain/produksi:</strong> {{ $invoice->design_notes }}</p>
+            @endif
+            @if ($invoice->mockup_url)
+                <p style="margin-top: 8px;"><strong>Mockup:</strong> {{ $invoice->mockup_url }}</p>
+            @endif
+        </div>
+
         @if ($invoice->notes || $invoice->terms)
             <div class="notes">
                 @if ($invoice->notes)
@@ -326,5 +416,16 @@
                 @endif
             </div>
         @endif
+
+        <div class="terms-box">
+            <strong>Syarat & Ketentuan Percetakan</strong>
+            <ol>
+                <li>Produksi berjalan setelah DP minimal {{ rtrim(rtrim(number_format((float) $invoice->dp_required_percent, 2, ',', '.'), '0'), ',') }}% diterima dan mockup/desain sudah di-ACC.</li>
+                <li>Perubahan desain setelah ACC dapat mengubah estimasi waktu produksi dan biaya.</li>
+                <li>Selisih warna minor akibat material cup, tinta, dan proses sablon masih dalam toleransi produksi.</li>
+                <li>Barang yang sudah sesuai ACC desain tidak dapat diretur kecuali cacat produksi yang terverifikasi.</li>
+                <li>Pelunasan wajib diselesaikan sebelum barang dikirim atau diambil.</li>
+            </ol>
+        </div>
     </body>
 </html>

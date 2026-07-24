@@ -23,6 +23,7 @@ class InvoiceModelTest extends TestCase
             'due_date',
             'status',
             'payment_status',
+            'production_status',
             'currency',
             'subtotal',
             'discount_type',
@@ -31,8 +32,11 @@ class InvoiceModelTest extends TestCase
             'tax_rate',
             'tax_amount',
             'total_amount',
+            'dp_required_percent',
             'notes',
             'terms',
+            'design_notes',
+            'mockup_url',
             'template',
             'theme_color',
             'metadata',
@@ -64,6 +68,9 @@ class InvoiceModelTest extends TestCase
 
         $this->assertSame(Invoice::STATUS_DRAFT, $invoice->status);
         $this->assertSame(Invoice::PAYMENT_UNPAID, $invoice->payment_status);
+        $this->assertSame(Invoice::PRODUCTION_DRAFT, $invoice->production_status);
+        $this->assertSame('Drafting', $invoice->productionStatusLabel());
+        $this->assertSame(11204062.5, $invoice->requiredDpAmount());
         $this->assertSame('21250000.00', $invoice->subtotal);
         $this->assertSame(['source' => 'invoice-form'], $invoice->metadata);
         $this->assertTrue($invoice->issue_date->isSameDay('2026-07-23'));

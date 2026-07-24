@@ -77,6 +77,17 @@ const buildInvoiceDraftPayload = (form) => {
         due_date: form.querySelector('[name="due_date"]')?.value ?? '',
         items: productFields.map((productField, index) => ({
             product_id: Number(productField.value),
+            product_name: form.querySelector(`[name="items[${index}][product_name]"]`)?.value ?? '',
+            sku: form.querySelector(`[name="items[${index}][sku]"]`)?.value ?? '',
+            cup_size: form.querySelector(`[name="items[${index}][cup_size]"]`)?.value ?? '',
+            cup_model: form.querySelector(`[name="items[${index}][cup_model]"]`)?.value ?? '',
+            grammage: form.querySelector(`[name="items[${index}][grammage]"]`)?.value ?? '',
+            screen_printing_color: form.querySelector(`[name="items[${index}][screen_printing_color]"]`)?.value ?? '',
+            sides: Number(form.querySelector(`[name="items[${index}][sides]"]`)?.value) || null,
+            moq_quantity: Number(form.querySelector(`[name="items[${index}][moq_quantity]"]`)?.value) || null,
+            order_increment: Number(form.querySelector(`[name="items[${index}][order_increment]"]`)?.value) || null,
+            packaging_unit: form.querySelector(`[name="items[${index}][packaging_unit]"]`)?.value ?? 'pcs',
+            description: form.querySelector(`[name="items[${index}][description]"]`)?.value ?? '',
             quantity: Number(form.querySelector(`[name="items[${index}][quantity]"]`)?.value) || 0,
             price: Number(form.querySelector(`[name="items[${index}][price]"]`)?.value) || 0,
         })),
@@ -90,6 +101,10 @@ const buildInvoiceDraftPayload = (form) => {
         },
         notes: form.querySelector('[name="notes"]')?.value ?? '',
         terms: form.querySelector('[name="terms"]')?.value ?? '',
+        production_status: form.querySelector('[name="production_status"]')?.value ?? 'draft',
+        design_notes: form.querySelector('[name="design_notes"]')?.value ?? '',
+        mockup_url: form.querySelector('[name="mockup_url"]')?.value ?? '',
+        dp_required_percent: Number(form.querySelector('[name="dp_required_percent"]')?.value) || 50,
     };
 };
 
@@ -120,6 +135,14 @@ const validateInvoiceDraft = (payload) => {
         errors.items = 'Setiap baris harus memiliki produk.';
     } else if (payload.items.some((item) => item.quantity < 1)) {
         errors.items = 'Jumlah setiap item minimal 1.';
+    } else if (payload.items.some((item) => item.moq_quantity && item.quantity < item.moq_quantity)) {
+        const item = payload.items.find((row) => row.moq_quantity && row.quantity < row.moq_quantity);
+
+        errors.items = `Jumlah ${item.product_name || 'item'} minimal ${item.moq_quantity} ${item.packaging_unit || 'pcs'}.`;
+    } else if (payload.items.some((item) => item.order_increment && item.quantity % item.order_increment !== 0)) {
+        const item = payload.items.find((row) => row.order_increment && row.quantity % row.order_increment !== 0);
+
+        errors.items = `Jumlah ${item.product_name || 'item'} harus kelipatan ${item.order_increment} ${item.packaging_unit || 'pcs'}.`;
     } else if (payload.items.some((item) => item.price <= 0)) {
         errors.items = 'Harga setiap item harus lebih dari Rp0.';
     }
@@ -132,6 +155,10 @@ const validateInvoiceDraft = (payload) => {
 
     if (payload.tax.enabled && (payload.tax.rate < 0 || payload.tax.rate > 100)) {
         errors.tax_rate = 'Tarif PPN harus berada di antara 0–100%.';
+    }
+
+    if (payload.dp_required_percent < 0 || payload.dp_required_percent > 100) {
+        errors.dp_required_percent = 'Minimal DP harus berada di antara 0-100%.';
     }
 
     return errors;
@@ -780,7 +807,17 @@ Alpine.data('invoiceItems', () => ({
         return {
             key: this.nextKey++,
             productId: product.id,
-            quantity: 1,
+            productName: product.name,
+            sku: product.sku ?? '',
+            cupSize: product.cup_size ?? '16 Oz',
+            cupModel: product.cup_model ?? 'Oval',
+            grammage: product.grammage ?? '8gr',
+            screenPrintingColor: product.screen_printing_color ?? 'Hitam',
+            sides: Number(product.sides) || 1,
+            moqQuantity: Number(product.moq_quantity) || 1000,
+            orderIncrement: Number(product.order_increment) || 1000,
+            packagingUnit: product.packaging_unit ?? 'pcs',
+            quantity: Number(product.moq_quantity) || 1000,
             price: product.price,
         };
     },
@@ -797,12 +834,45 @@ Alpine.data('invoiceItems', () => ({
         const product = this.productFor(item.productId);
 
         if (product) {
+            item.productName = product.name;
+            item.sku = product.sku ?? '';
+            item.cupSize = product.cup_size ?? item.cupSize;
+            item.cupModel = product.cup_model ?? item.cupModel;
+            item.grammage = product.grammage ?? item.grammage;
+            item.screenPrintingColor = product.screen_printing_color ?? item.screenPrintingColor;
+            item.sides = Number(product.sides) || item.sides;
+            item.moqQuantity = Number(product.moq_quantity) || item.moqQuantity;
+            item.orderIncrement = Number(product.order_increment) || item.orderIncrement;
+            item.packagingUnit = product.packaging_unit ?? item.packagingUnit;
+            item.quantity = Math.max(Number(item.quantity) || 0, item.moqQuantity || 1);
             item.price = product.price;
+            this.normalizeQuantity(item);
         }
     },
 
     normalizeQuantity(item) {
-        item.quantity = Math.max(1, Number(item.quantity) || 1);
+        const minimum = Math.max(1, Number(item.moqQuantity) || 1);
+        const increment = Math.max(1, Number(item.orderIncrement) || minimum);
+        const requested = Math.max(minimum, Number(item.quantity) || minimum);
+        const overflow = requested % increment;
+
+        item.quantity = overflow === 0 ? requested : requested + (increment - overflow);
+    },
+
+    cupDescription(item) {
+        const specs = [item.cupSize, item.cupModel, item.grammage ? `(${item.grammage})` : '']
+            .filter(Boolean)
+            .join(' ');
+        const details = [
+            item.screenPrintingColor ? `Tinta ${item.screenPrintingColor}` : '',
+            item.sides ? `${item.sides} Sisi` : '',
+        ].filter(Boolean).join(' - ');
+
+        if (!specs) {
+            return item.productName ?? this.productName(item.productId);
+        }
+
+        return `Sablon Cup ${specs} - 1 Warna${details ? ` (${details})` : ''}`;
     },
 
     addItem() {

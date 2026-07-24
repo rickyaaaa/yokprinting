@@ -35,6 +35,14 @@ class InvoiceItem extends Model
         'product_id',
         'product_name',
         'sku',
+        'cup_size',
+        'cup_model',
+        'grammage',
+        'screen_printing_color',
+        'sides',
+        'moq_quantity',
+        'order_increment',
+        'packaging_unit',
         'description',
         'quantity',
         'unit',
@@ -66,9 +74,24 @@ class InvoiceItem extends Model
             'tax_amount' => 'decimal:2',
             'subtotal' => 'decimal:2',
             'total_amount' => 'decimal:2',
+            'sides' => 'integer',
+            'moq_quantity' => 'integer',
+            'order_increment' => 'integer',
             'sort_order' => 'integer',
             'metadata' => 'array',
         ];
+    }
+
+    /**
+     * Fill item descriptions from cup specs when no custom description is given.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (InvoiceItem $item): void {
+            if (! $item->description && $item->cup_size) {
+                $item->description = $item->cupSpecificationDescription();
+            }
+        });
     }
 
     /**
@@ -85,5 +108,35 @@ class InvoiceItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * Build a human-readable production item description for sablon cup orders.
+     */
+    public function cupSpecificationDescription(): string
+    {
+        $parts = array_filter([
+            $this->cup_size,
+            $this->cup_model,
+            $this->grammage ? "({$this->grammage})" : null,
+        ]);
+
+        if ($parts === []) {
+            return $this->product_name;
+        }
+
+        $ink = $this->screen_printing_color
+            ? "Tinta {$this->screen_printing_color}"
+            : null;
+        $sides = $this->sides
+            ? "{$this->sides} Sisi"
+            : null;
+        $detail = implode(' - ', array_filter([$ink, $sides]));
+
+        return trim(sprintf(
+            'Sablon Cup %s - 1 Warna%s',
+            implode(' ', $parts),
+            $detail !== '' ? " ({$detail})" : '',
+        ));
     }
 }

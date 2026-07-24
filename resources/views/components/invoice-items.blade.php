@@ -46,7 +46,7 @@
     ></div>
 
     <div x-show="!loadingProducts && !productError" class="overflow-x-auto">
-        <table class="w-full min-w-[780px] text-left">
+        <table class="w-full min-w-[1040px] text-left">
             <thead class="border-b border-line bg-canvas text-xs font-medium text-muted">
                 <tr>
                     <th class="w-[38%] px-6 py-3">Produk / Jasa</th>
@@ -83,6 +83,58 @@
                                 <span x-text="productFor(item.productId)?.category"></span>
                                 <span aria-hidden="true"> · </span>
                                 SKU: <span x-text="productFor(item.productId)?.sku"></span>
+                            </p>
+                            <input type="hidden" :name="`items[${index}][product_name]`" :value="item.productName || productName(item.productId)">
+                            <input type="hidden" :name="`items[${index}][sku]`" :value="item.sku">
+                            <input type="hidden" :name="`items[${index}][moq_quantity]`" :value="item.moqQuantity">
+                            <input type="hidden" :name="`items[${index}][order_increment]`" :value="item.orderIncrement">
+                            <input type="hidden" :name="`items[${index}][packaging_unit]`" :value="item.packagingUnit">
+                            <input type="hidden" :name="`items[${index}][description]`" :value="cupDescription(item)">
+
+                            <div class="mt-4 grid gap-3 rounded-lg border border-line bg-canvas p-3 sm:grid-cols-5">
+                                <div>
+                                    <label class="mb-1 block text-[11px] font-semibold text-muted" :for="`cup-size-${item.key}`">Ukuran</label>
+                                    <select :id="`cup-size-${item.key}`" x-model="item.cupSize" :name="`items[${index}][cup_size]`" class="form-control h-9 text-xs">
+                                        <option>12 Oz</option>
+                                        <option>14 Oz</option>
+                                        <option>16 Oz</option>
+                                        <option>18 Oz</option>
+                                        <option>22 Oz</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-[11px] font-semibold text-muted" :for="`cup-model-${item.key}`">Model</label>
+                                    <select :id="`cup-model-${item.key}`" x-model="item.cupModel" :name="`items[${index}][cup_model]`" class="form-control h-9 text-xs">
+                                        <option>Datar</option>
+                                        <option>Oval</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-[11px] font-semibold text-muted" :for="`grammage-${item.key}`">Gramasi</label>
+                                    <select :id="`grammage-${item.key}`" x-model="item.grammage" :name="`items[${index}][grammage]`" class="form-control h-9 text-xs">
+                                        <option>7gr</option>
+                                        <option>8gr</option>
+                                        <option>9gr</option>
+                                        <option>9.5gr</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-[11px] font-semibold text-muted" :for="`ink-${item.key}`">Tinta</label>
+                                    <input :id="`ink-${item.key}`" x-model="item.screenPrintingColor" :name="`items[${index}][screen_printing_color]`" class="form-control h-9 text-xs" placeholder="Hitam">
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-[11px] font-semibold text-muted" :for="`sides-${item.key}`">Sisi</label>
+                                    <select :id="`sides-${item.key}`" x-model.number="item.sides" :name="`items[${index}][sides]`" class="form-control h-9 text-xs">
+                                        <option :value="1">1 Sisi</option>
+                                        <option :value="2">2 Sisi</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <p class="mt-2 text-xs leading-5 text-muted">
+                                <span class="font-medium text-ink" x-text="cupDescription(item)"></span>
+                                <span aria-hidden="true"> Â· </span>
+                                MOQ <span x-text="`${item.moqQuantity} ${item.packagingUnit}`"></span>, kelipatan <span x-text="`${item.orderIncrement} ${item.packagingUnit}`"></span>.
                             </p>
                         </td>
                         <td class="px-3 py-4 align-top">

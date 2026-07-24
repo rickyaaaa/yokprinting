@@ -20,6 +20,14 @@ class InvoiceItemModelTest extends TestCase
             'product_id',
             'product_name',
             'sku',
+            'cup_size',
+            'cup_model',
+            'grammage',
+            'screen_printing_color',
+            'sides',
+            'moq_quantity',
+            'order_increment',
+            'packaging_unit',
             'description',
             'quantity',
             'unit',
@@ -34,6 +42,35 @@ class InvoiceItemModelTest extends TestCase
             'sort_order',
             'metadata',
         ]));
+    }
+
+    public function test_invoice_item_generates_cup_specification_description(): void
+    {
+        $invoice = Invoice::query()->create([
+            'customer_id' => 99,
+            'invoice_number' => 'INV-2026-0083',
+            'issue_date' => '2026-07-23',
+            'due_date' => '2026-08-06',
+        ]);
+
+        $item = InvoiceItem::query()->create([
+            'invoice_id' => $invoice->id,
+            'product_name' => 'Sablon Cup 16 Oz Oval',
+            'cup_size' => '16 Oz',
+            'cup_model' => 'Oval',
+            'grammage' => '8gr',
+            'screen_printing_color' => 'Hitam',
+            'sides' => 2,
+            'quantity' => 1000,
+            'unit_price' => 850,
+            'subtotal' => 850000,
+            'total_amount' => 850000,
+        ]);
+
+        $this->assertSame(
+            'Sablon Cup 16 Oz Oval (8gr) - 1 Warna (Tinta Hitam - 2 Sisi)',
+            $item->refresh()->description,
+        );
     }
 
     public function test_invoice_item_preserves_product_snapshot_and_belongs_to_invoice(): void

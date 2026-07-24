@@ -35,12 +35,23 @@ class CalculateInvoiceTotals
                     'product_id' => $item['product_id'],
                     'product_name' => $item['product_name'] ?? "Produk #{$item['product_id']}",
                     'sku' => $item['sku'] ?? null,
+                    'cup_size' => $item['cup_size'] ?? null,
+                    'cup_model' => $item['cup_model'] ?? null,
+                    'grammage' => $item['grammage'] ?? null,
+                    'screen_printing_color' => $item['screen_printing_color'] ?? null,
+                    'sides' => $item['sides'] ?? null,
+                    'moq_quantity' => $item['moq_quantity'] ?? null,
+                    'order_increment' => $item['order_increment'] ?? null,
+                    'packaging_unit' => $item['packaging_unit'] ?? null,
                     'description' => $item['description'] ?? null,
                     'quantity' => $quantity,
                     'unit_price' => $unitPrice,
                     'subtotal' => $subtotal,
                     'total_amount' => $subtotal,
                     'sort_order' => $index,
+                    'metadata' => [
+                        'industry' => 'sablon-cup-fnb',
+                    ],
                 ];
             });
 

@@ -4,6 +4,7 @@
         'status' => 'Menunggu pembayaran',
         'customer' => 'PT Sinar Nusantara',
         'email' => 'finance@sinarnusantara.co.id',
+        'phone' => '+62 812 9900 1188',
         'address' => 'Jl. Jenderal Sudirman No. 88, Jakarta Selatan',
         'issued_at' => '23 Juli 2026',
         'due_at' => '30 Juli 2026',
@@ -15,12 +16,43 @@
         'paid' => 'Rp12.000.000',
         'remaining' => 'Rp6.450.000',
         'progress' => 65,
+        'production_status' => 'ACC Mockup/Desain',
+        'dp_required' => 'Rp9.225.000',
+        'design_notes' => 'Logo tengah, tinta hitam pekat, mockup sudah dikirim ke customer untuk ACC final.',
+        'mockup_url' => 'https://yokprinting.id/mockup/INV-2026-0084',
     ];
 
     $items = [
-        ['name' => 'Paket desain brand refresh', 'quantity' => 1, 'price' => 'Rp12.000.000', 'total' => 'Rp12.000.000'],
-        ['name' => 'Cetak katalog premium 500 eksemplar', 'quantity' => 1, 'price' => 'Rp6.000.000', 'total' => 'Rp6.000.000'],
+        ['name' => 'Sablon Cup 16 Oz Oval (8gr)', 'spec' => 'Tinta Hitam · 2 Sisi · MOQ 1.000 pcs', 'quantity' => '10.000 pcs', 'price' => 'Rp850', 'total' => 'Rp8.500.000'],
+        ['name' => 'Sablon Cup 12 Oz Datar (7gr)', 'spec' => 'Tinta Putih · 1 Sisi · MOQ 1.000 pcs', 'quantity' => '8.000 pcs', 'price' => 'Rp700', 'total' => 'Rp5.600.000'],
+        ['name' => 'Dus Kemasan Cup 16 Oz', 'spec' => 'Packing pengiriman · kelipatan 10 dus', 'quantity' => '200 dus', 'price' => 'Rp19.500', 'total' => 'Rp3.900.000'],
     ];
+
+    $productionSteps = [
+        'Drafting',
+        'Menunggu DP',
+        'ACC Mockup/Desain',
+        'Proses Sablon/Cetak',
+        'Siap Diambil/Kirim',
+        'Lunas & Selesai',
+    ];
+
+    $currentProductionIndex = array_search($invoice['production_status'], $productionSteps, true);
+
+    $waMessage = implode("\n", [
+        "Halo {$invoice['customer']},",
+        '',
+        "Berikut invoice dari YokPrinting.ID:",
+        "Invoice: {$invoice['number']}",
+        "Total tagihan: {$invoice['total']}",
+        "DP/pembayaran diterima: {$invoice['paid']}",
+        "Sisa pelunasan: {$invoice['remaining']}",
+        "Link invoice: http://127.0.0.1:8000/invoices/preview",
+        '',
+        'Mohon konfirmasi pembayaran/ACC desain agar produksi bisa kami lanjutkan. Terima kasih.',
+    ]);
+
+    $waLink = 'https://wa.me/6281299001188?text='.rawurlencode($waMessage);
 
     $payments = [
         ['date' => '24 Juli 2026', 'method' => 'Transfer BCA', 'reference' => 'BCA-77219', 'amount' => 'Rp8.000.000', 'status' => 'Terverifikasi'],
@@ -113,6 +145,12 @@
                                 </svg>
                                 Lihat invoice
                             </a>
+                            <a href="{{ $waLink }}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3.5 py-2 text-sm font-semibold text-green-800 hover:bg-green-100">
+                                <svg class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                    <path d="M12.04 3.5a8.45 8.45 0 0 0-7.3 12.7L3.75 20l3.9-1.02A8.44 8.44 0 1 0 12.04 3.5Zm0 1.45a6.99 6.99 0 0 1 5.92 10.72 6.99 6.99 0 0 1-9.98 1.86l-.28-.17-2.31.61.62-2.25-.18-.29a7 7 0 0 1 6.21-10.48Zm-2.2 3.48c-.15-.34-.31-.35-.46-.36h-.4c-.14 0-.36.05-.55.26-.19.21-.72.7-.72 1.7s.74 1.98.84 2.12c.1.14 1.43 2.29 3.55 3.12 1.76.7 2.12.56 2.5.52.38-.03 1.23-.5 1.4-.99.18-.48.18-.9.13-.99-.05-.09-.19-.14-.4-.24-.2-.1-1.23-.61-1.42-.68-.19-.07-.33-.1-.47.1-.14.21-.54.68-.66.82-.12.14-.24.16-.45.05-.2-.1-.87-.32-1.66-1.02-.61-.55-1.03-1.23-1.15-1.43-.12-.21-.01-.32.09-.42.09-.09.2-.24.31-.36.1-.12.14-.21.2-.35.07-.14.04-.26-.02-.36-.05-.1-.46-1.12-.64-1.52Z"/>
+                                </svg>
+                                Kirim via WA
+                            </a>
                             <a href="#record-payment" class="inline-flex items-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800">
                                 <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                                     <path d="M12 5v14M5 12h14" stroke-linecap="round"/>
@@ -133,7 +171,7 @@
                                     <div>
                                         <p class="text-xs font-semibold text-muted">Ditagihkan kepada</p>
                                         <h3 class="mt-2 text-lg font-semibold text-ink">{{ $invoice['customer'] }}</h3>
-                                        <p class="mt-2 text-sm leading-6 text-muted">{{ $invoice['address'] }}<br>{{ $invoice['email'] }}</p>
+                                        <p class="mt-2 text-sm leading-6 text-muted">{{ $invoice['address'] }}<br>{{ $invoice['email'] }}<br>{{ $invoice['phone'] }}</p>
                                     </div>
                                     <dl class="grid grid-cols-[1fr_auto] gap-x-6 gap-y-3 text-sm">
                                         <dt class="text-muted">Nomor invoice</dt>
@@ -166,7 +204,10 @@
                                         <tbody class="divide-y divide-line">
                                             @foreach ($items as $item)
                                                 <tr>
-                                                    <td class="px-5 py-4 font-medium text-ink sm:px-6">{{ $item['name'] }}</td>
+                                                    <td class="px-5 py-4 sm:px-6">
+                                                        <p class="font-medium text-ink">{{ $item['name'] }}</p>
+                                                        <p class="mt-1 text-xs text-muted">{{ $item['spec'] }}</p>
+                                                    </td>
                                                     <td class="px-5 py-4 text-center text-muted">{{ $item['quantity'] }}</td>
                                                     <td class="px-5 py-4 text-right text-muted">{{ $item['price'] }}</td>
                                                     <td class="px-5 py-4 text-right font-semibold text-ink sm:px-6">{{ $item['total'] }}</td>
@@ -193,6 +234,49 @@
                                         <dd class="text-lg font-bold tracking-[-0.025em] text-brand-800">{{ $invoice['total'] }}</dd>
                                     </div>
                                 </dl>
+                            </section>
+
+                            <section class="rounded-xl bg-white border border-line" aria-labelledby="production-workflow-heading">
+                                <div class="border-b border-line px-5 py-4 sm:px-6">
+                                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                        <div>
+                                            <h2 id="production-workflow-heading" class="font-semibold text-ink">Workflow produksi</h2>
+                                            <p class="mt-1 text-sm text-muted">Pantau alur dari DP, ACC desain, sablon/cetak, sampai pengiriman.</p>
+                                        </div>
+                                        <span class="inline-flex w-fit rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">{{ $invoice['production_status'] }}</span>
+                                    </div>
+                                </div>
+                                <div class="p-5 sm:p-6">
+                                    <ol class="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+                                        @foreach ($productionSteps as $index => $step)
+                                            @php
+                                                $isDone = $index < $currentProductionIndex;
+                                                $isCurrent = $index === $currentProductionIndex;
+                                                $stepClass = $isCurrent
+                                                    ? 'border-brand-300 bg-brand-50 text-brand-900'
+                                                    : ($isDone ? 'border-green-200 bg-green-50 text-green-900' : 'border-line bg-canvas text-muted');
+                                            @endphp
+                                            <li class="rounded-lg border p-3 {{ $stepClass }}">
+                                                <span class="grid size-7 place-items-center rounded-full {{ $isCurrent ? 'bg-brand-700 text-white' : ($isDone ? 'bg-green-700 text-white' : 'bg-white text-muted') }} text-xs font-bold">
+                                                    {{ $isDone ? '✓' : $index + 1 }}
+                                                </span>
+                                                <p class="mt-3 text-sm font-semibold">{{ $step }}</p>
+                                            </li>
+                                        @endforeach
+                                    </ol>
+
+                                    <div class="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
+                                        <div class="rounded-lg border border-line bg-canvas p-4">
+                                            <p class="text-xs font-semibold text-muted">Catatan desain / posisi logo</p>
+                                            <p class="mt-2 text-sm leading-6 text-ink">{{ $invoice['design_notes'] }}</p>
+                                        </div>
+                                        <a href="{{ $invoice['mockup_url'] }}" target="_blank" rel="noopener" class="rounded-lg border border-brand-200 bg-brand-50 p-4 text-sm text-brand-900 hover:bg-brand-100">
+                                            <span class="text-xs font-semibold text-brand-800">Mockup/attachment</span>
+                                            <span class="mt-2 block font-semibold">Buka file mockup</span>
+                                            <span class="mt-1 block break-all text-xs text-brand-800">{{ $invoice['mockup_url'] }}</span>
+                                        </a>
+                                    </div>
+                                </div>
                             </section>
 
                             <section
@@ -356,6 +440,11 @@
                                         <p class="text-xs font-semibold text-red-800">Sisa tagihan</p>
                                         <p class="mt-1 text-xl font-bold tracking-[-0.025em] text-red-900">{{ $invoice['remaining'] }}</p>
                                         <p class="mt-2 text-xs leading-5 text-red-800">Jatuh tempo {{ $invoice['due_at'] }}. Kirim pengingat bila belum ada pembayaran lanjutan.</p>
+                                    </div>
+                                    <div class="mt-3 rounded-lg border border-brand-200 bg-brand-50 p-4">
+                                        <p class="text-xs font-semibold text-brand-800">Minimal DP sebelum produksi</p>
+                                        <p class="mt-1 text-xl font-bold tracking-[-0.025em] text-brand-900">{{ $invoice['dp_required'] }}</p>
+                                        <p class="mt-2 text-xs leading-5 text-brand-800">Jika DP sudah aman dan mockup ACC, status bisa naik ke proses sablon/cetak.</p>
                                     </div>
                                 </div>
 
