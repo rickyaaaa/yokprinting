@@ -77,7 +77,7 @@ class StockMovementApiTest extends TestCase
             'stock' => 1200,
             'minimum_stock' => 500,
             'minimum_order_qty' => 1000,
-            'package_conversion' => 1000,
+            'package_conversion' => 500,
             'track_stock' => true,
         ]);
 

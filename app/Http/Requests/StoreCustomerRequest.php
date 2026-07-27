@@ -34,7 +34,13 @@ class StoreCustomerRequest extends FormRequest
             'province' => ['sometimes', 'nullable', 'string', 'max:100'],
             'postal_code' => ['sometimes', 'nullable', 'string', 'max:20'],
             'tax_number' => ['sometimes', 'nullable', 'string', 'max:50'],
-            'status' => ['sometimes', Rule::in([Customer::STATUS_ACTIVE, Customer::STATUS_INACTIVE])],
+            'status' => ['sometimes', Rule::in([
+                Customer::STATUS_ACTIVE,
+                Customer::STATUS_INACTIVE,
+                Customer::STATUS_INACTIVE_1M,
+                Customer::STATUS_AUTO_FOLLOWUP,
+            ])],
+            'last_order_at' => ['sometimes', 'nullable', 'date'],
             'notes' => ['sometimes', 'nullable', 'string', 'max:2000'],
         ];
     }

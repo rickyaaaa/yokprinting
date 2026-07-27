@@ -5,6 +5,8 @@
         discountValue: 5,
         taxEnabled: true,
         taxRate: 11,
+        shippingCost: 0,
+        isFreeShipping: false,
         clamp(value, minimum, maximum) {
             return Math.min(maximum, Math.max(minimum, Number(value) || 0));
         },
@@ -24,7 +26,13 @@
                 : 0;
         },
         get grandTotal() {
-            return this.taxableBase + this.taxAmount;
+            return this.taxableBase + this.taxAmount + (this.isFreeShipping ? 0 : Math.max(0, Number(this.shippingCost) || 0));
+        },
+        get shippingLabel() {
+            return this.isFreeShipping ? 'Free ongkir ditanggung perusahaan' : 'Ongkir dibayar customer';
+        },
+        normalizeShipping() {
+            this.shippingCost = Math.max(0, Number(this.shippingCost) || 0);
         },
         normalizeDiscount() {
             const maximum = this.discountType === 'percentage' ? 100 : this.subtotal;
@@ -124,6 +132,36 @@
                 <p x-show="fieldErrors?.tax_rate" x-text="fieldErrors?.tax_rate" class="mt-1.5 text-xs font-medium text-red-700"></p>
             </div>
         </div>
+
+        <div class="mt-4 grid gap-3">
+            <div>
+                <label for="shipping-cost" class="mb-1.5 block text-xs font-medium text-muted">Ongkir</label>
+                <div class="relative">
+                    <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted">Rp</span>
+                    <input
+                        id="shipping-cost"
+                        x-model.number="shippingCost"
+                        name="shipping_cost"
+                        data-validation-field="shipping_cost"
+                        type="number"
+                        min="0"
+                        step="1000"
+                        class="form-control pl-9 text-right"
+                        :class="{ 'border-red-400 ring-2 ring-red-100': fieldErrors?.shipping_cost }"
+                        :aria-invalid="Boolean(fieldErrors?.shipping_cost)"
+                        @blur="normalizeShipping()"
+                    >
+                </div>
+                <p x-show="fieldErrors?.shipping_cost" x-text="fieldErrors?.shipping_cost" class="mt-1.5 text-xs font-medium text-red-700"></p>
+            </div>
+            <label class="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm font-medium text-ink">
+                <span>
+                    <span class="block">Free Ongkir</span>
+                    <span class="mt-0.5 block text-xs font-normal text-muted" x-text="shippingLabel"></span>
+                </span>
+                <input type="checkbox" x-model="isFreeShipping" name="is_free_shipping" class="size-4 accent-brand-700">
+            </label>
+        </div>
     </div>
 
     <div class="space-y-3 px-5 py-5 text-sm" aria-live="polite">
@@ -144,6 +182,10 @@
                 <span class="text-xs" x-show="taxEnabled" x-text="`(${clamp(taxRate, 0, 100)}%)`"></span>
             </span>
             <span class="font-medium text-ink" data-testid="summary-tax" x-text="formatCurrency(taxAmount)"></span>
+        </div>
+        <div class="flex items-center justify-between gap-4 text-muted">
+            <span x-text="isFreeShipping ? 'Ongkir gratis' : 'Ongkir'"></span>
+            <span class="font-medium" :class="isFreeShipping ? 'text-red-700' : 'text-ink'" data-testid="summary-shipping" x-text="isFreeShipping ? `− ${formatCurrency(shippingCost)}` : formatCurrency(shippingCost)"></span>
         </div>
         <div class="my-1 border-t border-dashed border-line"></div>
         <div class="flex items-end justify-between gap-4">

@@ -16,6 +16,10 @@ class Customer extends Model
 
     public const STATUS_INACTIVE = 'inactive';
 
+    public const STATUS_INACTIVE_1M = 'inactive_1m';
+
+    public const STATUS_AUTO_FOLLOWUP = 'auto_followup';
+
     public const ACTIVITY_ACTIVE = 'active';
 
     public const ACTIVITY_NEEDS_FOLLOW_UP = 'needs_follow_up';
@@ -57,7 +61,20 @@ class Customer extends Model
         'tax_number',
         'status',
         'notes',
+        'last_order_at',
     ];
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'last_order_at' => 'datetime',
+        ];
+    }
 
     /**
      * Get the customer's display initials.
@@ -95,7 +112,7 @@ class Customer extends Model
      */
     public function getActivityStatusAttribute(): string
     {
-        $latestPaidAt = $this->paidInvoices()
+        $latestPaidAt = $this->last_order_at ?? $this->paidInvoices()
             ->selectRaw('COALESCE(paid_at, issue_date) as latest_paid_at')
             ->orderByRaw('COALESCE(paid_at, issue_date) desc')
             ->value('latest_paid_at');

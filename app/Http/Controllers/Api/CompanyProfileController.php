@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\UploadCompanyLogoRequest;
 use App\Http\Requests\UpdateCompanyProfileRequest;
+use App\Http\Requests\UploadCompanyLogoRequest;
 use App\Models\CompanyProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;

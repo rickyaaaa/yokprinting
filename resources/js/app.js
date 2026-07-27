@@ -18,7 +18,14 @@ import { listCustomers } from './services/customer-api';
 import { sendInvoiceEmail } from './services/invoice-delivery-api';
 import { saveInvoiceDraft } from './services/invoice-api';
 import { downloadInvoicePdf } from './services/invoice-pdf-api';
-import { listProducts } from './services/product-api';
+import {
+    createProduct,
+    deleteProduct,
+    getProduct,
+    listProductCatalog,
+    listProducts,
+    updateProduct as updateCatalogProduct,
+} from './services/product-api';
 
 window.Alpine = Alpine;
 
@@ -68,7 +75,10 @@ const dashboardRevenueDatasets = {
 const minutesAgo = (minutes) => new Date(Date.now() - minutes * 60 * 1000).toISOString();
 
 const buildInvoiceDraftPayload = (form) => {
-    const productFields = [...form.querySelectorAll('select[name^="items"][name$="[product_id]"]')];
+    const explicitProductFields = [...form.querySelectorAll('[data-product-id-field]')];
+    const productFields = explicitProductFields.length > 0
+        ? explicitProductFields
+        : [...form.querySelectorAll('select[name^="items"][name$="[product_id]"]')];
 
     return {
         customer_id: Number(form.querySelector('[name="customer_id"]')?.value) || null,
@@ -101,9 +111,9 @@ const buildInvoiceDraftPayload = (form) => {
         },
         notes: form.querySelector('[name="notes"]')?.value ?? '',
         terms: form.querySelector('[name="terms"]')?.value ?? '',
-            production_status: form.querySelector('[name="production_status"]')?.value ?? 'draft',
-        shipping_type: form.querySelector('[name="shipping_type"]')?.value ?? 'none',
+        production_status: form.querySelector('[name="production_status"]')?.value ?? 'draft',
         shipping_cost: Number(form.querySelector('[name="shipping_cost"]')?.value) || 0,
+        is_free_shipping: form.querySelector('[name="is_free_shipping"]')?.checked ?? false,
         order_process_status: form.querySelector('[name="order_process_status"]')?.value ?? 'draft',
         design_notes: form.querySelector('[name="design_notes"]')?.value ?? '',
         mockup_url: form.querySelector('[name="mockup_url"]')?.value ?? '',
@@ -828,6 +838,7 @@ Alpine.data('invoiceItems', () => ({
     nextKey: 1,
     loadingProducts: true,
     productError: '',
+    productSearch: '',
 
     async init() {
         await this.loadProducts();
@@ -867,14 +878,16 @@ Alpine.data('invoiceItems', () => ({
             productId: product.id,
             productName: product.name,
             sku: product.sku ?? '',
-            cupSize: product.cup_size ?? '16 Oz',
+            productSearch: this.productLabel(product),
+            pickerOpen: false,
+            cupSize: '12 Oz',
             cupModel: product.cup_model ?? 'Oval',
             grammage: product.grammage ?? '8gr',
             screenPrintingColor: product.screen_printing_color ?? 'Hitam',
             jenisCetak: product.sides ? `${product.sides} warna` : '1 warna',
             moqQuantity: Number(product.minimum_order_qty || product.moq_quantity) || 1,
             orderIncrement: Number(product.package_conversion || product.order_increment) || 1,
-            packagingUnit: product.unit ?? product.packaging_unit ?? 'PCS',
+            packagingUnit: product.unit ?? product.packaging_unit ?? 'Pcs',
             quantity: Number(product.minimum_order_qty || product.moq_quantity) || 1,
             price: product.price ?? 0,
         };
@@ -888,13 +901,88 @@ Alpine.data('invoiceItems', () => ({
         return this.productFor(productId)?.name ?? 'Item invoice';
     },
 
+    productLabel(product) {
+        if (! product) {
+            return '';
+        }
+
+        return [product.sku ?? product.code, product.name].filter(Boolean).join(' — ');
+    },
+
+    productMeta(product) {
+        return [
+            product.brand,
+            product.category,
+            product.short_description,
+        ].filter(Boolean).join(' · ');
+    },
+
+    productSearchText(product) {
+        return [
+            product.sku,
+            product.code,
+            product.name,
+            product.brand,
+            product.category,
+            product.short_description,
+        ].filter(Boolean).join(' ').toLowerCase();
+    },
+
+    filteredProductsFor(item) {
+        const keyword = (item.productSearch ?? '').trim().toLowerCase();
+
+        if (! keyword) {
+            return this.products.slice(0, 20);
+        }
+
+        const matches = this.products
+            .filter((product) => this.productSearchText(product).includes(keyword))
+            .slice(0, 20);
+        const selected = this.productFor(item.productId);
+
+        if (selected && ! matches.some((product) => Number(product.id) === Number(selected.id))) {
+            return [selected, ...matches];
+        }
+
+        return matches;
+    },
+
+    filteredSelectionProducts(item) {
+        const selected = this.productFor(item.productId);
+
+        if (! selected) {
+            return this.products;
+        }
+
+        return [
+            selected,
+            ...this.products.filter((product) => Number(product.id) !== Number(selected.id)),
+        ];
+    },
+
+    openProductPicker(item) {
+        item.pickerOpen = true;
+    },
+
+    toggleProductPicker(item) {
+        item.pickerOpen = ! item.pickerOpen;
+    },
+
+    selectProduct(item, product) {
+        item.productId = product.id;
+        item.productSearch = this.productLabel(product);
+        item.pickerOpen = false;
+        this.updateProduct(item);
+    },
+
     updateProduct(item) {
         const product = this.productFor(item.productId);
 
         if (product) {
             item.productName = product.name;
             item.sku = product.sku ?? '';
-            item.cupSize = product.cup_size ?? item.cupSize;
+            item.productSearch = this.productLabel(product);
+            item.cupSize = '12 Oz';
             item.cupModel = product.cup_model ?? item.cupModel;
             item.grammage = product.grammage ?? item.grammage;
             item.screenPrintingColor = product.screen_printing_color ?? item.screenPrintingColor;
@@ -1460,6 +1548,8 @@ Alpine.data('productIndexTable', (initialProducts = []) => ({
     statusFilter: 'all',
     categoryFilter: 'all',
     products: initialProducts,
+    loading: false,
+    error: '',
 
     statusOptions: [
         { key: 'all', label: 'Semua Status' },
@@ -1470,11 +1560,60 @@ Alpine.data('productIndexTable', (initialProducts = []) => ({
 
     categoryOptions: [
         { key: 'all', label: 'Semua Kategori' },
-        { key: 'Jasa desain', label: 'Jasa desain' },
-        { key: 'Cetak premium', label: 'Cetak premium' },
-        { key: 'Materi promosi', label: 'Materi promosi' },
-        { key: 'Paket bundling', label: 'Paket bundling' },
     ],
+
+    async init() {
+        await this.loadProducts();
+    },
+
+    async loadProducts() {
+        this.loading = true;
+        this.error = '';
+
+        try {
+            const response = await listProductCatalog();
+
+            this.products = response.data.map((product) => this.normalizeProduct(product));
+            this.categoryOptions = [
+                { key: 'all', label: 'Semua Kategori' },
+                ...[...new Set(this.products.map((product) => product.category).filter(Boolean))]
+                    .sort((a, b) => a.localeCompare(b, 'id'))
+                    .map((category) => ({ key: category, label: category })),
+            ];
+        } catch (error) {
+            this.error = error?.message ?? 'Data produk belum dapat dimuat.';
+        } finally {
+            this.loading = false;
+        }
+    },
+
+    normalizeProduct(product) {
+        const stockValue = product.stock === null ? 0 : Number(product.stock) || 0;
+        const minimumStock = Number(product.minimum_stock) || 0;
+        const status = product.status === 'inactive'
+            ? 'Nonaktif'
+            : minimumStock > 0 && stockValue <= minimumStock
+                ? 'Stok menipis'
+                : 'Aktif';
+
+        return {
+            id: product.id,
+            sku: product.sku ?? product.code,
+            name: product.name,
+            category: product.category ?? 'Lainnya',
+            brand: product.brand ?? '',
+            unit: product.unit ?? 'Pcs',
+            purchasePrice: formatRupiah(Number(product.purchase_price) || 0),
+            purchasePriceValue: Number(product.purchase_price) || 0,
+            stock: product.track_stock === false ? 'Tidak dilacak' : `${stockValue} ${product.unit ?? 'Pcs'}`,
+            stockValue: product.track_stock === false ? 999999 : stockValue,
+            minimumStock,
+            sales: product.sales ?? 0,
+            status,
+            rawStatus: product.status,
+            trackStock: product.track_stock,
+        };
+    },
 
     get isFiltered() {
         return this.query.trim() !== '' ||
@@ -1559,6 +1698,15 @@ Alpine.data('productIndexTable', (initialProducts = []) => ({
         this.categoryFilter = 'all';
     },
 
+    async deleteProduct(product) {
+        if (!window.confirm(`Hapus produk ${product.sku} - ${product.name}?`)) {
+            return;
+        }
+
+        await deleteProduct(product.id);
+        this.products = this.products.filter((item) => item.id !== product.id);
+    },
+
     statusClass(status) {
         return {
             Aktif: 'bg-green-100 text-green-800',
@@ -1572,18 +1720,66 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
     isEdit: isEditMode,
     saving: false,
     saved: false,
+    loading: false,
+    error: '',
     fieldErrors: {},
     form: {
+        id: initialForm.id ?? null,
         sku: initialForm.sku ?? 'PRN-NEW-01',
         name: initialForm.name ?? '',
         category: initialForm.category ?? 'Cetak premium',
-        unit: 'PCS',
+        brand: initialForm.brand ?? '',
+        unit: initialForm.unit ?? 'Pcs',
         purchasePrice: initialForm.purchasePrice ?? initialForm.purchase_price ?? 0,
         stock: initialForm.stock ?? 10,
         minimumStock: initialForm.minimumStock ?? 5,
+        minimumOrderQty: initialForm.minimumOrderQty ?? initialForm.minimum_order_qty ?? 1000,
+        packageConversion: initialForm.packageConversion ?? initialForm.package_conversion ?? 500,
+        shortDescription: initialForm.shortDescription ?? initialForm.short_description ?? '',
         status: initialForm.status ?? 'Aktif',
         description: initialForm.description ?? '',
         trackStock: initialForm.trackStock ?? true,
+    },
+
+    async init() {
+        if (!this.isEdit || !this.form.id) {
+            this.form.sku = '';
+
+            return;
+        }
+
+        this.loading = true;
+        this.error = '';
+
+        try {
+            const response = await getProduct(this.form.id);
+
+            this.form = this.normalizeProduct(response.data);
+        } catch (error) {
+            this.error = error?.message ?? 'Detail produk belum dapat dimuat.';
+        } finally {
+            this.loading = false;
+        }
+    },
+
+    normalizeProduct(product) {
+        return {
+            id: product.id,
+            sku: product.sku ?? product.code ?? '',
+            name: product.name ?? '',
+            category: product.category ?? 'Cup PP',
+            brand: product.brand ?? '',
+            unit: product.unit ?? 'Pcs',
+            purchasePrice: Number(product.purchase_price) || 0,
+            stock: Number(product.stock) || 0,
+            minimumStock: Number(product.minimum_stock) || 0,
+            minimumOrderQty: Number(product.minimum_order_qty) || 1000,
+            packageConversion: Number(product.package_conversion) || 500,
+            shortDescription: product.short_description ?? '',
+            status: product.status === 'inactive' ? 'Nonaktif' : 'Aktif',
+            description: product.description ?? '',
+            trackStock: product.track_stock ?? true,
+        };
     },
 
     get validationMessages() {
@@ -1615,10 +1811,6 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
     validate() {
         const errors = {};
 
-        if (!this.form.sku.trim()) {
-            errors.sku = 'SKU produk wajib diisi.';
-        }
-
         if (!this.form.name.trim()) {
             errors.name = 'Nama produk wajib diisi.';
         }
@@ -1637,10 +1829,44 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
             }
         }
 
+        if ((Number(this.form.minimumOrderQty) || 0) < 1) {
+            errors.minimumOrderQty = 'Minimum order wajib minimal 1 pcs.';
+        }
+
+        if ((Number(this.form.packageConversion) || 0) < 1) {
+            errors.packageConversion = 'Kelipatan order wajib minimal 1 pcs.';
+        }
+
         return errors;
     },
 
-    submit() {
+    payload() {
+        return {
+            sku: this.form.sku.trim() || null,
+            name: this.form.name.trim(),
+            category: this.form.category,
+            brand: this.form.brand || null,
+            unit: 'Pcs',
+            purchase_price: Number(this.form.purchasePrice) || 0,
+            stock: this.form.trackStock ? Number(this.form.stock) || 0 : null,
+            minimum_stock: this.form.trackStock ? Number(this.form.minimumStock) || 0 : 0,
+            minimum_order_qty: Number(this.form.minimumOrderQty) || 1000,
+            package_conversion: Number(this.form.packageConversion) || 500,
+            short_description: this.form.shortDescription || null,
+            description: this.form.description || this.form.shortDescription || null,
+            track_stock: Boolean(this.form.trackStock),
+            status: this.form.status === 'Nonaktif' ? 'inactive' : 'active',
+        };
+    },
+
+    applyApiErrors(errors = {}) {
+        this.fieldErrors = Object.entries(errors).reduce((fields, [field, messages]) => ({
+            ...fields,
+            [field.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())]: Array.isArray(messages) ? messages[0] : messages,
+        }), {});
+    },
+
+    async submit() {
         if (this.saving) {
             return;
         }
@@ -1653,11 +1879,24 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
         }
 
         this.saving = true;
+        this.error = '';
 
-        window.setTimeout(() => {
+        try {
+            const response = this.isEdit
+                ? await updateCatalogProduct(this.form.id, this.payload())
+                : await createProduct(this.payload());
+
+            this.form = this.normalizeProduct(response.data);
             this.saved = true;
+        } catch (error) {
+            this.error = error?.message ?? 'Produk belum dapat disimpan.';
+
+            if (error?.errors) {
+                this.applyApiErrors(error.errors);
+            }
+        } finally {
             this.saving = false;
-        }, 450);
+        }
     },
 
     statusClass(status) {

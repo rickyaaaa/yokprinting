@@ -133,7 +133,7 @@ class ProductCrudApiTest extends TestCase
             'status' => 'archived',
             'sort' => 'updated_at',
             'direction' => 'sideways',
-            'limit' => 101,
+            'limit' => 151,
         ]))
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['status', 'sort', 'direction', 'limit']);

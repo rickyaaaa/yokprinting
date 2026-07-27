@@ -26,7 +26,7 @@ class StoreInvoiceDraftApiTest extends TestCase
             ->assertJsonPath('data.tax_amount', '2220625.00')
             ->assertJsonPath('data.shipping_type', 'none')
             ->assertJsonPath('data.total_hpp', '10250000.00')
-            ->assertJsonPath('data.gross_profit', '9937500.00')
+            ->assertJsonPath('data.gross_profit', '12158125.00')
             ->assertJsonPath('data.total_amount', '22408125.00')
             ->assertJsonPath('data.items_count', 2);
 
@@ -53,21 +53,21 @@ class StoreInvoiceDraftApiTest extends TestCase
             ->whereKey($payload['items'][0]['product_id'])
             ->update([
                 'minimum_order_qty' => 1000,
-                'package_conversion' => 1000,
-                'unit' => 'PCS',
+                'package_conversion' => 500,
+                'unit' => 'Pcs',
             ]);
         $payload['items'] = [
             [
                 'product_id' => 1,
-                'product_name' => 'Sablon Cup 16 Oz Oval',
-                'sku' => 'CUP-16OV-8G-2S',
-                'cup_size' => '16 Oz',
+                'product_name' => 'Sablon Cup 12 Oz Oval',
+                'sku' => 'H-016',
+                'cup_size' => '12 Oz',
                 'cup_model' => 'Oval',
                 'grammage' => '8gr',
                 'screen_printing_color' => 'Hitam',
                 'jenis_cetak' => '2 warna',
                 'moq_quantity' => 1000,
-                'order_increment' => 1000,
+                'order_increment' => 500,
                 'packaging_unit' => 'pcs',
                 'quantity' => 2000,
                 'price' => 850,
@@ -96,19 +96,29 @@ class StoreInvoiceDraftApiTest extends TestCase
             'mockup_url' => 'https://yokprinting.id/mockup/INV-2026-0090',
         ]);
         $this->assertDatabaseHas('invoice_items', [
-            'product_name' => 'Sablon Cup 16 Oz Oval',
-            'sku' => 'CUP-16OV-8G-2S',
-            'cup_size' => '16 Oz',
+            'product_name' => 'Sablon Cup 12 Oz Oval',
+            'sku' => 'H-016',
+            'cup_size' => '12 Oz',
             'cup_model' => 'Oval',
             'grammage' => '8gr',
             'screen_printing_color' => 'Hitam',
             'jenis_cetak' => '2 warna',
             'moq_quantity' => 1000,
-            'order_increment' => 1000,
-            'packaging_unit' => 'PCS',
-            'description' => 'Sablon Cup 16 Oz Oval (8gr) - 2 warna (Tinta Hitam)',
+            'order_increment' => 500,
+            'packaging_unit' => 'Pcs',
+            'description' => 'Sablon Cup 12 Oz Oval (8gr) - 2 warna (Tinta Hitam)',
             'subtotal' => 1700000,
         ]);
+    }
+
+    public function test_invoice_draft_rejects_non_12_oz_cup_size(): void
+    {
+        $payload = $this->validPayload();
+        $payload['items'][0]['cup_size'] = '16 Oz';
+
+        $this->postJson(route('api.invoices.drafts.store'), $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['items.0.cup_size']);
     }
 
     public function test_invoice_draft_rejects_quantities_below_moq_or_wrong_increment(): void
@@ -118,9 +128,9 @@ class StoreInvoiceDraftApiTest extends TestCase
             ->whereKey($payload['items'][0]['product_id'])
             ->update([
                 'minimum_order_qty' => 1000,
-                'package_conversion' => 1000,
+                'package_conversion' => 500,
             ]);
-        $payload['items'][0]['quantity'] = 1500;
+        $payload['items'][0]['quantity'] = 1750;
 
         $this->postJson(route('api.invoices.drafts.store'), $payload)
             ->assertUnprocessable()
@@ -140,14 +150,14 @@ class StoreInvoiceDraftApiTest extends TestCase
             ->assertJsonPath('data.shipping_type', 'paid_by_customer')
             ->assertJsonPath('data.shipping_cost', '50000.00')
             ->assertJsonPath('data.total_hpp', '10250000.00')
-            ->assertJsonPath('data.gross_profit', '11000000.00')
+            ->assertJsonPath('data.gross_profit', '11050000.00')
             ->assertJsonPath('data.total_amount', '21300000.00');
 
         $this->assertDatabaseHas('invoices', [
             'shipping_type' => 'paid_by_customer',
             'shipping_cost' => 50000,
             'total_hpp' => 10250000,
-            'gross_profit' => 11000000,
+            'gross_profit' => 11050000,
             'total_amount' => 21300000,
         ]);
     }
@@ -157,13 +167,14 @@ class StoreInvoiceDraftApiTest extends TestCase
         $payload = $this->validPayload();
         $payload['discount']['value'] = 0;
         $payload['tax']['enabled'] = false;
-        $payload['shipping_type'] = 'company_free_shipping';
         $payload['shipping_cost'] = 50000;
+        $payload['is_free_shipping'] = true;
         $payload['order_process_status'] = 'in_production';
 
         $this->postJson(route('api.invoices.drafts.store'), $payload)
             ->assertCreated()
             ->assertJsonPath('data.shipping_type', 'company_free_shipping')
+            ->assertJsonPath('data.is_free_shipping', true)
             ->assertJsonPath('data.order_process_status', 'in_production')
             ->assertJsonPath('data.total_hpp', '10250000.00')
             ->assertJsonPath('data.gross_profit', '10950000.00')

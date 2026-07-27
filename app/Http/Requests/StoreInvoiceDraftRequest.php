@@ -36,7 +36,7 @@ class StoreInvoiceDraftRequest extends FormRequest
             'items.*.product_id' => ['required', 'integer', 'min:1'],
             'items.*.product_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'items.*.sku' => ['sometimes', 'nullable', 'string', 'max:100'],
-            'items.*.cup_size' => ['sometimes', 'nullable', Rule::in(Product::CUP_SIZES)],
+            'items.*.cup_size' => ['sometimes', 'nullable', Rule::in(['12 Oz'])],
             'items.*.cup_model' => ['sometimes', 'nullable', Rule::in(Product::CUP_MODELS)],
             'items.*.grammage' => ['sometimes', 'nullable', Rule::in(Product::GRAMMAGES)],
             'items.*.screen_printing_color' => ['sometimes', 'nullable', 'string', 'max:50'],
@@ -53,6 +53,7 @@ class StoreInvoiceDraftRequest extends FormRequest
                 Invoice::SHIPPING_COMPANY_FREE_SHIPPING,
             ])],
             'shipping_cost' => ['sometimes', 'numeric', 'min:0'],
+            'is_free_shipping' => ['sometimes', 'boolean'],
             'order_process_status' => ['sometimes', Rule::in([
                 Invoice::ORDER_PROCESS_DRAFT,
                 Invoice::ORDER_PROCESS_IN_PRODUCTION,

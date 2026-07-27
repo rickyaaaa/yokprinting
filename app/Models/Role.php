@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\RoleFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,7 @@ use Illuminate\Support\Str;
 
 class Role extends Model
 {
-    /** @use HasFactory<\Database\Factories\RoleFactory> */
+    /** @use HasFactory<RoleFactory> */
     use HasFactory, SoftDeletes;
 
     public const CODE_OWNER = 'owner';

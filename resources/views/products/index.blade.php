@@ -91,6 +91,8 @@
                             <div>
                                 <h2 id="products-heading" class="font-semibold text-ink">Tabel produk</h2>
                                 <p class="mt-1 text-sm text-muted">Cari SKU, nama produk, kategori, atau status katalog.</p>
+                                <p class="mt-2 text-xs font-medium text-muted" x-show="loading">Memuat katalog produk dari database…</p>
+                                <p class="mt-2 text-xs font-medium text-red-700" x-show="error" x-text="error"></p>
                                 <p class="mt-2 text-xs font-medium text-brand-800" x-text="resultSummary"></p>
                             </div>
                             <div class="grid w-full gap-3 sm:grid-cols-[auto_12rem_minmax(14rem,1fr)_auto] xl:w-auto">
@@ -163,7 +165,10 @@
                                                 <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold" :class="statusClass(product.status)" x-text="product.status"></span>
                                             </td>
                                             <td class="px-5 py-4 text-right sm:px-6">
-                                                <a :href="`/products/${product.sku}/edit`" class="text-xs font-semibold text-brand-700 hover:text-brand-900">Edit</a>
+                                                <div class="flex justify-end gap-3">
+                                                    <a :href="`/products/${product.id}/edit`" class="text-xs font-semibold text-brand-700 hover:text-brand-900">Edit</a>
+                                                    <button type="button" class="text-xs font-semibold text-red-700 hover:text-red-900" @click="deleteProduct(product)">Hapus</button>
+                                                </div>
                                             </td>
                                         </tr>
                                     </template>
@@ -178,7 +183,7 @@
                         </div>
 
                         <div class="flex flex-col gap-3 border-t border-line px-5 py-4 text-sm text-muted sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                            <span><strong class="font-semibold text-ink" x-text="filteredProducts.length"></strong> produk tampil dari {{ count($products) }} data.</span>
+                            <span><strong class="font-semibold text-ink" x-text="filteredProducts.length"></strong> produk tampil dari <strong class="font-semibold text-ink" x-text="products.length"></strong> data.</span>
                             <span>Nilai persediaan tampil: <strong class="font-semibold text-ink" x-text="visibleCatalogValueFormatted"></strong></span>
                         </div>
                     </section>

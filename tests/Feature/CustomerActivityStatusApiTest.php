@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\UpdateCustomerFollowUpStatusesJob;
 use App\Models\Customer;
 use App\Models\Invoice;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class CustomerActivityStatusApiTest extends TestCase
@@ -14,6 +16,8 @@ class CustomerActivityStatusApiTest extends TestCase
 
     public function test_customer_activity_status_is_computed_from_latest_paid_invoice(): void
     {
+        $this->assertTrue(Schema::hasColumn('customers', 'last_order_at'));
+
         Carbon::setTestNow('2026-07-27 09:00:00');
 
         $active = $this->createCustomer('CUS-ACTIVE', 'PT Aktif Printing');
@@ -62,6 +66,26 @@ class CustomerActivityStatusApiTest extends TestCase
             ->assertJsonPath('data.customers.0.activity_status', Customer::ACTIVITY_NEEDS_FOLLOW_UP)
             ->assertJsonMissing(['code' => $active->code])
             ->assertJsonMissing(['code' => $neverOrdered->code]);
+    }
+
+    public function test_daily_job_updates_last_order_and_auto_follow_up_statuses(): void
+    {
+        Carbon::setTestNow('2026-07-27 09:00:00');
+
+        $active = $this->createCustomer('CUS-ACTIVE', 'PT Aktif Printing');
+        $inactiveOneMonth = $this->createCustomer('CUS-1M', 'CV Sebulan Sepi');
+        $autoFollowUp = $this->createCustomer('CUS-2M', 'UD Dua Bulan Sepi');
+
+        $this->createPaidInvoice($active, 'INV-ACTIVE', now()->subDays(10));
+        $this->createPaidInvoice($inactiveOneMonth, 'INV-1M', now()->subDays(35));
+        $this->createPaidInvoice($autoFollowUp, 'INV-2M', now()->subDays(65));
+
+        app(UpdateCustomerFollowUpStatusesJob::class)->handle();
+
+        $this->assertSame(Customer::STATUS_ACTIVE, $active->refresh()->status);
+        $this->assertSame(Customer::STATUS_INACTIVE_1M, $inactiveOneMonth->refresh()->status);
+        $this->assertSame(Customer::STATUS_AUTO_FOLLOWUP, $autoFollowUp->refresh()->status);
+        $this->assertNotNull($autoFollowUp->last_order_at);
     }
 
     private function createCustomer(string $code, string $name): Customer

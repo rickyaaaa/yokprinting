@@ -4,7 +4,7 @@
     $items = [
         [
             'name' => 'Sablon Cup 16 Oz Oval (8gr)',
-            'description' => '1 warna tinta hitam, 2 sisi, posisi logo tengah. MOQ 1.000 pcs, kelipatan order 1.000 pcs.',
+            'description' => '1 warna tinta hitam, posisi logo tengah. MOQ 1.000 pcs, kelipatan order 500 pcs.',
             'quantity' => '10.000 pcs',
             'price' => 'Rp850',
             'total' => 'Rp8.500.000',
@@ -228,10 +228,6 @@
                         <dl class="grid grid-cols-[1fr_auto] gap-x-6 gap-y-3 text-sm">
                             <dt class="text-muted">Tanggal invoice</dt>
                             <dd class="font-medium text-ink">23 Juli 2026</dd>
-                            <dt class="text-muted">Jatuh tempo</dt>
-                            <dd class="font-semibold text-red-700">6 Agustus 2026</dd>
-                            <dt class="text-muted">Termin</dt>
-                            <dd class="font-medium text-ink">14 hari</dd>
                             <dt class="text-muted">Mata uang</dt>
                             <dd class="font-medium text-ink">IDR</dd>
                         </dl>

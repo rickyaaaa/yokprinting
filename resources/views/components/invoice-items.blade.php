@@ -45,6 +45,13 @@
         x-text="fieldErrors?.items"
     ></div>
 
+    <div x-show="!loadingProducts && !productError" class="border-b border-line bg-canvas/60 px-5 py-4">
+        <p class="text-sm font-medium text-ink">Pilih produk via search per baris</p>
+        <p class="mt-1 text-xs text-muted">
+            Ketik kode barang seperti H-001 atau nama produk. Ini menggantikan dropdown panjang supaya katalog 108 item tetap cepat dipilih.
+        </p>
+    </div>
+
     <div x-show="!loadingProducts && !productError" class="overflow-x-auto">
         <table class="w-full min-w-[1040px] text-left">
             <thead class="border-b border-line bg-canvas text-xs font-medium text-muted">
@@ -60,22 +67,81 @@
                 <template x-for="(item, index) in items" :key="item.key">
                     <tr>
                         <td class="px-6 py-4 align-top">
+                            <div class="relative" @keydown.escape="item.pickerOpen = false">
+                                <label class="sr-only" :for="`product-search-${item.key}`" x-text="`Produk baris ${index + 1}`"></label>
+                                <input
+                                    :id="`product-search-${item.key}`"
+                                    x-model.debounce.120ms="item.productSearch"
+                                    type="search"
+                                    :aria-label="`Cari produk baris ${index + 1}`"
+                                    :data-testid="`product-search-picker-${index + 1}`"
+                                    data-validation-field="items"
+                                    class="form-control pr-10 font-medium"
+                                    :class="{ 'border-red-400 ring-2 ring-red-100': fieldErrors?.items }"
+                                    :aria-invalid="Boolean(fieldErrors?.items)"
+                                    placeholder="Ketik kode H-001 atau nama produk"
+                                    autocomplete="off"
+                                    @focus="openProductPicker(item)"
+                                    @input="openProductPicker(item)"
+                                >
+                                <button
+                                    type="button"
+                                    class="absolute right-2 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted hover:bg-brand-50 hover:text-brand-800"
+                                    :aria-label="`Buka hasil produk baris ${index + 1}`"
+                                    @click="toggleProductPicker(item)"
+                                >
+                                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                        <path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </button>
+
+                                <div
+                                    x-show="item.pickerOpen"
+                                    x-cloak
+                                    x-transition.origin.top.left
+                                    class="absolute left-0 right-0 z-40 mt-2 max-h-72 overflow-y-auto rounded-xl border border-line bg-white p-1.5 shadow-xl shadow-ink/10"
+                                    role="listbox"
+                                >
+                                    <template x-for="product in filteredProductsFor(item)" :key="product.id">
+                                        <button
+                                            type="button"
+                                            class="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left text-sm hover:bg-brand-50"
+                                            :class="Number(item.productId) === Number(product.id) ? 'bg-brand-50 text-brand-900' : 'text-ink'"
+                                            role="option"
+                                            :aria-selected="Number(item.productId) === Number(product.id)"
+                                            @mousedown.prevent="selectProduct(item, product)"
+                                        >
+                                            <span class="mt-0.5 shrink-0 rounded-md bg-canvas px-2 py-1 font-mono text-xs font-semibold text-muted" x-text="product.sku ?? product.code"></span>
+                                            <span class="min-w-0">
+                                                <span class="block font-semibold" x-text="product.name"></span>
+                                                <span class="mt-0.5 block truncate text-xs text-muted" x-text="productMeta(product)"></span>
+                                            </span>
+                                        </button>
+                                    </template>
+                                    <div
+                                        x-show="filteredProductsFor(item).length === 0"
+                                        class="px-3 py-4 text-sm text-muted"
+                                    >
+                                        Produk tidak ditemukan. Coba ketik kode H-xxx atau kata dari nama produk.
+                                    </div>
+                                </div>
+                            </div>
                             <select
                                 x-model.number="item.productId"
                                 :name="`items[${index}][product_id]`"
                                 :aria-label="`Produk baris ${index + 1}`"
                                 :data-testid="`product-picker-${index + 1}`"
                                 data-validation-field="items"
-                                class="form-control font-medium"
+                                class="hidden"
                                 :class="{ 'border-red-400 ring-2 ring-red-100': fieldErrors?.items }"
                                 :aria-invalid="Boolean(fieldErrors?.items)"
                                 @change="updateProduct(item)"
                             >
-                                <template x-for="product in products" :key="product.id">
+                                <template x-for="product in filteredSelectionProducts(item)" :key="product.id">
                                     <option
                                         :value="product.id"
                                         :selected="Number(product.id) === Number(item.productId)"
-                                        x-text="product.name"
+                                        x-text="`${product.sku ?? product.code} — ${product.name}`"
                                     ></option>
                                 </template>
                             </select>
@@ -96,10 +162,6 @@
                                     <label class="mb-1 block text-[11px] font-semibold text-muted" :for="`cup-size-${item.key}`">Ukuran</label>
                                     <select :id="`cup-size-${item.key}`" x-model="item.cupSize" :name="`items[${index}][cup_size]`" class="form-control spec-select">
                                         <option>12 Oz</option>
-                                        <option>14 Oz</option>
-                                        <option>16 Oz</option>
-                                        <option>18 Oz</option>
-                                        <option>22 Oz</option>
                                     </select>
                                 </div>
                                 <div>
@@ -163,7 +225,7 @@
                                     type="number"
                                     data-validation-field="items"
                                     min="0"
-                                    step="1000"
+                                    step="500"
                                     class="form-control pl-9 text-right"
                                     :class="{ 'border-red-400 ring-2 ring-red-100': fieldErrors?.items }"
                                     :aria-invalid="Boolean(fieldErrors?.items)"

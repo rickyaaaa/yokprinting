@@ -1,24 +1,24 @@
 @php
     $productCode = $productCode ?? null;
-    $products = [
-        'JSA-BRAND-01' => ['sku' => 'JSA-BRAND-01', 'name' => 'Paket desain brand refresh', 'category' => 'Jasa desain', 'unit' => 'PCS', 'purchasePrice' => 2500000, 'stock' => 0, 'minimumStock' => 0, 'status' => 'Aktif', 'description' => 'Paket desain identitas visual dan penyegaran brand untuk pelanggan korporat.', 'trackStock' => false],
-        'PRN-CATALOG-01' => ['sku' => 'PRN-CATALOG-01', 'name' => 'Cetak katalog premium', 'category' => 'Cetak premium', 'unit' => 'PCS', 'purchasePrice' => 4200000, 'stock' => 42, 'minimumStock' => 10, 'status' => 'Aktif', 'description' => 'Cetak katalog kualitas premium untuk kebutuhan sales kit dan company profile.', 'trackStock' => true],
-        'PRM-FLYER-01' => ['sku' => 'PRM-FLYER-01', 'name' => 'Flyer promosi bulanan', 'category' => 'Materi promosi', 'unit' => 'PCS', 'purchasePrice' => 4900000, 'stock' => 6, 'minimumStock' => 12, 'status' => 'Stok menipis', 'description' => 'Paket cetak flyer promosi campaign bulanan dengan finishing standar.', 'trackStock' => true],
-    ];
     $isEdit = $productCode !== null;
-    $product = $products[$productCode] ?? [
-        'sku' => 'PRN-NEW-01',
+    $product = [
+        'id' => $productCode,
+        'sku' => '',
         'name' => '',
-        'category' => 'Cetak premium',
-        'unit' => 'PCS',
+        'category' => 'Cup PP',
+        'brand' => '',
+        'unit' => 'Pcs',
         'purchasePrice' => 0,
-        'stock' => 10,
-        'minimumStock' => 5,
+        'stock' => 0,
+        'minimumStock' => 0,
+        'minimumOrderQty' => 1000,
+        'packageConversion' => 500,
+        'shortDescription' => '1 Dus = 1.000 Pcs; kelipatan order 500 Pcs',
         'status' => 'Aktif',
         'description' => '',
         'trackStock' => true,
     ];
-    $title = $isEdit ? 'Edit produk '.$product['sku'] : 'Tambah produk baru';
+    $title = $isEdit ? 'Edit produk' : 'Tambah produk baru';
 @endphp
 
 <!DOCTYPE html>
@@ -96,8 +96,24 @@
                                 data-testid="product-saved-notice"
                                 class="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900"
                             >
-                                <p class="font-semibold" x-text="isEdit ? 'Perubahan produk tersimpan.' : 'Produk baru tersimpan sebagai draft.'"></p>
-                                <p class="mt-1">Simulasi frontend selesai. Backend penyimpanan produk akan menyusul pada layer berikutnya.</p>
+                                <p class="font-semibold" x-text="isEdit ? 'Perubahan produk tersimpan.' : 'Produk baru tersimpan.'"></p>
+                                <p class="mt-1">Data katalog sudah masuk ke database dan bisa dipilih saat membuat invoice.</p>
+                            </div>
+
+                            <div
+                                x-show="loading"
+                                x-cloak
+                                class="rounded-xl border border-line bg-white p-4 text-sm text-muted"
+                            >
+                                Memuat detail produk…
+                            </div>
+
+                            <div
+                                x-show="error"
+                                x-cloak
+                                class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-800"
+                                x-text="error"
+                            >
                             </div>
 
                             <div
@@ -118,8 +134,9 @@
                                 <h2 id="product-info-heading" class="font-semibold text-ink">Informasi produk</h2>
                                 <div class="mt-5 grid gap-4 md:grid-cols-2">
                                     <label class="block">
-                                        <span class="text-sm font-medium text-ink">SKU produk</span>
-                                        <input class="form-control mt-1.5" x-model="form.sku" data-validation-field="sku" placeholder="PRN-NEW-01" :aria-invalid="Boolean(fieldErrors.sku)" @input="clearFieldError('sku')">
+                                        <span class="text-sm font-medium text-ink">Kode barang</span>
+                                        <input class="form-control mt-1.5" x-model="form.sku" data-validation-field="sku" placeholder="Kosongkan untuk auto H-XXX" :aria-invalid="Boolean(fieldErrors.sku)" @input="clearFieldError('sku')">
+                                        <span class="mt-1 block text-xs text-muted">Opsional. Sistem akan generate H-001, H-002, dst jika kosong.</span>
                                         <span class="mt-1 block text-xs text-red-700" x-show="fieldErrors.sku" x-text="fieldErrors.sku"></span>
                                     </label>
                                     <label class="block">
@@ -129,21 +146,23 @@
                                     </label>
                                     <label class="block">
                                         <span class="text-sm font-medium text-ink">Kategori</span>
-                                        <select class="form-control mt-1.5" x-model="form.category">
-                                            <option>Cetak premium</option>
-                                            <option>Jasa desain</option>
-                                            <option>Materi promosi</option>
-                                            <option>Paket bundling</option>
-                                            <option>Lainnya</option>
-                                        </select>
+                                        <input class="form-control mt-1.5" x-model="form.category" placeholder="Contoh: Cup PP, Cup PET, Tutup/Lid">
                                     </label>
                                     <label class="block">
                                         <span class="text-sm font-medium text-ink">Satuan</span>
                                         <input class="form-control mt-1.5 bg-canvas font-semibold text-muted" x-model="form.unit" readonly>
-                                        <span class="mt-1 block text-xs text-muted">Satuan master produk dikunci ke PCS.</span>
+                                        <span class="mt-1 block text-xs text-muted">Satuan master produk dikunci ke Pcs.</span>
+                                    </label>
+                                    <label class="block md:col-span-2">
+                                        <span class="text-sm font-medium text-ink">Merk barang</span>
+                                        <input class="form-control mt-1.5" x-model="form.brand" placeholder="Contoh: SJP, PLP, MCup, ASB">
                                     </label>
                                     <label class="block md:col-span-2">
                                         <span class="text-sm font-medium text-ink">Deskripsi singkat</span>
+                                        <input class="form-control mt-1.5" x-model="form.shortDescription" placeholder="Contoh: 1 Dus = 1.000 Pcs; kelipatan order 500 Pcs">
+                                    </label>
+                                    <label class="block md:col-span-2">
+                                        <span class="text-sm font-medium text-ink">Deskripsi lengkap</span>
                                         <textarea class="form-control mt-1.5 min-h-24" x-model="form.description" placeholder="Catatan penggunaan produk saat dipilih di invoice"></textarea>
                                     </label>
                                 </div>
@@ -184,6 +203,17 @@
                                         <input type="number" min="0" class="form-control mt-1.5" x-model.number="form.minimumStock" data-validation-field="minimumStock" :disabled="!form.trackStock" :aria-invalid="Boolean(fieldErrors.minimumStock)" @input="clearFieldError('minimumStock')">
                                         <span class="mt-1 block text-xs text-red-700" x-show="fieldErrors.minimumStock" x-text="fieldErrors.minimumStock"></span>
                                     </label>
+                                    <label class="block">
+                                        <span class="text-sm font-medium text-ink">Minimum order</span>
+                                        <input type="number" min="1" step="500" class="form-control mt-1.5" x-model.number="form.minimumOrderQty" data-validation-field="minimumOrderQty" :aria-invalid="Boolean(fieldErrors.minimumOrderQty)" @input="clearFieldError('minimumOrderQty')">
+                                        <span class="mt-1 block text-xs text-red-700" x-show="fieldErrors.minimumOrderQty" x-text="fieldErrors.minimumOrderQty"></span>
+                                    </label>
+                                    <label class="block">
+                                        <span class="text-sm font-medium text-ink">Kelipatan order</span>
+                                        <input type="number" min="1" step="500" class="form-control mt-1.5" x-model.number="form.packageConversion" data-validation-field="packageConversion" :aria-invalid="Boolean(fieldErrors.packageConversion)" @input="clearFieldError('packageConversion')">
+                                        <span class="mt-1 block text-xs text-muted">Default YokPrinting: 500 Pcs.</span>
+                                        <span class="mt-1 block text-xs text-red-700" x-show="fieldErrors.packageConversion" x-text="fieldErrors.packageConversion"></span>
+                                    </label>
                                 </div>
                             </section>
                         </section>
@@ -218,11 +248,11 @@
 
                             <section class="rounded-xl border border-brand-200 bg-brand-50 p-5 text-sm text-brand-900">
                                 <h2 class="font-semibold">Catatan workflow</h2>
-                                <p class="mt-3 leading-6">Form produk siap diarahkan ke backend saat modul produk disambungkan penuh.</p>
+                                <p class="mt-3 leading-6">Harga jual tidak disimpan di master produk. Admin mengisi harga jual langsung saat membuat invoice.</p>
                             </section>
 
                             <div class="rounded-xl bg-white p-5 border border-line">
-                                <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-60" :disabled="saving">
+                                <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-60" :disabled="saving || loading">
                                     <svg x-show="saving" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                         <path d="M12 3a9 9 0 1 1-9 9" stroke-linecap="round"/>
                                     </svg>

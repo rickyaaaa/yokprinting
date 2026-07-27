@@ -13,9 +13,9 @@ class Product extends Model
 {
     use SoftDeletes;
 
-    public const UNIT_PCS = 'PCS';
+    public const UNIT_PCS = 'Pcs';
 
-    public const CUP_SIZES = ['12 Oz', '14 Oz', '16 Oz', '18 Oz', '22 Oz'];
+    public const CUP_SIZES = ['4 Oz', '8 Oz', '12 Oz', '14 Oz', '16 Oz', '18 Oz', '22 Oz', '16/22 Oz'];
 
     public const CUP_MODELS = ['Datar', 'Oval'];
 
@@ -36,10 +36,10 @@ class Product extends Model
         'unit' => self::UNIT_PCS,
         'purchase_price' => 0,
         'minimum_order_qty' => 1,
-        'package_conversion' => 1,
+        'package_conversion' => 500,
         'minimum_stock' => 0,
         'moq_quantity' => 1000,
-        'order_increment' => 1000,
+        'order_increment' => 500,
         'packaging_unit' => 'pcs',
         'track_stock' => false,
         'status' => self::STATUS_ACTIVE,
@@ -73,6 +73,7 @@ class Product extends Model
         'width_cm',
         'height_cm',
         'weight_gram',
+        'dimensions',
         'moq_quantity',
         'order_increment',
         'packaging_unit',
@@ -97,6 +98,7 @@ class Product extends Model
             'width_cm' => 'decimal:2',
             'height_cm' => 'decimal:2',
             'weight_gram' => 'decimal:2',
+            'dimensions' => 'array',
             'sides' => 'integer',
             'moq_quantity' => 'integer',
             'order_increment' => 'integer',
@@ -200,16 +202,21 @@ class Product extends Model
         $ink = $this->screen_printing_color
             ? "Tinta {$this->screen_printing_color}"
             : null;
-        $sides = $this->sides
-            ? "{$this->sides} Sisi"
-            : null;
-        $detail = implode(' - ', array_filter([$ink, $sides]));
 
         return trim(sprintf(
-            'Sablon Cup %s - 1 Warna%s',
+            'Sablon Cup %s - %s%s',
             implode(' ', $parts),
-            $detail !== '' ? " ({$detail})" : '',
+            $this->sides ? "{$this->sides} warna" : '1 warna',
+            $ink !== null ? " ({$ink})" : '',
         ));
+    }
+
+    /**
+     * Alias the existing sku column as product code for client-facing API payloads.
+     */
+    public function getCodeAttribute(): ?string
+    {
+        return $this->sku;
     }
 
     /**

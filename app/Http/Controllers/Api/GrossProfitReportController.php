@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 
 class GrossProfitReportController extends Controller
 {
@@ -54,7 +55,7 @@ class GrossProfitReportController extends Controller
 
     /**
      * @param  array<string, mixed>  $filters
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     * @return Collection<int, array<string, mixed>>
      */
     private function rows(array $filters)
     {

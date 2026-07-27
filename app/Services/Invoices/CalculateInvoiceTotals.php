@@ -35,8 +35,7 @@ class CalculateInvoiceTotals
         array $tax,
         string $shippingType = Invoice::SHIPPING_NONE,
         int|float|string $shippingCost = 0,
-    ): array
-    {
+    ): array {
         $lineItems = collect($items)
             ->values()
             ->map(function (array $item, int $index): array {
@@ -94,10 +93,11 @@ class CalculateInvoiceTotals
         $totalHpp = $this->money($lineItems->sum(
             fn (array $item): float => (float) $item['quantity'] * (float) $item['purchase_cost_snapshot'],
         ));
-        $companyPaidShipping = $normalizedShippingType === Invoice::SHIPPING_COMPANY_FREE_SHIPPING
+        $invoiceTotalShipping = $normalizedShippingType === Invoice::SHIPPING_PAID_BY_CUSTOMER
             ? $normalizedShippingCost
             : 0.0;
-        $invoiceTotalShipping = $normalizedShippingType === Invoice::SHIPPING_PAID_BY_CUSTOMER
+        $totalAmount = $this->money($taxableAmount + $taxAmount + $invoiceTotalShipping);
+        $companyPaidShipping = $normalizedShippingType === Invoice::SHIPPING_COMPANY_FREE_SHIPPING
             ? $normalizedShippingCost
             : 0.0;
 
@@ -114,8 +114,8 @@ class CalculateInvoiceTotals
             'shipping_type' => $normalizedShippingType,
             'shipping_cost' => $normalizedShippingCost,
             'total_hpp' => $totalHpp,
-            'gross_profit' => $this->money($productRevenue - $totalHpp - $companyPaidShipping),
-            'total_amount' => $this->money($taxableAmount + $taxAmount + $invoiceTotalShipping),
+            'gross_profit' => $this->money($totalAmount - $totalHpp - $companyPaidShipping),
+            'total_amount' => $totalAmount,
         ];
     }
 

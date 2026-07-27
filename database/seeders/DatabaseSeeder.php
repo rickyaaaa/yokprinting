@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
 
         $this->call(RolePermissionSeeder::class);
         $this->call(ThemeAndDefaultSettingsSeeder::class);
+        $this->call(ProductCatalogSeeder::class);
         $this->call(SalesReportDemoSeeder::class);
     }
 }

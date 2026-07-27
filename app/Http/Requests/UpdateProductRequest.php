@@ -29,6 +29,7 @@ class UpdateProductRequest extends FormRequest
 
         return [
             'sku' => ['sometimes', 'required', 'string', 'max:100', Rule::unique('products', 'sku')->ignore($product)],
+            'code' => ['sometimes', 'required', 'string', 'max:100', Rule::unique('products', 'sku')->ignore($product)],
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'category_id' => ['sometimes', 'nullable', 'integer', 'exists:product_categories,id'],
             'category' => ['sometimes', 'nullable', 'string', 'max:100'],
@@ -50,6 +51,8 @@ class UpdateProductRequest extends FormRequest
             'width_cm' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'height_cm' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'weight_gram' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'dimensions' => ['sometimes', 'nullable', 'array'],
+            'dimensions.*' => ['nullable'],
             'moq_quantity' => ['sometimes', 'integer', 'min:1'],
             'order_increment' => ['sometimes', 'integer', 'min:1'],
             'packaging_unit' => ['sometimes', 'string', 'max:20'],

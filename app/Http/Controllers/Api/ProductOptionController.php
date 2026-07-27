@@ -17,7 +17,7 @@ class ProductOptionController extends Controller
     {
         $validated = $request->validated();
         $search = trim($validated['search'] ?? '');
-        $limit = (int) ($validated['limit'] ?? 100);
+        $limit = (int) ($validated['limit'] ?? 150);
 
         $products = Product::query()
             ->select([
@@ -26,6 +26,11 @@ class ProductOptionController extends Controller
                 'sku',
                 'category',
                 'brand',
+                'cup_size',
+                'cup_model',
+                'grammage',
+                'screen_printing_color',
+                'sides',
                 'short_description',
                 'purchase_price',
                 'stock',
@@ -47,7 +52,7 @@ class ProductOptionController extends Controller
                         ->orWhere('category', 'like', "%{$search}%");
                 });
             })
-            ->orderBy('name')
+            ->orderBy('sku')
             ->limit($limit)
             ->get()
             ->map(fn (Product $product): array => [
@@ -56,6 +61,11 @@ class ProductOptionController extends Controller
                 'sku' => $product->sku,
                 'category' => $product->category,
                 'brand' => $product->brand,
+                'cup_size' => $product->cup_size,
+                'cup_model' => $product->cup_model,
+                'grammage' => $product->grammage,
+                'screen_printing_color' => $product->screen_printing_color,
+                'sides' => $product->sides,
                 'short_description' => $product->short_description,
                 'purchase_price' => (float) $product->purchase_price,
                 'stock' => $product->stock === null ? null : (float) $product->stock,

@@ -34,6 +34,7 @@ class InvoiceDraftController extends Controller
                 'tax_amount' => $invoice->tax_amount,
                 'shipping_type' => $invoice->shipping_type,
                 'shipping_cost' => $invoice->shipping_cost,
+                'is_free_shipping' => $invoice->is_free_shipping,
                 'order_process_status' => $invoice->order_process_status,
                 'total_hpp' => $invoice->total_hpp,
                 'gross_profit' => $invoice->gross_profit,

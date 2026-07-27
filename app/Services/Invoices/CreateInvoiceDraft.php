@@ -3,6 +3,7 @@
 namespace App\Services\Invoices;
 
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Services\Inventory\RecordStockMovement;
@@ -26,12 +27,18 @@ class CreateInvoiceDraft
     {
         return DB::transaction(function () use ($data, $creatorId): Invoice {
             $items = $this->snapshotItemsFromProducts($data['items']);
+            $isFreeShipping = (bool) ($data['is_free_shipping'] ?? false);
+            $shippingCost = $data['shipping_cost'] ?? 0;
+            $shippingType = $isFreeShipping
+                ? Invoice::SHIPPING_COMPANY_FREE_SHIPPING
+                : (((float) $shippingCost > 0) ? Invoice::SHIPPING_PAID_BY_CUSTOMER : Invoice::SHIPPING_NONE);
+
             $totals = $this->calculateInvoiceTotals->calculate(
                 $items,
                 $data['discount'],
                 $data['tax'],
-                $data['shipping_type'] ?? Invoice::SHIPPING_NONE,
-                $data['shipping_cost'] ?? 0,
+                $data['shipping_type'] ?? $shippingType,
+                $shippingCost,
             );
 
             $invoice = Invoice::query()->create([
@@ -54,6 +61,7 @@ class CreateInvoiceDraft
                 'total_amount' => $totals['total_amount'],
                 'shipping_type' => $totals['shipping_type'],
                 'shipping_cost' => $totals['shipping_cost'],
+                'is_free_shipping' => $isFreeShipping,
                 'order_process_status' => $data['order_process_status'] ?? Invoice::ORDER_PROCESS_DRAFT,
                 'total_hpp' => $totals['total_hpp'],
                 'gross_profit' => $totals['gross_profit'],
@@ -123,7 +131,7 @@ class CreateInvoiceDraft
     }
 
     /**
-     * @param  iterable<\App\Models\InvoiceItem>  $items
+     * @param  iterable<InvoiceItem>  $items
      * @return list<array<string, mixed>>
      */
     private function recordSaleMovements(Invoice $invoice, iterable $items, ?int $creatorId): array

@@ -97,7 +97,7 @@ class SupplierCrudApiTest extends TestCase
             'brand' => 'Orchid',
             'purchase_price' => 650,
             'minimum_order_qty' => 1000,
-            'package_conversion' => 1000,
+            'package_conversion' => 500,
         ]);
         $supplier = Supplier::query()->create([
             'code' => 'SUP-003',

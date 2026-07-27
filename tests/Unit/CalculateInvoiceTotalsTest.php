@@ -25,7 +25,7 @@ class CalculateInvoiceTotalsTest extends TestCase
         $this->assertSame(249750.0, $totals['total_amount']);
         $this->assertSame(225000.0, $totals['product_revenue']);
         $this->assertSame(0.0, $totals['total_hpp']);
-        $this->assertSame(225000.0, $totals['gross_profit']);
+        $this->assertSame(249750.0, $totals['gross_profit']);
     }
 
     public function test_fixed_discount_is_capped_at_subtotal_and_disabled_tax_is_zero(): void
@@ -74,7 +74,7 @@ class CalculateInvoiceTotalsTest extends TestCase
 
         $this->assertSame(850000.0, $totals['product_revenue']);
         $this->assertSame(500000.0, $totals['total_hpp']);
-        $this->assertSame(350000.0, $totals['gross_profit']);
+        $this->assertSame(400000.0, $totals['gross_profit']);
         $this->assertSame(900000.0, $totals['total_amount']);
     }
 

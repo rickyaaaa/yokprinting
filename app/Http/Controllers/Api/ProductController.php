@@ -21,7 +21,7 @@ class ProductController extends Controller
         $validated = $request->validated();
         $search = trim($validated['search'] ?? $validated['q'] ?? '');
         $status = $validated['status'] ?? Product::STATUS_ACTIVE;
-        $limit = (int) ($validated['limit'] ?? 100);
+        $limit = (int) ($validated['limit'] ?? 150);
         $sort = $validated['sort'] ?? 'name';
         $direction = $validated['direction'] ?? 'asc';
 
@@ -133,6 +133,12 @@ class ProductController extends Controller
      */
     private function normalizeCategory(array $payload): array
     {
+        if (array_key_exists('code', $payload) && ! array_key_exists('sku', $payload)) {
+            $payload['sku'] = $payload['code'];
+        }
+
+        unset($payload['code']);
+
         if (array_key_exists('category_id', $payload) && ! array_key_exists('category', $payload)) {
             $payload['category'] = ProductCategory::query()->find($payload['category_id'])?->name;
         }
@@ -149,6 +155,7 @@ class ProductController extends Controller
     {
         return [
             'id' => $product->getKey(),
+            'code' => $product->code,
             'sku' => $product->sku,
             'name' => $product->name,
             'category_id' => $product->category_id,
@@ -177,6 +184,7 @@ class ProductController extends Controller
             'width_cm' => $product->width_cm === null ? null : (float) $product->width_cm,
             'height_cm' => $product->height_cm === null ? null : (float) $product->height_cm,
             'weight_gram' => $product->weight_gram === null ? null : (float) $product->weight_gram,
+            'dimensions' => $product->dimensions,
             'moq_quantity' => $product->moq_quantity,
             'order_increment' => $product->order_increment,
             'packaging_unit' => $product->packaging_unit,

@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -11,9 +12,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasColumn('customers', 'segment')) {
+            DB::statement('drop index if exists customers_segment_index');
+            DB::statement('drop index if exists customers_segment_status_index');
+        }
+
         Schema::table('customers', function (Blueprint $table) {
             if (Schema::hasColumn('customers', 'segment')) {
-                $table->dropIndex(['segment', 'status']);
                 $table->dropColumn('segment');
             }
         });

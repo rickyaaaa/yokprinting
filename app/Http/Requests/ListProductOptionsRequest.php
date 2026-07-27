@@ -26,10 +26,10 @@ class ListProductOptionsRequest extends FormRequest
     {
         return [
             'search' => ['sometimes', 'nullable', 'string', 'max:100'],
-            'ids' => ['sometimes', 'array', 'max:100'],
+            'ids' => ['sometimes', 'array', 'max:150'],
             'ids.*' => ['integer', 'distinct', 'min:1'],
             'status' => ['sometimes', Rule::in([Product::STATUS_ACTIVE])],
-            'limit' => ['sometimes', 'integer', 'between:1,100'],
+            'limit' => ['sometimes', 'integer', 'between:1,150'],
         ];
     }
 }

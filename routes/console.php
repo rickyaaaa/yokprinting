@@ -2,6 +2,7 @@
 
 use App\Jobs\MarkOverdueInvoicesJob;
 use App\Jobs\SendDueInvoiceReminderEmailsJob;
+use App\Jobs\UpdateCustomerFollowUpStatusesJob;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -21,3 +22,9 @@ Schedule::job(new SendDueInvoiceReminderEmailsJob)
     ->timezone(config('app.timezone'))
     ->withoutOverlapping()
     ->name('send-due-invoice-reminders');
+
+Schedule::job(new UpdateCustomerFollowUpStatusesJob)
+    ->dailyAt('08:30')
+    ->timezone(config('app.timezone'))
+    ->withoutOverlapping()
+    ->name('update-customer-follow-up-statuses');

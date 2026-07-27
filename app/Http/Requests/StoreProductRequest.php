@@ -26,6 +26,7 @@ class StoreProductRequest extends FormRequest
     {
         return [
             'sku' => ['sometimes', 'nullable', 'string', 'max:100', 'unique:products,sku'],
+            'code' => ['sometimes', 'nullable', 'string', 'max:100', 'unique:products,sku'],
             'name' => ['required', 'string', 'max:255'],
             'category_id' => ['sometimes', 'nullable', 'integer', 'exists:product_categories,id'],
             'category' => ['sometimes', 'nullable', 'string', 'max:100'],
@@ -47,6 +48,8 @@ class StoreProductRequest extends FormRequest
             'width_cm' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'height_cm' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'weight_gram' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'dimensions' => ['sometimes', 'nullable', 'array'],
+            'dimensions.*' => ['nullable'],
             'moq_quantity' => ['sometimes', 'integer', 'min:1'],
             'order_increment' => ['sometimes', 'integer', 'min:1'],
             'packaging_unit' => ['sometimes', 'string', 'max:20'],

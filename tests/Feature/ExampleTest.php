@@ -375,7 +375,8 @@ class ExampleTest extends TestCase
             ->assertSee('Bulk edit stok')
             ->assertSee('Tambah produk')
             ->assertSee(route('products.create'))
-            ->assertSee('/products/${product.sku}/edit', escape: false)
+            ->assertSee('/products/${product.id}/edit', escape: false)
+            ->assertSee('deleteProduct(product)', escape: false)
             ->assertSee(route('products.index'));
     }
 
@@ -386,23 +387,23 @@ class ExampleTest extends TestCase
             ->assertSee('Tambah produk baru')
             ->assertSee('Informasi produk')
             ->assertSee('Harga beli & stok', escape: false)
-            ->assertSee('Satuan master produk dikunci ke PCS')
+            ->assertSee('Satuan master produk dikunci ke Pcs')
             ->assertSee('Preview katalog')
             ->assertSee('productForm')
             ->assertSee('product-validation-summary')
             ->assertSee('product-saved-notice')
             ->assertSee('Simpan produk')
-            ->assertSee('Backend penyimpanan produk akan menyusul')
+            ->assertSee('Harga jual tidak disimpan di master produk')
             ->assertSee(route('products.index'));
     }
 
     public function test_product_edit_form_page_is_available(): void
     {
-        $this->get('/products/PRN-CATALOG-01/edit')
+        $this->get('/products/1/edit')
             ->assertOk()
-            ->assertSee('Edit produk PRN-CATALOG-01')
-            ->assertSee('Cetak katalog premium')
-            ->assertSee('4200000')
+            ->assertSee('Edit produk')
+            ->assertSee('Memuat detail produk')
+            ->assertSee('Kosongkan untuk auto H-XXX')
             ->assertSee('Simpan perubahan')
             ->assertSee('productForm')
             ->assertSee('Perubahan produk tersimpan')

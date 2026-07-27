@@ -76,6 +76,7 @@ class CustomerController extends Controller
             'postal_code' => $customer->postal_code,
             'tax_number' => $customer->tax_number,
             'status' => $customer->status,
+            'last_order_at' => $customer->last_order_at?->toISOString(),
             'notes' => $customer->notes,
             'initials' => $customer->initials(),
             'created_at' => $customer->created_at?->toISOString(),

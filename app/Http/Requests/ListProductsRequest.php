@@ -27,14 +27,14 @@ class ListProductsRequest extends FormRequest
         return [
             'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'q' => ['sometimes', 'nullable', 'string', 'max:100'],
-            'ids' => ['sometimes', 'array', 'max:100'],
+            'ids' => ['sometimes', 'array', 'max:150'],
             'ids.*' => ['integer', 'distinct', 'min:1'],
             'status' => ['sometimes', Rule::in([Product::STATUS_ACTIVE, Product::STATUS_INACTIVE, 'all'])],
             'category' => ['sometimes', 'nullable', 'string', 'max:100'],
             'category_id' => ['sometimes', 'nullable', 'integer', 'exists:product_categories,id'],
             'sort' => ['sometimes', Rule::in(['name', 'sku', 'purchase_price', 'stock', 'created_at'])],
             'direction' => ['sometimes', Rule::in(['asc', 'desc'])],
-            'limit' => ['sometimes', 'integer', 'between:1,100'],
+            'limit' => ['sometimes', 'integer', 'between:1,150'],
         ];
     }
 }
