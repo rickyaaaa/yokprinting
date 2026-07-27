@@ -14,6 +14,16 @@ class ProductModelTest extends TestCase
     public function test_products_table_contains_yokprinting_cup_spec_fields(): void
     {
         $this->assertTrue(Schema::hasColumns('products', [
+            'purchase_price',
+            'brand',
+            'short_description',
+            'minimum_order_qty',
+            'package_conversion',
+            'length_cm',
+            'width_cm',
+            'height_cm',
+            'weight_gram',
+            'minimum_stock',
             'cup_size',
             'cup_model',
             'grammage',
@@ -23,12 +33,12 @@ class ProductModelTest extends TestCase
             'order_increment',
             'packaging_unit',
         ]));
+        $this->assertFalse(Schema::hasColumn('products', 'price'));
     }
 
     public function test_product_builds_cup_description_and_validates_moq_increment(): void
     {
         $product = Product::query()->create([
-            'sku' => 'CUP-16OV-8G-2S',
             'name' => 'Sablon Cup 16 Oz Oval',
             'category' => 'Sablon cup F&B',
             'cup_size' => '16 Oz',
@@ -36,12 +46,14 @@ class ProductModelTest extends TestCase
             'grammage' => '8gr',
             'screen_printing_color' => 'Hitam',
             'sides' => 2,
-            'price' => 850,
-            'moq_quantity' => 1000,
-            'order_increment' => 1000,
+            'purchase_price' => 650,
+            'minimum_order_qty' => 1000,
+            'package_conversion' => 1000,
             'packaging_unit' => 'pcs',
         ]);
 
+        $this->assertSame('H-001', $product->sku);
+        $this->assertSame(Product::UNIT_PCS, $product->unit);
         $this->assertSame(
             'Sablon Cup 16 Oz Oval (8gr) - 1 Warna (Tinta Hitam - 2 Sisi)',
             $product->cupDescription(),

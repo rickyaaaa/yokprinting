@@ -1,3 +1,7 @@
+@php
+    $yokPrintingLogo = 'data:image/png;base64,'.base64_encode(file_get_contents(public_path('images/yokprinting-logo.png')));
+    $yokPrintingAddress = 'Jl. Karyawan II, RT.005/RW.005, Karang Tengah, Kec. Karang Tengah, Kota Tangerang, Banten 15157';
+@endphp
 <!doctype html>
 <html lang="id">
     <head>
@@ -31,6 +35,20 @@
                 font-size: 18px;
                 font-weight: 700;
                 letter-spacing: -.3px;
+            }
+
+            .brand-logo {
+                display: block;
+                width: 150px;
+                height: auto;
+                margin-bottom: 6px;
+            }
+
+            .brand-address {
+                max-width: 320px;
+                color: #68685f;
+                font-size: 8.5px;
+                line-height: 1.45;
             }
 
             .eyebrow {
@@ -260,14 +278,16 @@
     </head>
     <body>
         <div class="footer">
-            YokPrinting.ID &nbsp;|&nbsp; {{ $invoice->invoice_number }} &nbsp;|&nbsp; Halaman <span class="page-number"></span>
+            YokPrinting.ID &nbsp;|&nbsp; {{ $yokPrintingAddress }} &nbsp;|&nbsp; {{ $invoice->invoice_number }} &nbsp;|&nbsp; Halaman <span class="page-number"></span>
         </div>
 
         <table class="header">
             <tr>
                 <td>
+                    <img class="brand-logo" src="{{ $yokPrintingLogo }}" alt="YokPrinting.ID">
                     <div class="brand">YokPrinting.ID</div>
-                    <div class="muted">Dokumen invoice resmi</div>
+                    <div class="brand-address">{{ $yokPrintingAddress }}</div>
+                    <div class="muted">Sablon cup & cetak kemasan F&B</div>
                 </td>
                 <td>
                     <h1 class="invoice-title">INVOICE</h1>
@@ -299,10 +319,6 @@
                         <tr>
                             <td class="muted">Tanggal invoice</td>
                             <td>{{ $invoice->issue_date->format('d M Y') }}</td>
-                        </tr>
-                        <tr>
-                            <td class="muted">Jatuh tempo</td>
-                            <td>{{ $invoice->due_date->format('d M Y') }}</td>
                         </tr>
                         <tr>
                             <td class="muted">Status</td>
@@ -339,7 +355,7 @@
                             @endif
                             @if ($item->cup_size || $item->cup_model || $item->grammage)
                                 <div class="item-meta">
-                                    Spec: {{ collect([$item->cup_size, $item->cup_model, $item->grammage, $item->screen_printing_color ? 'Tinta '.$item->screen_printing_color : null, $item->sides ? $item->sides.' sisi' : null])->filter()->join(' / ') }}
+                                    Spec: {{ collect([$item->cup_size, $item->cup_model, $item->grammage, $item->screen_printing_color ? 'Tinta '.$item->screen_printing_color : null, $item->jenis_cetak])->filter()->join(' / ') }}
                                 </div>
                             @endif
                         </td>
@@ -367,6 +383,12 @@
                     <tr>
                         <td class="muted">Pajak ({{ rtrim(rtrim(number_format((float) $invoice->tax_rate, 2, ',', '.'), '0'), ',') }}%)</td>
                         <td>{{ $invoice->currency }} {{ number_format((float) $invoice->tax_amount, 0, ',', '.') }}</td>
+                    </tr>
+                @endif
+                @if ($invoice->shipping_type === \App\Models\Invoice::SHIPPING_PAID_BY_CUSTOMER && (float) $invoice->shipping_cost > 0)
+                    <tr>
+                        <td class="muted">Ongkir</td>
+                        <td>{{ $invoice->currency }} {{ number_format((float) $invoice->shipping_cost, 0, ',', '.') }}</td>
                     </tr>
                 @endif
                 <tr class="total">

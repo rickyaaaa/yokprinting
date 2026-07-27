@@ -1,17 +1,17 @@
 @php
     $productCode = $productCode ?? null;
     $products = [
-        'JSA-BRAND-01' => ['sku' => 'JSA-BRAND-01', 'name' => 'Paket desain brand refresh', 'category' => 'Jasa desain', 'unit' => 'paket', 'price' => 12000000, 'stock' => 0, 'minimumStock' => 0, 'status' => 'Aktif', 'description' => 'Paket desain identitas visual dan penyegaran brand untuk pelanggan korporat.', 'trackStock' => false],
-        'PRN-CATALOG-01' => ['sku' => 'PRN-CATALOG-01', 'name' => 'Cetak katalog premium', 'category' => 'Cetak premium', 'unit' => 'paket', 'price' => 6000000, 'stock' => 42, 'minimumStock' => 10, 'status' => 'Aktif', 'description' => 'Cetak katalog kualitas premium untuk kebutuhan sales kit dan company profile.', 'trackStock' => true],
-        'PRM-FLYER-01' => ['sku' => 'PRM-FLYER-01', 'name' => 'Flyer promosi bulanan', 'category' => 'Materi promosi', 'unit' => 'rim', 'price' => 7900000, 'stock' => 6, 'minimumStock' => 12, 'status' => 'Stok menipis', 'description' => 'Paket cetak flyer promosi campaign bulanan dengan finishing standar.', 'trackStock' => true],
+        'JSA-BRAND-01' => ['sku' => 'JSA-BRAND-01', 'name' => 'Paket desain brand refresh', 'category' => 'Jasa desain', 'unit' => 'PCS', 'purchasePrice' => 2500000, 'stock' => 0, 'minimumStock' => 0, 'status' => 'Aktif', 'description' => 'Paket desain identitas visual dan penyegaran brand untuk pelanggan korporat.', 'trackStock' => false],
+        'PRN-CATALOG-01' => ['sku' => 'PRN-CATALOG-01', 'name' => 'Cetak katalog premium', 'category' => 'Cetak premium', 'unit' => 'PCS', 'purchasePrice' => 4200000, 'stock' => 42, 'minimumStock' => 10, 'status' => 'Aktif', 'description' => 'Cetak katalog kualitas premium untuk kebutuhan sales kit dan company profile.', 'trackStock' => true],
+        'PRM-FLYER-01' => ['sku' => 'PRM-FLYER-01', 'name' => 'Flyer promosi bulanan', 'category' => 'Materi promosi', 'unit' => 'PCS', 'purchasePrice' => 4900000, 'stock' => 6, 'minimumStock' => 12, 'status' => 'Stok menipis', 'description' => 'Paket cetak flyer promosi campaign bulanan dengan finishing standar.', 'trackStock' => true],
     ];
     $isEdit = $productCode !== null;
     $product = $products[$productCode] ?? [
         'sku' => 'PRN-NEW-01',
         'name' => '',
         'category' => 'Cetak premium',
-        'unit' => 'paket',
-        'price' => 2500000,
+        'unit' => 'PCS',
+        'purchasePrice' => 0,
         'stock' => 10,
         'minimumStock' => 5,
         'status' => 'Aktif',
@@ -71,10 +71,9 @@
                         <div>
                             <div class="mb-2 flex flex-wrap items-center gap-2">
                                 <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Data produk</span>
-                                <span class="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent">Data tiruan</span>
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">{{ $title }}</h1>
-                            <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Tambahkan katalog jasa, produk cetak, harga jual, dan ambang stok minimum untuk dipakai saat pembuatan invoice.</p>
+                            <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Tambahkan katalog produk cetak, harga beli, supplier, dan ambang stok minimum. Harga jual tetap diisi per item invoice.</p>
                         </div>
                         <a href="{{ route('products.index') }}" class="inline-flex w-fit items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
                             <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -140,13 +139,8 @@
                                     </label>
                                     <label class="block">
                                         <span class="text-sm font-medium text-ink">Satuan</span>
-                                        <select class="form-control mt-1.5" x-model="form.unit">
-                                            <option>paket</option>
-                                            <option>rim</option>
-                                            <option>meter</option>
-                                            <option>pcs</option>
-                                            <option>jam</option>
-                                        </select>
+                                        <input class="form-control mt-1.5 bg-canvas font-semibold text-muted" x-model="form.unit" readonly>
+                                        <span class="mt-1 block text-xs text-muted">Satuan master produk dikunci ke PCS.</span>
                                     </label>
                                     <label class="block md:col-span-2">
                                         <span class="text-sm font-medium text-ink">Deskripsi singkat</span>
@@ -156,12 +150,12 @@
                             </section>
 
                             <section class="rounded-xl bg-white p-5 border border-line sm:p-6" aria-labelledby="product-pricing-heading">
-                                <h2 id="product-pricing-heading" class="font-semibold text-ink">Harga & stok</h2>
+                                <h2 id="product-pricing-heading" class="font-semibold text-ink">Harga beli & stok</h2>
                                 <div class="mt-5 grid gap-4 md:grid-cols-2">
                                     <label class="block">
-                                        <span class="text-sm font-medium text-ink">Harga jual</span>
-                                        <input type="number" min="0" step="1000" class="form-control mt-1.5" x-model.number="form.price" data-validation-field="price" :aria-invalid="Boolean(fieldErrors.price)" @input="clearFieldError('price')">
-                                        <span class="mt-1 block text-xs text-red-700" x-show="fieldErrors.price" x-text="fieldErrors.price"></span>
+                                        <span class="text-sm font-medium text-ink">Harga beli</span>
+                                        <input type="number" min="0" step="1000" class="form-control mt-1.5" x-model.number="form.purchasePrice" data-validation-field="purchasePrice" :aria-invalid="Boolean(fieldErrors.purchasePrice)" @input="clearFieldError('purchasePrice')">
+                                        <span class="mt-1 block text-xs text-red-700" x-show="fieldErrors.purchasePrice" x-text="fieldErrors.purchasePrice"></span>
                                     </label>
                                     <label class="block">
                                         <span class="text-sm font-medium text-ink">Status katalog</span>
@@ -211,8 +205,8 @@
                                             <dd class="font-medium text-ink" x-text="form.category"></dd>
                                         </div>
                                         <div class="flex justify-between gap-3">
-                                            <dt class="text-muted">Harga</dt>
-                                            <dd class="font-semibold text-ink" x-text="formattedPrice"></dd>
+                                            <dt class="text-muted">Harga beli</dt>
+                                            <dd class="font-semibold text-ink" x-text="formattedPurchasePrice"></dd>
                                         </div>
                                         <div class="flex justify-between gap-3">
                                             <dt class="text-muted">Stok</dt>
@@ -224,7 +218,7 @@
 
                             <section class="rounded-xl border border-brand-200 bg-brand-50 p-5 text-sm text-brand-900">
                                 <h2 class="font-semibold">Catatan workflow</h2>
-                                <p class="mt-3 leading-6">Form ini masih memakai data tiruan dan validasi frontend. Integrasi simpan produk ke database akan dikerjakan saat layer backend produk.</p>
+                                <p class="mt-3 leading-6">Form produk siap diarahkan ke backend saat modul produk disambungkan penuh.</p>
                             </section>
 
                             <div class="rounded-xl bg-white p-5 border border-line">

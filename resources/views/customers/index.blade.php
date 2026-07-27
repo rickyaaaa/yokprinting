@@ -82,7 +82,6 @@
                         <div>
                             <div class="mb-2 flex flex-wrap items-center gap-2">
                                 <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Data pelanggan</span>
-                                <span class="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent">Data tiruan</span>
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Indeks pelanggan</h1>
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Kelola relasi pelanggan, pantau nilai transaksi, dan prioritaskan follow-up dari satu daftar kerja.</p>
@@ -263,7 +262,7 @@
                         </div>
 
                         <div class="flex flex-col gap-3 border-t border-line px-5 py-4 text-sm text-muted sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                            <span><strong class="font-semibold text-ink" x-text="filteredCustomers.length"></strong> pelanggan tampil dari {{ count($customers) }} data tiruan.</span>
+                            <span><strong class="font-semibold text-ink" x-text="filteredCustomers.length"></strong> pelanggan tampil dari {{ count($customers) }} data.</span>
                             <span>Total transaksi tampil: <strong class="font-semibold text-ink" x-text="visibleSalesFormatted"></strong></span>
                         </div>
                     </section>

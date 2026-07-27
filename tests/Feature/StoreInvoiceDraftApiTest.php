@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -23,6 +24,9 @@ class StoreInvoiceDraftApiTest extends TestCase
             ->assertJsonPath('data.subtotal', '21250000.00')
             ->assertJsonPath('data.discount_amount', '1062500.00')
             ->assertJsonPath('data.tax_amount', '2220625.00')
+            ->assertJsonPath('data.shipping_type', 'none')
+            ->assertJsonPath('data.total_hpp', '10250000.00')
+            ->assertJsonPath('data.gross_profit', '9937500.00')
             ->assertJsonPath('data.total_amount', '22408125.00')
             ->assertJsonPath('data.items_count', 2);
 
@@ -36,6 +40,7 @@ class StoreInvoiceDraftApiTest extends TestCase
             'product_id' => 1,
             'product_name' => 'Paket Desain Identitas Brand',
             'sku' => 'JSA-BRAND-01',
+            'purchase_cost_snapshot' => 6000000,
             'subtotal' => 12500000,
         ]);
         $this->assertDatabaseCount('invoice_items', 2);
@@ -44,6 +49,13 @@ class StoreInvoiceDraftApiTest extends TestCase
     public function test_invoice_draft_stores_yokprinting_cup_specs_and_production_fields(): void
     {
         $payload = $this->validPayload();
+        Product::query()
+            ->whereKey($payload['items'][0]['product_id'])
+            ->update([
+                'minimum_order_qty' => 1000,
+                'package_conversion' => 1000,
+                'unit' => 'PCS',
+            ]);
         $payload['items'] = [
             [
                 'product_id' => 1,
@@ -53,7 +65,7 @@ class StoreInvoiceDraftApiTest extends TestCase
                 'cup_model' => 'Oval',
                 'grammage' => '8gr',
                 'screen_printing_color' => 'Hitam',
-                'sides' => 2,
+                'jenis_cetak' => '2 warna',
                 'moq_quantity' => 1000,
                 'order_increment' => 1000,
                 'packaging_unit' => 'pcs',
@@ -90,11 +102,11 @@ class StoreInvoiceDraftApiTest extends TestCase
             'cup_model' => 'Oval',
             'grammage' => '8gr',
             'screen_printing_color' => 'Hitam',
-            'sides' => 2,
+            'jenis_cetak' => '2 warna',
             'moq_quantity' => 1000,
             'order_increment' => 1000,
-            'packaging_unit' => 'pcs',
-            'description' => 'Sablon Cup 16 Oz Oval (8gr) - 1 Warna (Tinta Hitam - 2 Sisi)',
+            'packaging_unit' => 'PCS',
+            'description' => 'Sablon Cup 16 Oz Oval (8gr) - 2 warna (Tinta Hitam)',
             'subtotal' => 1700000,
         ]);
     }
@@ -102,13 +114,60 @@ class StoreInvoiceDraftApiTest extends TestCase
     public function test_invoice_draft_rejects_quantities_below_moq_or_wrong_increment(): void
     {
         $payload = $this->validPayload();
-        $payload['items'][0]['moq_quantity'] = 1000;
-        $payload['items'][0]['order_increment'] = 1000;
+        Product::query()
+            ->whereKey($payload['items'][0]['product_id'])
+            ->update([
+                'minimum_order_qty' => 1000,
+                'package_conversion' => 1000,
+            ]);
         $payload['items'][0]['quantity'] = 1500;
 
         $this->postJson(route('api.invoices.drafts.store'), $payload)
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['items.0.quantity']);
+    }
+
+    public function test_customer_paid_shipping_is_added_to_invoice_total_without_inflating_profit(): void
+    {
+        $payload = $this->validPayload();
+        $payload['discount']['value'] = 0;
+        $payload['tax']['enabled'] = false;
+        $payload['shipping_type'] = 'paid_by_customer';
+        $payload['shipping_cost'] = 50000;
+
+        $this->postJson(route('api.invoices.drafts.store'), $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.shipping_type', 'paid_by_customer')
+            ->assertJsonPath('data.shipping_cost', '50000.00')
+            ->assertJsonPath('data.total_hpp', '10250000.00')
+            ->assertJsonPath('data.gross_profit', '11000000.00')
+            ->assertJsonPath('data.total_amount', '21300000.00');
+
+        $this->assertDatabaseHas('invoices', [
+            'shipping_type' => 'paid_by_customer',
+            'shipping_cost' => 50000,
+            'total_hpp' => 10250000,
+            'gross_profit' => 11000000,
+            'total_amount' => 21300000,
+        ]);
+    }
+
+    public function test_company_free_shipping_reduces_gross_profit_and_keeps_invoice_total_clean(): void
+    {
+        $payload = $this->validPayload();
+        $payload['discount']['value'] = 0;
+        $payload['tax']['enabled'] = false;
+        $payload['shipping_type'] = 'company_free_shipping';
+        $payload['shipping_cost'] = 50000;
+        $payload['order_process_status'] = 'in_production';
+
+        $this->postJson(route('api.invoices.drafts.store'), $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.shipping_type', 'company_free_shipping')
+            ->assertJsonPath('data.order_process_status', 'in_production')
+            ->assertJsonPath('data.total_hpp', '10250000.00')
+            ->assertJsonPath('data.gross_profit', '10950000.00')
+            ->assertJsonPath('data.total_amount', '21250000.00');
     }
 
     public function test_invoice_draft_validation_returns_field_errors(): void
@@ -135,6 +194,23 @@ class StoreInvoiceDraftApiTest extends TestCase
      */
     private function validPayload(): array
     {
+        $brandPackage = Product::query()->create([
+            'name' => 'Paket Desain Identitas Brand',
+            'sku' => 'JSA-BRAND-01',
+            'category' => 'Jasa kreatif',
+            'purchase_price' => 6000000,
+            'minimum_order_qty' => 1,
+            'package_conversion' => 1,
+        ]);
+        $websitePackage = Product::query()->create([
+            'name' => 'Website Company Profile',
+            'sku' => 'JSA-WEB-03',
+            'category' => 'Jasa kreatif',
+            'purchase_price' => 4250000,
+            'minimum_order_qty' => 1,
+            'package_conversion' => 1,
+        ]);
+
         return [
             'customer_id' => 1,
             'invoice_number' => 'INV-2026-0090',
@@ -142,14 +218,14 @@ class StoreInvoiceDraftApiTest extends TestCase
             'due_date' => '2026-08-06',
             'items' => [
                 [
-                    'product_id' => 1,
+                    'product_id' => $brandPackage->id,
                     'product_name' => 'Paket Desain Identitas Brand',
                     'sku' => 'JSA-BRAND-01',
                     'quantity' => 1,
                     'price' => 12500000,
                 ],
                 [
-                    'product_id' => 2,
+                    'product_id' => $websitePackage->id,
                     'product_name' => 'Website Company Profile',
                     'sku' => 'JSA-WEB-03',
                     'quantity' => 1,

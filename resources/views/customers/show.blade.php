@@ -96,7 +96,6 @@
                         <div>
                             <div class="mb-2 flex flex-wrap items-center gap-2">
                                 <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Detail pelanggan</span>
-                                <span class="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent">Data tiruan</span>
                             </div>
                             <div class="flex items-center gap-3">
                                 <span class="grid size-12 place-items-center rounded-full bg-brand-100 text-sm font-bold text-brand-800">{{ $customer['initials'] }}</span>

@@ -16,7 +16,6 @@ class CustomerModelTest extends TestCase
         foreach ([
             'code',
             'name',
-            'segment',
             'email',
             'phone',
             'address',
@@ -33,6 +32,8 @@ class CustomerModelTest extends TestCase
                 "Expected customers table to contain [{$column}] column.",
             );
         }
+
+        $this->assertFalse(Schema::hasColumn('customers', 'segment'));
     }
 
     public function test_customer_can_be_created_with_defaults_profile_fields_and_soft_deleted(): void
@@ -40,7 +41,6 @@ class CustomerModelTest extends TestCase
         $customer = Customer::query()->create([
             'code' => 'CUS-900',
             'name' => 'PT Arunika Studio',
-            'segment' => 'Corporate',
             'email' => 'finance@arunika.example',
             'phone' => '+62 21 900 1122',
             'address' => 'Jl. Mawar No. 12',
@@ -52,9 +52,9 @@ class CustomerModelTest extends TestCase
         ]);
 
         $this->assertSame(Customer::STATUS_ACTIVE, $customer->status);
-        $this->assertSame('Corporate', $customer->segment);
         $this->assertSame('PA', $customer->initials());
         $this->assertTrue(Customer::query()->selectable()->whereKey($customer)->exists());
+        $this->assertSame(Customer::ACTIVITY_NEVER_ORDERED, $customer->activity_status);
 
         $customer->delete();
 

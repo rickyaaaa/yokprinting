@@ -32,6 +32,11 @@ class InvoiceModelTest extends TestCase
             'tax_rate',
             'tax_amount',
             'total_amount',
+            'shipping_type',
+            'shipping_cost',
+            'order_process_status',
+            'total_hpp',
+            'gross_profit',
             'dp_required_percent',
             'notes',
             'terms',
@@ -69,6 +74,8 @@ class InvoiceModelTest extends TestCase
         $this->assertSame(Invoice::STATUS_DRAFT, $invoice->status);
         $this->assertSame(Invoice::PAYMENT_UNPAID, $invoice->payment_status);
         $this->assertSame(Invoice::PRODUCTION_DRAFT, $invoice->production_status);
+        $this->assertSame(Invoice::SHIPPING_NONE, $invoice->shipping_type);
+        $this->assertSame(Invoice::ORDER_PROCESS_DRAFT, $invoice->order_process_status);
         $this->assertSame('Drafting', $invoice->productionStatusLabel());
         $this->assertSame(11204062.5, $invoice->requiredDpAmount());
         $this->assertSame('21250000.00', $invoice->subtotal);

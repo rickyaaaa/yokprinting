@@ -133,7 +133,6 @@
                             <div class="mb-2 flex flex-wrap items-center gap-2">
                                 <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Manajemen pembayaran</span>
                                 <span class="rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-semibold text-yellow-900">{{ $invoice['status'] }}</span>
-                                <span class="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent">Data tiruan</span>
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Detail {{ $invoice['number'] }}</h1>
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Pantau rincian tagihan, pembayaran masuk, dan sisa outstanding untuk invoice ini.</p>
@@ -287,7 +286,7 @@
                             >
                                 <div class="border-b border-line px-5 py-4 sm:px-6">
                                     <h2 id="record-payment-heading" class="font-semibold text-ink">Catat pembayaran</h2>
-                                    <p class="mt-1 text-sm text-muted">Form data tiruan untuk mencatat pembayaran masuk invoice ini.</p>
+                                    <p class="mt-1 text-sm text-muted">Catat pembayaran masuk untuk invoice ini.</p>
                                 </div>
 
                                 <form class="space-y-5 p-5 sm:p-6" action="#" method="post" novalidate @submit.prevent="submit()">
@@ -314,7 +313,7 @@
                                         role="status"
                                         data-testid="payment-saved-notice"
                                     >
-                                        <p class="font-semibold">Pembayaran tiruan tercatat</p>
+                                        <p class="font-semibold">Pembayaran tercatat</p>
                                         <p class="mt-1 leading-5" x-text="`${savedPayment.amount} via ${savedPayment.method} dengan referensi ${savedPayment.reference}.`"></p>
                                     </div>
 

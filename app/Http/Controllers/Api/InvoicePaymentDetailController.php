@@ -77,7 +77,7 @@ class InvoicePaymentDetailController extends Controller
                     'cup_model' => $item->cup_model,
                     'grammage' => $item->grammage,
                     'screen_printing_color' => $item->screen_printing_color,
-                    'sides' => $item->sides,
+                    'jenis_cetak' => $item->jenis_cetak,
                     'moq_quantity' => $item->moq_quantity,
                     'order_increment' => $item->order_increment,
                     'packaging_unit' => $item->packaging_unit,

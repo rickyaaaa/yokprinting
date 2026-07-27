@@ -39,7 +39,7 @@ class InvoiceItem extends Model
         'cup_model',
         'grammage',
         'screen_printing_color',
-        'sides',
+        'jenis_cetak',
         'moq_quantity',
         'order_increment',
         'packaging_unit',
@@ -47,6 +47,7 @@ class InvoiceItem extends Model
         'quantity',
         'unit',
         'unit_price',
+        'purchase_cost_snapshot',
         'discount_type',
         'discount_value',
         'discount_amount',
@@ -68,13 +69,13 @@ class InvoiceItem extends Model
         return [
             'quantity' => 'decimal:4',
             'unit_price' => 'decimal:2',
+            'purchase_cost_snapshot' => 'decimal:2',
             'discount_value' => 'decimal:2',
             'discount_amount' => 'decimal:2',
             'tax_rate' => 'decimal:2',
             'tax_amount' => 'decimal:2',
             'subtotal' => 'decimal:2',
             'total_amount' => 'decimal:2',
-            'sides' => 'integer',
             'moq_quantity' => 'integer',
             'order_increment' => 'integer',
             'sort_order' => 'integer',
@@ -125,18 +126,16 @@ class InvoiceItem extends Model
             return $this->product_name;
         }
 
+        $printType = $this->jenis_cetak ?: '1 warna';
         $ink = $this->screen_printing_color
             ? "Tinta {$this->screen_printing_color}"
             : null;
-        $sides = $this->sides
-            ? "{$this->sides} Sisi"
-            : null;
-        $detail = implode(' - ', array_filter([$ink, $sides]));
 
         return trim(sprintf(
-            'Sablon Cup %s - 1 Warna%s',
+            'Sablon Cup %s - %s%s',
             implode(' ', $parts),
-            $detail !== '' ? " ({$detail})" : '',
+            $printType,
+            $ink !== null ? " ({$ink})" : '',
         ));
     }
 }

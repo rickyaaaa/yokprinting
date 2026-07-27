@@ -59,10 +59,10 @@ class SalesReportDemoSeeder extends Seeder
     private function seedProducts(): array
     {
         $rows = [
-            'JSA-BRAND-01' => ['name' => 'Paket desain brand refresh', 'category' => 'Jasa desain', 'price' => 12000000],
-            'PRN-CATALOG-01' => ['name' => 'Cetak katalog premium', 'category' => 'Cetak premium', 'price' => 6000000],
-            'JSA-WEB-03' => ['name' => 'Website company profile', 'category' => 'Jasa desain', 'price' => 8750000],
-            'PRM-FLYER-01' => ['name' => 'Flyer promosi bulanan', 'category' => 'Materi promosi', 'price' => 7900000],
+            'JSA-BRAND-01' => ['name' => 'Paket desain brand refresh', 'category' => 'Jasa desain', 'purchase_price' => 2500000],
+            'PRN-CATALOG-01' => ['name' => 'Cetak katalog premium', 'category' => 'Cetak premium', 'purchase_price' => 4200000],
+            'JSA-WEB-03' => ['name' => 'Website company profile', 'category' => 'Jasa desain', 'purchase_price' => 3500000],
+            'PRM-FLYER-01' => ['name' => 'Flyer promosi bulanan', 'category' => 'Materi promosi', 'purchase_price' => 4900000],
         ];
 
         return collect($rows)
@@ -72,7 +72,7 @@ class SalesReportDemoSeeder extends Seeder
                     [
                         ...$row,
                         'description' => 'Produk demo untuk pengujian laporan.',
-                        'unit' => 'paket',
+                        'unit' => Product::UNIT_PCS,
                         'track_stock' => false,
                         'status' => Product::STATUS_ACTIVE,
                     ],

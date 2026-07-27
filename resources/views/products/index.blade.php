@@ -2,17 +2,17 @@
     $summaryCards = [
         ['label' => 'Total produk', 'value' => '64', 'caption' => '42 aktif dijual', 'tone' => 'brand'],
         ['label' => 'Stok menipis', 'value' => '7', 'caption' => 'Di bawah minimum', 'tone' => 'warning'],
-        ['label' => 'Nilai katalog', 'value' => 'Rp486.500.000', 'caption' => 'Estimasi nilai stok', 'tone' => 'success'],
+        ['label' => 'Nilai persediaan', 'value' => 'Rp186.500.000', 'caption' => 'Estimasi harga beli stok', 'tone' => 'success'],
         ['label' => 'Produk terlaris', 'value' => 'Katalog Premium', 'caption' => '18 transaksi bulan ini', 'tone' => 'brand'],
     ];
 
     $products = [
-        ['sku' => 'JSA-BRAND-01', 'name' => 'Paket desain brand refresh', 'category' => 'Jasa desain', 'unit' => 'paket', 'price' => 'Rp12.000.000', 'priceValue' => 12000000, 'stock' => 'Tidak dilacak', 'stockValue' => 999, 'minimumStock' => 0, 'sales' => 8, 'status' => 'Aktif'],
-        ['sku' => 'PRN-CATALOG-01', 'name' => 'Cetak katalog premium', 'category' => 'Cetak premium', 'unit' => 'paket', 'price' => 'Rp6.000.000', 'priceValue' => 6000000, 'stock' => '42 paket', 'stockValue' => 42, 'minimumStock' => 10, 'sales' => 18, 'status' => 'Aktif'],
-        ['sku' => 'JSA-WEB-03', 'name' => 'Website company profile', 'category' => 'Jasa desain', 'unit' => 'paket', 'price' => 'Rp8.750.000', 'priceValue' => 8750000, 'stock' => 'Tidak dilacak', 'stockValue' => 999, 'minimumStock' => 0, 'sales' => 5, 'status' => 'Aktif'],
-        ['sku' => 'PRM-FLYER-01', 'name' => 'Flyer promosi bulanan', 'category' => 'Materi promosi', 'unit' => 'rim', 'price' => 'Rp7.900.000', 'priceValue' => 7900000, 'stock' => '6 rim', 'stockValue' => 6, 'minimumStock' => 12, 'sales' => 11, 'status' => 'Stok menipis'],
-        ['sku' => 'PRN-BANNER-02', 'name' => 'Banner outdoor premium', 'category' => 'Cetak premium', 'unit' => 'meter', 'price' => 'Rp450.000', 'priceValue' => 450000, 'stock' => '120 meter', 'stockValue' => 120, 'minimumStock' => 30, 'sales' => 14, 'status' => 'Aktif'],
-        ['sku' => 'PKG-STARTER-01', 'name' => 'Paket starter UMKM', 'category' => 'Paket bundling', 'unit' => 'paket', 'price' => 'Rp3.250.000', 'priceValue' => 3250000, 'stock' => '0 paket', 'stockValue' => 0, 'minimumStock' => 5, 'sales' => 3, 'status' => 'Nonaktif'],
+        ['sku' => 'JSA-BRAND-01', 'name' => 'Paket desain brand refresh', 'category' => 'Jasa desain', 'unit' => 'PCS', 'purchasePrice' => 'Rp2.500.000', 'purchasePriceValue' => 2500000, 'stock' => 'Tidak dilacak', 'stockValue' => 999, 'minimumStock' => 0, 'sales' => 8, 'status' => 'Aktif'],
+        ['sku' => 'PRN-CATALOG-01', 'name' => 'Cetak katalog premium', 'category' => 'Cetak premium', 'unit' => 'PCS', 'purchasePrice' => 'Rp4.200.000', 'purchasePriceValue' => 4200000, 'stock' => '42 PCS', 'stockValue' => 42, 'minimumStock' => 10, 'sales' => 18, 'status' => 'Aktif'],
+        ['sku' => 'JSA-WEB-03', 'name' => 'Website company profile', 'category' => 'Jasa desain', 'unit' => 'PCS', 'purchasePrice' => 'Rp3.500.000', 'purchasePriceValue' => 3500000, 'stock' => 'Tidak dilacak', 'stockValue' => 999, 'minimumStock' => 0, 'sales' => 5, 'status' => 'Aktif'],
+        ['sku' => 'PRM-FLYER-01', 'name' => 'Flyer promosi bulanan', 'category' => 'Materi promosi', 'unit' => 'PCS', 'purchasePrice' => 'Rp4.900.000', 'purchasePriceValue' => 4900000, 'stock' => '6 PCS', 'stockValue' => 6, 'minimumStock' => 12, 'sales' => 11, 'status' => 'Stok menipis'],
+        ['sku' => 'PRN-BANNER-02', 'name' => 'Banner outdoor premium', 'category' => 'Cetak premium', 'unit' => 'PCS', 'purchasePrice' => 'Rp310.000', 'purchasePriceValue' => 310000, 'stock' => '120 PCS', 'stockValue' => 120, 'minimumStock' => 30, 'sales' => 14, 'status' => 'Aktif'],
+        ['sku' => 'PKG-STARTER-01', 'name' => 'Paket starter UMKM', 'category' => 'Paket bundling', 'unit' => 'PCS', 'purchasePrice' => 'Rp1.800.000', 'purchasePriceValue' => 1800000, 'stock' => '0 PCS', 'stockValue' => 0, 'minimumStock' => 5, 'sales' => 3, 'status' => 'Nonaktif'],
     ];
 @endphp
 
@@ -55,10 +55,9 @@
                         <div>
                             <div class="mb-2 flex flex-wrap items-center gap-2">
                                 <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Data produk</span>
-                                <span class="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent">Data tiruan</span>
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Daftar produk</h1>
-                            <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Kelola katalog jasa dan produk cetak, pantau harga, stok, dan performa transaksi.</p>
+                            <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Kelola katalog produk cetak, harga beli, stok, dan performa transaksi. Harga jual diatur langsung di item invoice.</p>
                         </div>
                         <div class="flex flex-wrap gap-2">
                             <button type="button" class="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
@@ -135,7 +134,7 @@
                                         <th class="px-5 py-3 sm:px-6">Produk</th>
                                         <th class="px-5 py-3">Kategori</th>
                                         <th class="px-5 py-3">Unit</th>
-                                        <th class="px-5 py-3 text-right">Harga</th>
+                                        <th class="px-5 py-3 text-right">Harga beli</th>
                                         <th class="px-5 py-3 text-right">Stok</th>
                                         <th class="px-5 py-3 text-right">Terjual</th>
                                         <th class="px-5 py-3 text-right">Status</th>
@@ -151,7 +150,7 @@
                                             </td>
                                             <td class="px-5 py-4 text-muted" x-text="product.category"></td>
                                             <td class="px-5 py-4 text-muted" x-text="product.unit"></td>
-                                            <td class="px-5 py-4 text-right font-semibold text-ink" x-text="product.price"></td>
+                                            <td class="px-5 py-4 text-right font-semibold text-ink" x-text="product.purchasePrice"></td>
                                             <td class="px-5 py-4 text-right">
                                                 <p class="font-medium" :class="isLowStock(product) ? 'text-yellow-900' : 'text-muted'" x-text="product.stock"></p>
                                                 <p class="mt-1 text-xs text-muted" x-show="product.minimumStock > 0">Minimum <span x-text="product.minimumStock"></span> <span x-text="product.unit"></span></p>
@@ -179,8 +178,8 @@
                         </div>
 
                         <div class="flex flex-col gap-3 border-t border-line px-5 py-4 text-sm text-muted sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                            <span><strong class="font-semibold text-ink" x-text="filteredProducts.length"></strong> produk tampil dari {{ count($products) }} data tiruan.</span>
-                            <span>Nilai katalog tampil: <strong class="font-semibold text-ink" x-text="visibleCatalogValueFormatted"></strong></span>
+                            <span><strong class="font-semibold text-ink" x-text="filteredProducts.length"></strong> produk tampil dari {{ count($products) }} data.</span>
+                            <span>Nilai persediaan tampil: <strong class="font-semibold text-ink" x-text="visibleCatalogValueFormatted"></strong></span>
                         </div>
                     </section>
                 </main>

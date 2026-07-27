@@ -47,7 +47,7 @@ class InvoicePaymentDetailApiTest extends TestCase
             'cup_model' => 'Oval',
             'grammage' => '8gr',
             'screen_printing_color' => 'Hitam',
-            'sides' => 2,
+            'jenis_cetak' => '2 warna',
             'quantity' => 10000,
             'unit_price' => 900,
             'subtotal' => 9000000,

@@ -2,6 +2,8 @@
 
 namespace App\Services\Invoices;
 
+use App\Models\Invoice;
+
 class CalculateInvoiceTotals
 {
     /**
@@ -16,19 +18,31 @@ class CalculateInvoiceTotals
      *     discount_type: string,
      *     discount_value: float,
      *     discount_amount: float,
+     *     product_revenue: float,
      *     taxable_amount: float,
      *     tax_rate: float,
      *     tax_amount: float,
+     *     shipping_type: string,
+     *     shipping_cost: float,
+     *     total_hpp: float,
+     *     gross_profit: float,
      *     total_amount: float
      * }
      */
-    public function calculate(array $items, array $discount, array $tax): array
+    public function calculate(
+        array $items,
+        array $discount,
+        array $tax,
+        string $shippingType = Invoice::SHIPPING_NONE,
+        int|float|string $shippingCost = 0,
+    ): array
     {
         $lineItems = collect($items)
             ->values()
             ->map(function (array $item, int $index): array {
                 $quantity = round(max(0, (float) $item['quantity']), 4);
                 $unitPrice = $this->money(max(0, (float) $item['price']));
+                $purchaseCostSnapshot = $this->money(max(0, (float) ($item['purchase_cost_snapshot'] ?? 0)));
                 $subtotal = $this->money($quantity * $unitPrice);
 
                 return [
@@ -39,13 +53,14 @@ class CalculateInvoiceTotals
                     'cup_model' => $item['cup_model'] ?? null,
                     'grammage' => $item['grammage'] ?? null,
                     'screen_printing_color' => $item['screen_printing_color'] ?? null,
-                    'sides' => $item['sides'] ?? null,
+                    'jenis_cetak' => $item['jenis_cetak'] ?? null,
                     'moq_quantity' => $item['moq_quantity'] ?? null,
                     'order_increment' => $item['order_increment'] ?? null,
                     'packaging_unit' => $item['packaging_unit'] ?? null,
                     'description' => $item['description'] ?? null,
                     'quantity' => $quantity,
                     'unit_price' => $unitPrice,
+                    'purchase_cost_snapshot' => $purchaseCostSnapshot,
                     'subtotal' => $subtotal,
                     'total_amount' => $subtotal,
                     'sort_order' => $index,
@@ -67,6 +82,24 @@ class CalculateInvoiceTotals
             ? round(min(100, max(0, (float) $tax['rate'])), 2)
             : 0.0;
         $taxAmount = $this->money($taxableAmount * $taxRate / 100);
+        $productRevenue = $taxableAmount;
+        $normalizedShippingType = in_array($shippingType, [
+            Invoice::SHIPPING_NONE,
+            Invoice::SHIPPING_PAID_BY_CUSTOMER,
+            Invoice::SHIPPING_COMPANY_FREE_SHIPPING,
+        ], true) ? $shippingType : Invoice::SHIPPING_NONE;
+        $normalizedShippingCost = $normalizedShippingType === Invoice::SHIPPING_NONE
+            ? 0.0
+            : $this->money(max(0, (float) $shippingCost));
+        $totalHpp = $this->money($lineItems->sum(
+            fn (array $item): float => (float) $item['quantity'] * (float) $item['purchase_cost_snapshot'],
+        ));
+        $companyPaidShipping = $normalizedShippingType === Invoice::SHIPPING_COMPANY_FREE_SHIPPING
+            ? $normalizedShippingCost
+            : 0.0;
+        $invoiceTotalShipping = $normalizedShippingType === Invoice::SHIPPING_PAID_BY_CUSTOMER
+            ? $normalizedShippingCost
+            : 0.0;
 
         return [
             'items' => $lineItems->all(),
@@ -74,10 +107,15 @@ class CalculateInvoiceTotals
             'discount_type' => $discountType,
             'discount_value' => $discountValue,
             'discount_amount' => $discountAmount,
+            'product_revenue' => $productRevenue,
             'taxable_amount' => $taxableAmount,
             'tax_rate' => $taxRate,
             'tax_amount' => $taxAmount,
-            'total_amount' => $this->money($taxableAmount + $taxAmount),
+            'shipping_type' => $normalizedShippingType,
+            'shipping_cost' => $normalizedShippingCost,
+            'total_hpp' => $totalHpp,
+            'gross_profit' => $this->money($productRevenue - $totalHpp - $companyPaidShipping),
+            'total_amount' => $this->money($taxableAmount + $taxAmount + $invoiceTotalShipping),
         ];
     }
 

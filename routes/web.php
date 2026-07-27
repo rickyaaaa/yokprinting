@@ -4,7 +4,12 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::view('/login', 'auth.login')->name('login');
+Route::get('/login', fn () => response()
+    ->view('auth.login')
+    ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+    ->header('Pragma', 'no-cache')
+    ->header('Expires', '0'))
+    ->name('login');
 Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.store');
 Route::get('/register', fn () => redirect()
     ->route('login')

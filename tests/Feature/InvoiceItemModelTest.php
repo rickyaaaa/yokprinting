@@ -24,7 +24,7 @@ class InvoiceItemModelTest extends TestCase
             'cup_model',
             'grammage',
             'screen_printing_color',
-            'sides',
+            'jenis_cetak',
             'moq_quantity',
             'order_increment',
             'packaging_unit',
@@ -32,6 +32,7 @@ class InvoiceItemModelTest extends TestCase
             'quantity',
             'unit',
             'unit_price',
+            'purchase_cost_snapshot',
             'discount_type',
             'discount_value',
             'discount_amount',
@@ -60,15 +61,16 @@ class InvoiceItemModelTest extends TestCase
             'cup_model' => 'Oval',
             'grammage' => '8gr',
             'screen_printing_color' => 'Hitam',
-            'sides' => 2,
+            'jenis_cetak' => '2 warna',
             'quantity' => 1000,
             'unit_price' => 850,
+            'purchase_cost_snapshot' => 500,
             'subtotal' => 850000,
             'total_amount' => 850000,
         ]);
 
         $this->assertSame(
-            'Sablon Cup 16 Oz Oval (8gr) - 1 Warna (Tinta Hitam - 2 Sisi)',
+            'Sablon Cup 16 Oz Oval (8gr) - 2 warna (Tinta Hitam)',
             $item->refresh()->description,
         );
     }
@@ -97,6 +99,7 @@ class InvoiceItemModelTest extends TestCase
         $this->assertSame('Paket Desain Identitas Brand', $item->product_name);
         $this->assertSame('2.0000', $item->quantity);
         $this->assertSame('12500000.00', $item->unit_price);
+        $this->assertSame('0.00', $item->refresh()->purchase_cost_snapshot);
         $this->assertSame(['category' => 'Jasa kreatif'], $item->metadata);
         $this->assertTrue($item->invoice->is($invoice));
         $this->assertTrue($invoice->items->contains($item));

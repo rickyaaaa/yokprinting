@@ -64,7 +64,6 @@
                         <div>
                             <div class="mb-2 flex items-center gap-2">
                                 <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Draft baru</span>
-                                <span class="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent">Data tiruan</span>
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Buat invoice baru</h1>
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Lengkapi detail tagihan, item, dan jatuh tempo. Kamu bisa meninjau ulang sebelum mengirimkannya.</p>
@@ -233,7 +232,7 @@
                                     <circle cx="12" cy="12" r="9"/>
                                     <path d="M12 10v6M12 7h.01" stroke-linecap="round"/>
                                 </svg>
-                                <p class="leading-5">Ini adalah tampilan data tiruan. Tombol simpan dan pratinjau akan aktif setelah alur invoice terhubung.</p>
+                                <p class="leading-5">Draft invoice akan disimpan ke backend, termasuk spesifikasi cup, DP, dan catatan produksi.</p>
                             </div>
                         </aside>
 
@@ -262,7 +261,7 @@
                                 </svg>
                             </span>
                             <div class="min-w-0 flex-1">
-                                <p class="text-sm font-semibold" x-text="errorMessage ? (errorTitle || 'Draft gagal disimpan') : 'Draft tersimpan via API tiruan'"></p>
+                                <p class="text-sm font-semibold" x-text="errorMessage ? (errorTitle || 'Draft gagal disimpan') : 'Draft tersimpan via API'"></p>
                                 <p
                                     class="mt-1 text-xs leading-5 text-white/80"
                                     x-text="errorMessage || `ID ${savedDraftId} · disimpan pukul ${savedAt}`"

@@ -82,7 +82,6 @@
                         <div>
                             <div class="mb-2 flex flex-wrap items-center gap-2">
                                 <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Manajemen pembayaran</span>
-                                <span class="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent">Data tiruan</span>
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Riwayat pembayaran</h1>
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Lihat transaksi pembayaran masuk, status verifikasi, dan referensi invoice terkait.</p>
@@ -128,7 +127,7 @@
                         <div class="flex flex-col gap-4 border-b border-line px-5 py-4 sm:px-6 xl:flex-row xl:items-center xl:justify-between">
                             <div>
                                 <h2 id="payment-history-page-heading" class="font-semibold text-ink">Tabel riwayat pembayaran</h2>
-                                <p class="mt-1 text-sm text-muted">Transaksi pembayaran terbaru dari data tiruan.</p>
+                                <p class="mt-1 text-sm text-muted">Transaksi pembayaran terbaru.</p>
                             </div>
                             <div class="flex flex-wrap items-center gap-3">
                                 <div class="inline-flex w-fit rounded-lg bg-canvas p-1 text-xs font-semibold text-muted" aria-label="Filter status riwayat pembayaran">

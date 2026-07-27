@@ -5,12 +5,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
     use SoftDeletes;
+
+    public const UNIT_PCS = 'PCS';
 
     public const CUP_SIZES = ['12 Oz', '14 Oz', '16 Oz', '18 Oz', '22 Oz'];
 
@@ -30,8 +33,11 @@ class Product extends Model
      * @var array<string, mixed>
      */
     protected $attributes = [
-        'unit' => 'item',
-        'price' => 0,
+        'unit' => self::UNIT_PCS,
+        'purchase_price' => 0,
+        'minimum_order_qty' => 1,
+        'package_conversion' => 1,
+        'minimum_stock' => 0,
         'moq_quantity' => 1000,
         'order_increment' => 1000,
         'packaging_unit' => 'pcs',
@@ -49,16 +55,24 @@ class Product extends Model
         'name',
         'category_id',
         'category',
+        'brand',
         'cup_size',
         'cup_model',
         'grammage',
         'screen_printing_color',
         'sides',
         'description',
+        'short_description',
         'unit',
-        'price',
+        'purchase_price',
         'stock',
         'minimum_stock',
+        'minimum_order_qty',
+        'package_conversion',
+        'length_cm',
+        'width_cm',
+        'height_cm',
+        'weight_gram',
         'moq_quantity',
         'order_increment',
         'packaging_unit',
@@ -74,9 +88,15 @@ class Product extends Model
     protected function casts(): array
     {
         return [
-            'price' => 'decimal:2',
+            'purchase_price' => 'decimal:2',
             'stock' => 'decimal:4',
             'minimum_stock' => 'decimal:4',
+            'minimum_order_qty' => 'integer',
+            'package_conversion' => 'integer',
+            'length_cm' => 'decimal:2',
+            'width_cm' => 'decimal:2',
+            'height_cm' => 'decimal:2',
+            'weight_gram' => 'decimal:2',
             'sides' => 'integer',
             'moq_quantity' => 'integer',
             'order_increment' => 'integer',
@@ -85,11 +105,52 @@ class Product extends Model
     }
 
     /**
+     * Bootstrap product lifecycle hooks.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (Product $product): void {
+            if (! filled($product->sku)) {
+                $product->sku = static::nextSku();
+            }
+
+            $product->unit = self::UNIT_PCS;
+        });
+
+        static::saving(function (Product $product): void {
+            $product->unit = self::UNIT_PCS;
+        });
+    }
+
+    /**
      * Get invoice line items that reference this catalog product.
      */
     public function invoiceItems(): HasMany
     {
         return $this->hasMany(InvoiceItem::class);
+    }
+
+    /**
+     * Get stock ledger movements for this product.
+     */
+    public function stockMovements(): HasMany
+    {
+        return $this->hasMany(StockMovement::class);
+    }
+
+    /**
+     * Get suppliers that can provide this product.
+     */
+    public function suppliers(): BelongsToMany
+    {
+        return $this->belongsToMany(Supplier::class)
+            ->withPivot([
+                'purchase_price',
+                'minimum_purchase',
+                'supplier_unit',
+                'is_primary',
+            ])
+            ->withTimestamps();
     }
 
     /**
@@ -156,9 +217,29 @@ class Product extends Model
      */
     public function isValidOrderQuantity(int $quantity): bool
     {
-        $minimum = max(1, (int) $this->moq_quantity);
-        $increment = max(1, (int) $this->order_increment);
+        $minimum = max(1, (int) ($this->minimum_order_qty ?: $this->moq_quantity));
+        $increment = max(1, (int) ($this->package_conversion ?: $this->order_increment));
 
         return $quantity >= $minimum && $quantity % $increment === 0;
+    }
+
+    /**
+     * Generate the next sequential YokPrinting product code.
+     */
+    public static function nextSku(): string
+    {
+        $lastNumber = static::withTrashed()
+            ->where('sku', 'like', 'H-%')
+            ->pluck('sku')
+            ->map(function (?string $sku): int {
+                if (! $sku || ! preg_match('/^H-(\d+)$/', $sku, $matches)) {
+                    return 0;
+                }
+
+                return (int) $matches[1];
+            })
+            ->max() ?? 0;
+
+        return 'H-'.str_pad((string) ($lastNumber + 1), 3, '0', STR_PAD_LEFT);
     }
 }

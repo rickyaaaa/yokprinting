@@ -72,7 +72,7 @@
                         </svg>
                         <span class="truncate font-medium text-ink">Peran & akses</span>
                     </div>
-                    <div class="ml-auto hidden text-sm text-muted sm:block">Frontend mock permission</div>
+                    <div class="ml-auto hidden text-sm text-muted sm:block">Backend permission aktif</div>
                 </header>
 
                 <main class="mx-auto w-full max-w-[1280px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
@@ -80,7 +80,6 @@
                         <div>
                             <div class="mb-2 flex flex-wrap items-center gap-2">
                                 <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Akses & keamanan</span>
-                                <span class="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent">Data tiruan</span>
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Daftar peran</h1>
                             <p class="mt-1 max-w-3xl text-sm leading-6 text-muted">Kelola rancangan role dan cakupan permission sebelum backend role-based access control diaktifkan.</p>
@@ -125,7 +124,7 @@
 
                     <section class="mt-6 rounded-xl bg-white border border-line" aria-labelledby="role-table-heading">
                         <div class="border-b border-line px-5 py-4 sm:px-6">
-                            <h2 id="role-table-heading" class="font-semibold text-ink">Matrix permission tiruan</h2>
+                            <h2 id="role-table-heading" class="font-semibold text-ink">Matrix permission</h2>
                             <p class="mt-1 text-sm text-muted">Centang menunjukkan modul yang bisa diakses oleh role tersebut pada rancangan awal.</p>
                         </div>
 

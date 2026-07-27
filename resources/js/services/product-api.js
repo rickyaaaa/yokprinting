@@ -6,7 +6,8 @@ const MOCK_PRODUCTS = [
         name: 'Sablon Cup 16 Oz Oval 8gr',
         sku: 'CUP-16OV-8G-2S',
         category: 'Sablon cup F&B',
-        price: 850,
+        price: 0,
+        purchase_price: 650,
         stock: 32000,
         cup_size: '16 Oz',
         cup_model: 'Oval',
@@ -23,7 +24,8 @@ const MOCK_PRODUCTS = [
         name: 'Sablon Cup 12 Oz Datar 7gr',
         sku: 'CUP-12DT-7G-1S',
         category: 'Sablon cup F&B',
-        price: 700,
+        price: 0,
+        purchase_price: 525,
         stock: 28000,
         cup_size: '12 Oz',
         cup_model: 'Datar',
@@ -40,7 +42,8 @@ const MOCK_PRODUCTS = [
         name: 'Sablon Cup 22 Oz Oval 9.5gr',
         sku: 'CUP-22OV-95G-2S',
         category: 'Sablon cup F&B',
-        price: 1150,
+        price: 0,
+        purchase_price: 875,
         stock: 18000,
         cup_size: '22 Oz',
         cup_model: 'Oval',
@@ -57,7 +60,8 @@ const MOCK_PRODUCTS = [
         name: 'Dus Kemasan Cup 16 Oz',
         sku: 'BOX-CUP16-01',
         category: 'Kemasan pendukung',
-        price: 12500,
+        price: 0,
+        purchase_price: 9500,
         stock: 240,
         cup_size: '16 Oz',
         cup_model: 'Datar',
@@ -95,7 +99,7 @@ export async function listProducts() {
         status: 'active',
         limit: '100',
     });
-    const response = await fetch(`/api/products?${query.toString()}`, {
+    const response = await fetch(`/api/products/options?${query.toString()}`, {
         credentials: 'same-origin',
         headers: {
             Accept: 'application/json',

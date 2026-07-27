@@ -15,7 +15,6 @@ return new class extends Migration
             $table->id();
             $table->string('code', 50)->unique();
             $table->string('name');
-            $table->string('segment', 50)->nullable()->index();
             $table->string('email')->nullable()->index();
             $table->string('phone', 50)->nullable();
             $table->text('address')->nullable();
@@ -29,7 +28,6 @@ return new class extends Migration
             $table->softDeletes();
 
             $table->index(['status', 'name']);
-            $table->index(['segment', 'status']);
         });
     }
 

@@ -20,7 +20,19 @@ class ProductOptionController extends Controller
         $limit = (int) ($validated['limit'] ?? 100);
 
         $products = Product::query()
-            ->select(['id', 'name', 'sku', 'category', 'price', 'stock'])
+            ->select([
+                'id',
+                'name',
+                'sku',
+                'category',
+                'brand',
+                'short_description',
+                'purchase_price',
+                'stock',
+                'minimum_order_qty',
+                'package_conversion',
+                'unit',
+            ])
             ->selectable()
             ->when(
                 filled($validated['ids'] ?? null),
@@ -31,6 +43,7 @@ class ProductOptionController extends Controller
                     $searchQuery
                         ->where('name', 'like', "%{$search}%")
                         ->orWhere('sku', 'like', "%{$search}%")
+                        ->orWhere('brand', 'like', "%{$search}%")
                         ->orWhere('category', 'like', "%{$search}%");
                 });
             })
@@ -42,8 +55,13 @@ class ProductOptionController extends Controller
                 'name' => $product->name,
                 'sku' => $product->sku,
                 'category' => $product->category,
-                'price' => (float) $product->price,
+                'brand' => $product->brand,
+                'short_description' => $product->short_description,
+                'purchase_price' => (float) $product->purchase_price,
                 'stock' => $product->stock === null ? null : (float) $product->stock,
+                'minimum_order_qty' => $product->minimum_order_qty,
+                'package_conversion' => $product->package_conversion,
+                'unit' => $product->unit,
             ])
             ->values();
 

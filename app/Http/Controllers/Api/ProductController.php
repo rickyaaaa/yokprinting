@@ -48,6 +48,8 @@ class ProductController extends Controller
                     $searchQuery
                         ->where('name', 'like', "%{$search}%")
                         ->orWhere('sku', 'like', "%{$search}%")
+                        ->orWhere('brand', 'like', "%{$search}%")
+                        ->orWhere('short_description', 'like', "%{$search}%")
                         ->orWhere('category', 'like', "%{$search}%")
                         ->orWhereHas('categoryModel', fn (Builder $categoryQuery): Builder => $categoryQuery->where('name', 'like', "%{$search}%"));
                 });
@@ -151,6 +153,7 @@ class ProductController extends Controller
             'name' => $product->name,
             'category_id' => $product->category_id,
             'category' => $product->category,
+            'brand' => $product->brand,
             'cup_size' => $product->cup_size,
             'cup_model' => $product->cup_model,
             'grammage' => $product->grammage,
@@ -163,10 +166,17 @@ class ProductController extends Controller
                 'slug' => $product->categoryModel->slug,
             ] : null,
             'description' => $product->description,
+            'short_description' => $product->short_description,
             'unit' => $product->unit,
-            'price' => (float) $product->price,
+            'purchase_price' => (float) $product->purchase_price,
             'stock' => $product->stock === null ? null : (float) $product->stock,
             'minimum_stock' => $product->minimum_stock === null ? null : (float) $product->minimum_stock,
+            'minimum_order_qty' => $product->minimum_order_qty,
+            'package_conversion' => $product->package_conversion,
+            'length_cm' => $product->length_cm === null ? null : (float) $product->length_cm,
+            'width_cm' => $product->width_cm === null ? null : (float) $product->width_cm,
+            'height_cm' => $product->height_cm === null ? null : (float) $product->height_cm,
+            'weight_gram' => $product->weight_gram === null ? null : (float) $product->weight_gram,
             'moq_quantity' => $product->moq_quantity,
             'order_increment' => $product->order_increment,
             'packaging_unit' => $product->packaging_unit,

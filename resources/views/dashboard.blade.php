@@ -130,7 +130,6 @@
                         <div>
                             <div class="mb-2 flex items-center gap-2">
                                 <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Dashboard bisnis</span>
-                                <span class="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent">Data tiruan</span>
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Ringkasan keuangan</h1>
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Pantau pendapatan, tagihan berjalan, dan aktivitas invoice terbaru dalam satu layar.</p>

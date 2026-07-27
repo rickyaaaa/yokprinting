@@ -15,7 +15,6 @@ class CustomerCrudApiTest extends TestCase
         $payload = [
             'code' => 'CUS-910',
             'name' => 'PT Mentari Nusantara',
-            'segment' => 'Corporate',
             'email' => 'finance@mentari.example.com',
             'phone' => '+62 21 9911 2211',
             'address' => 'Jl. Radio Dalam No. 10',
@@ -30,7 +29,7 @@ class CustomerCrudApiTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.code', 'CUS-910')
             ->assertJsonPath('data.name', 'PT Mentari Nusantara')
-            ->assertJsonPath('data.segment', 'Corporate')
+            ->assertJsonPath('data.activity_status', Customer::ACTIVITY_NEVER_ORDERED)
             ->assertJsonPath('data.status', Customer::STATUS_ACTIVE)
             ->assertJsonPath('data.initials', 'PM');
 
@@ -55,12 +54,10 @@ class CustomerCrudApiTest extends TestCase
 
         $this->patchJson(route('api.customers.update', $customer), [
             'name' => 'CV Baru Kreatif',
-            'segment' => 'UMKM',
             'status' => Customer::STATUS_INACTIVE,
         ])
             ->assertOk()
             ->assertJsonPath('data.name', 'CV Baru Kreatif')
-            ->assertJsonPath('data.segment', 'UMKM')
             ->assertJsonPath('data.status', Customer::STATUS_INACTIVE);
 
         $this->deleteJson(route('api.customers.destroy', $customer))

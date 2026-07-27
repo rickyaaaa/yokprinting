@@ -42,7 +42,7 @@ const dashboardRevenueDatasets = {
     monthly: {
         label: '6 bulan terakhir',
         headline: 'Rp86,4 jt',
-        caption: 'Juli menjadi bulan terkuat dari data tiruan saat ini.',
+        caption: 'Juli menjadi bulan terkuat dari data saat ini.',
         labels: ['Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul'],
         issued: [46000000, 58000000, 52000000, 71000000, 64000000, 86400000],
         paid: [38000000, 42000000, 47000000, 59000000, 52100000, 52100000],
@@ -83,7 +83,7 @@ const buildInvoiceDraftPayload = (form) => {
             cup_model: form.querySelector(`[name="items[${index}][cup_model]"]`)?.value ?? '',
             grammage: form.querySelector(`[name="items[${index}][grammage]"]`)?.value ?? '',
             screen_printing_color: form.querySelector(`[name="items[${index}][screen_printing_color]"]`)?.value ?? '',
-            sides: Number(form.querySelector(`[name="items[${index}][sides]"]`)?.value) || null,
+            jenis_cetak: form.querySelector(`[name="items[${index}][jenis_cetak]"]`)?.value ?? '1 warna',
             moq_quantity: Number(form.querySelector(`[name="items[${index}][moq_quantity]"]`)?.value) || null,
             order_increment: Number(form.querySelector(`[name="items[${index}][order_increment]"]`)?.value) || null,
             packaging_unit: form.querySelector(`[name="items[${index}][packaging_unit]"]`)?.value ?? 'pcs',
@@ -101,7 +101,10 @@ const buildInvoiceDraftPayload = (form) => {
         },
         notes: form.querySelector('[name="notes"]')?.value ?? '',
         terms: form.querySelector('[name="terms"]')?.value ?? '',
-        production_status: form.querySelector('[name="production_status"]')?.value ?? 'draft',
+            production_status: form.querySelector('[name="production_status"]')?.value ?? 'draft',
+        shipping_type: form.querySelector('[name="shipping_type"]')?.value ?? 'none',
+        shipping_cost: Number(form.querySelector('[name="shipping_cost"]')?.value) || 0,
+        order_process_status: form.querySelector('[name="order_process_status"]')?.value ?? 'draft',
         design_notes: form.querySelector('[name="design_notes"]')?.value ?? '',
         mockup_url: form.querySelector('[name="mockup_url"]')?.value ?? '',
         dp_required_percent: Number(form.querySelector('[name="dp_required_percent"]')?.value) || 50,
@@ -575,6 +578,61 @@ Alpine.data('recordPaymentForm', () => ({
     },
 }));
 
+Alpine.data('rolePermissionsForm', (roleCode) => ({
+    roleCode,
+    saving: false,
+    saved: false,
+    savedMessage: '',
+    errorMessage: '',
+
+    selectedPermissions(form) {
+        return [...form.querySelectorAll('input[name="permissions[]"]:checked')]
+            .map((field) => field.value)
+            .filter(Boolean);
+    },
+
+    async submit(event) {
+        if (this.saving) {
+            return;
+        }
+
+        const form = event.currentTarget;
+        const permissions = this.selectedPermissions(form);
+
+        this.saving = true;
+        this.saved = false;
+        this.errorMessage = '';
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'PUT',
+                credentials: 'same-origin',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                },
+                body: JSON.stringify({ permissions }),
+            });
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                const firstError = Object.values(payload?.errors ?? {})?.[0]?.[0];
+
+                throw new Error(firstError || payload?.message || 'Coba ulangi beberapa saat lagi.');
+            }
+
+            this.saved = true;
+            this.savedMessage = `${payload?.data?.permission_count ?? permissions.length} izin aktif untuk role ${payload?.data?.role?.name ?? this.roleCode}.`;
+        } catch (error) {
+            this.errorMessage = error?.message ?? 'Coba ulangi beberapa saat lagi.';
+        } finally {
+            this.saving = false;
+        }
+    },
+}));
+
 Alpine.data('receivablesTable', (receivables = []) => ({
     query: '',
     statusFilter: 'all',
@@ -813,12 +871,12 @@ Alpine.data('invoiceItems', () => ({
             cupModel: product.cup_model ?? 'Oval',
             grammage: product.grammage ?? '8gr',
             screenPrintingColor: product.screen_printing_color ?? 'Hitam',
-            sides: Number(product.sides) || 1,
-            moqQuantity: Number(product.moq_quantity) || 1000,
-            orderIncrement: Number(product.order_increment) || 1000,
-            packagingUnit: product.packaging_unit ?? 'pcs',
-            quantity: Number(product.moq_quantity) || 1000,
-            price: product.price,
+            jenisCetak: product.sides ? `${product.sides} warna` : '1 warna',
+            moqQuantity: Number(product.minimum_order_qty || product.moq_quantity) || 1,
+            orderIncrement: Number(product.package_conversion || product.order_increment) || 1,
+            packagingUnit: product.unit ?? product.packaging_unit ?? 'PCS',
+            quantity: Number(product.minimum_order_qty || product.moq_quantity) || 1,
+            price: product.price ?? 0,
         };
     },
 
@@ -840,12 +898,12 @@ Alpine.data('invoiceItems', () => ({
             item.cupModel = product.cup_model ?? item.cupModel;
             item.grammage = product.grammage ?? item.grammage;
             item.screenPrintingColor = product.screen_printing_color ?? item.screenPrintingColor;
-            item.sides = Number(product.sides) || item.sides;
-            item.moqQuantity = Number(product.moq_quantity) || item.moqQuantity;
-            item.orderIncrement = Number(product.order_increment) || item.orderIncrement;
-            item.packagingUnit = product.packaging_unit ?? item.packagingUnit;
+            item.jenisCetak = product.sides ? `${product.sides} warna` : item.jenisCetak;
+            item.moqQuantity = Number(product.minimum_order_qty || product.moq_quantity) || item.moqQuantity;
+            item.orderIncrement = Number(product.package_conversion || product.order_increment) || item.orderIncrement;
+            item.packagingUnit = product.unit ?? product.packaging_unit ?? item.packagingUnit;
             item.quantity = Math.max(Number(item.quantity) || 0, item.moqQuantity || 1);
-            item.price = product.price;
+            item.price = product.price ?? 0;
             this.normalizeQuantity(item);
         }
     },
@@ -865,14 +923,14 @@ Alpine.data('invoiceItems', () => ({
             .join(' ');
         const details = [
             item.screenPrintingColor ? `Tinta ${item.screenPrintingColor}` : '',
-            item.sides ? `${item.sides} Sisi` : '',
+            item.jenisCetak ?? '',
         ].filter(Boolean).join(' - ');
 
         if (!specs) {
             return item.productName ?? this.productName(item.productId);
         }
 
-        return `Sablon Cup ${specs} - 1 Warna${details ? ` (${details})` : ''}`;
+        return `Sablon Cup ${specs}${details ? ` (${details})` : ''}`;
     },
 
     addItem() {
@@ -930,7 +988,7 @@ Alpine.data('invoicePreviewActions', () => ({
             this.notice = {
                 type: 'success',
                 title: 'Draft berhasil disimpan',
-                description: 'Status ini masih menggunakan penyimpanan tiruan frontend.',
+                description: 'Status ini tersimpan untuk validasi alur pembayaran.',
             };
         }, 450);
     },
@@ -1457,7 +1515,7 @@ Alpine.data('productIndexTable', (initialProducts = []) => ({
         const total = this.filteredProducts.reduce((sum, product) => {
             const stockMultiplier = product.stockValue >= 999 ? 1 : product.stockValue;
 
-            return sum + ((product.priceValue || 0) * stockMultiplier);
+            return sum + ((product.purchasePriceValue || 0) * stockMultiplier);
         }, 0);
 
         return formatRupiah(total);
@@ -1519,8 +1577,8 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
         sku: initialForm.sku ?? 'PRN-NEW-01',
         name: initialForm.name ?? '',
         category: initialForm.category ?? 'Cetak premium',
-        unit: initialForm.unit ?? 'paket',
-        price: initialForm.price ?? 2500000,
+        unit: 'PCS',
+        purchasePrice: initialForm.purchasePrice ?? initialForm.purchase_price ?? 0,
         stock: initialForm.stock ?? 10,
         minimumStock: initialForm.minimumStock ?? 5,
         status: initialForm.status ?? 'Aktif',
@@ -1532,8 +1590,8 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
         return Object.values(this.fieldErrors);
     },
 
-    get formattedPrice() {
-        return formatRupiah(Number(this.form.price) || 0);
+    get formattedPurchasePrice() {
+        return formatRupiah(Number(this.form.purchasePrice) || 0);
     },
 
     get stockLabel() {
@@ -1565,8 +1623,8 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
             errors.name = 'Nama produk wajib diisi.';
         }
 
-        if ((Number(this.form.price) || 0) <= 0) {
-            errors.price = 'Harga jual harus lebih dari Rp0.';
+        if ((Number(this.form.purchasePrice) || 0) < 0) {
+            errors.purchasePrice = 'Harga beli tidak boleh bernilai negatif.';
         }
 
         if (this.form.trackStock) {

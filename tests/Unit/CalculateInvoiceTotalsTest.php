@@ -23,6 +23,9 @@ class CalculateInvoiceTotalsTest extends TestCase
         $this->assertSame(225000.0, $totals['taxable_amount']);
         $this->assertSame(24750.0, $totals['tax_amount']);
         $this->assertSame(249750.0, $totals['total_amount']);
+        $this->assertSame(225000.0, $totals['product_revenue']);
+        $this->assertSame(0.0, $totals['total_hpp']);
+        $this->assertSame(225000.0, $totals['gross_profit']);
     }
 
     public function test_fixed_discount_is_capped_at_subtotal_and_disabled_tax_is_zero(): void
@@ -55,5 +58,41 @@ class CalculateInvoiceTotalsTest extends TestCase
         $this->assertSame(10.05, $totals['items'][0]['subtotal']);
         $this->assertSame(1.01, $totals['tax_amount']);
         $this->assertSame(11.06, $totals['total_amount']);
+    }
+
+    public function test_customer_paid_shipping_is_included_in_invoice_total_but_not_product_revenue(): void
+    {
+        $totals = (new CalculateInvoiceTotals)->calculate(
+            [
+                ['product_id' => 1, 'quantity' => 1000, 'price' => 850, 'purchase_cost_snapshot' => 500],
+            ],
+            ['type' => 'percentage', 'value' => 0],
+            ['enabled' => false, 'rate' => 0],
+            'paid_by_customer',
+            50000,
+        );
+
+        $this->assertSame(850000.0, $totals['product_revenue']);
+        $this->assertSame(500000.0, $totals['total_hpp']);
+        $this->assertSame(350000.0, $totals['gross_profit']);
+        $this->assertSame(900000.0, $totals['total_amount']);
+    }
+
+    public function test_company_free_shipping_reduces_gross_profit_without_increasing_invoice_total(): void
+    {
+        $totals = (new CalculateInvoiceTotals)->calculate(
+            [
+                ['product_id' => 1, 'quantity' => 1000, 'price' => 850, 'purchase_cost_snapshot' => 500],
+            ],
+            ['type' => 'percentage', 'value' => 0],
+            ['enabled' => false, 'rate' => 0],
+            'company_free_shipping',
+            50000,
+        );
+
+        $this->assertSame(850000.0, $totals['product_revenue']);
+        $this->assertSame(500000.0, $totals['total_hpp']);
+        $this->assertSame(300000.0, $totals['gross_profit']);
+        $this->assertSame(850000.0, $totals['total_amount']);
     }
 }

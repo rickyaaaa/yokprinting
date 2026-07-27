@@ -67,7 +67,7 @@ class CustomerController extends Controller
             'id' => $customer->getKey(),
             'code' => $customer->code,
             'name' => $customer->name,
-            'segment' => $customer->segment,
+            'activity_status' => $customer->activity_status,
             'email' => $customer->email,
             'phone' => $customer->phone,
             'address' => $customer->address,

@@ -1,18 +1,27 @@
 @php
+    $yokPrintingLogo = 'data:image/png;base64,'.base64_encode(file_get_contents(public_path('images/yokprinting-logo.png')));
+    $yokPrintingAddress = 'Jl. Karyawan II, RT.005/RW.005, Karang Tengah, Kec. Karang Tengah, Kota Tangerang, Banten 15157';
     $items = [
         [
-            'name' => 'Paket Desain Identitas Brand',
-            'description' => 'Strategi brand, sistem logo, panduan warna, dan brand guideline.',
-            'quantity' => 1,
-            'price' => 'Rp12.500.000',
-            'total' => 'Rp12.500.000',
+            'name' => 'Sablon Cup 16 Oz Oval (8gr)',
+            'description' => '1 warna tinta hitam, 2 sisi, posisi logo tengah. MOQ 1.000 pcs, kelipatan order 1.000 pcs.',
+            'quantity' => '10.000 pcs',
+            'price' => 'Rp850',
+            'total' => 'Rp8.500.000',
         ],
         [
-            'name' => 'Website Company Profile',
-            'description' => 'Desain dan pengembangan website responsif hingga 8 halaman.',
-            'quantity' => 1,
-            'price' => 'Rp8.750.000',
-            'total' => 'Rp8.750.000',
+            'name' => 'Sablon Cup 12 Oz Datar (7gr)',
+            'description' => '1 warna tinta putih, 1 sisi, untuk kebutuhan kemasan minuman F&B.',
+            'quantity' => '8.000 pcs',
+            'price' => 'Rp700',
+            'total' => 'Rp5.600.000',
+        ],
+        [
+            'name' => 'Dus Kemasan Cup 16 Oz',
+            'description' => 'Dus packing pengiriman, kelipatan 10 dus.',
+            'quantity' => '200 dus',
+            'price' => 'Rp19.500',
+            'total' => 'Rp3.900.000',
         ],
     ];
 @endphp
@@ -46,7 +55,7 @@
                 <span class="hidden h-6 w-px bg-line sm:block"></span>
                 <div class="hidden min-w-0 sm:block">
                     <p class="truncate text-sm font-semibold text-ink">Pratinjau invoice</p>
-                    <p class="truncate text-xs text-muted">INV-2026-0079 · Data tiruan</p>
+                    <p class="truncate text-xs text-muted">INV-2026-0079</p>
                 </div>
                 <div class="ml-auto flex items-center gap-2">
                     <span class="hidden items-center gap-2 text-xs text-muted lg:inline-flex" aria-live="polite">
@@ -168,16 +177,23 @@
                     <div class="flex flex-col gap-8 border-b border-line pb-8 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                             <div class="flex items-center gap-3">
-                                <div class="grid size-12 place-items-center rounded-lg bg-brand-700 text-sm font-bold text-white" aria-hidden="true">RK</div>
+                                <div class="flex h-14 w-48 items-center rounded-lg border border-line bg-white px-3" aria-hidden="true">
+                                    <img src="{{ $yokPrintingLogo }}" alt="" class="max-h-9 w-auto object-contain">
+                                </div>
                                 <div>
-                                    <p class="text-lg font-bold tracking-[-0.02em] text-ink">Ruang Karya Digital</p>
-                                    <p class="mt-0.5 text-xs text-muted">Strategi, desain, dan teknologi</p>
+                                    <p class="text-lg font-bold tracking-[-0.02em] text-ink">YokPrinting.ID</p>
+                                    <p class="mt-0.5 text-xs text-muted">Sablon cup & cetak kemasan F&B</p>
                                 </div>
                             </div>
                             <address class="mt-5 max-w-xs text-xs not-italic leading-5 text-muted sm:text-sm sm:leading-6">
-                                Jl. Kemang Raya No. 24, Jakarta Selatan 12730<br>
+                                {{ $yokPrintingAddress }}<br>
+                                admin@yokprinting.id &middot; @yokprinting.id
+                                {{--
+                                admin@yokprinting.id · @yokprinting.id
+                                {{--
                                 halo@ruangkarya.id · +62 21 7179 880<br>
                                 NPWP 01.234.567.8-012.000
+                                --}}
                             </address>
                         </div>
 
@@ -200,7 +216,12 @@
                             <address class="mt-2 max-w-sm text-sm not-italic leading-6 text-muted">
                                 Jl. Jenderal Sudirman No. 88<br>
                                 Jakarta Selatan 12190<br>
+                                finance@sinarnusantara.co.id &middot; +62 21 555 0198
+                                {{--
                                 finance@sinarnusantara.co.id · +62 21 555 0198
+                                {{--
+                                finance@sinarnusantara.co.id · +62 21 555 0198
+                                --}}
                             </address>
                         </div>
 
@@ -247,19 +268,23 @@
                             <dl class="w-full max-w-sm space-y-3 text-sm">
                                 <div class="flex justify-between gap-6">
                                     <dt class="text-muted">Subtotal</dt>
-                                    <dd class="font-medium text-ink">Rp21.250.000</dd>
+                                    <dd class="font-medium text-ink">Rp18.000.000</dd>
                                 </div>
                                 <div class="flex justify-between gap-6">
-                                    <dt class="text-muted">Diskon (5%)</dt>
-                                    <dd class="font-medium text-red-700">− Rp1.062.500</dd>
+                                    <dt class="text-muted">Diskon</dt>
+                                    <dd class="font-medium text-red-700">− Rp0</dd>
                                 </div>
                                 <div class="flex justify-between gap-6">
                                     <dt class="text-muted">PPN (11%)</dt>
-                                    <dd class="font-medium text-ink">Rp2.220.625</dd>
+                                    <dd class="font-medium text-ink">Rp1.980.000</dd>
                                 </div>
                                 <div class="flex items-end justify-between gap-6 border-t-2 border-brand-700 pt-4">
                                     <dt class="font-semibold text-ink">Total tagihan</dt>
-                                    <dd class="text-xl font-bold tracking-[-0.025em] text-brand-800">Rp22.408.125</dd>
+                                    <dd class="text-xl font-bold tracking-[-0.025em] text-brand-800">Rp19.980.000</dd>
+                                </div>
+                                <div class="flex justify-between gap-6 rounded-lg bg-brand-50 px-3 py-2">
+                                    <dt class="font-semibold text-brand-900">Minimal DP 50%</dt>
+                                    <dd class="font-bold text-brand-900">Rp9.990.000</dd>
                                 </div>
                             </dl>
                         </div>
@@ -279,7 +304,7 @@
                                 </div>
                                 <div class="mt-2 flex justify-between gap-4">
                                     <span class="text-muted">Atas nama</span>
-                                    <span class="font-medium text-ink">PT Ruang Karya Digital</span>
+                                    <span class="font-medium text-ink">YokPrinting Indonesia</span>
                                 </div>
                             </div>
                         </section>
@@ -287,20 +312,20 @@
                         <section aria-labelledby="notes-heading">
                             <h2 id="notes-heading" class="text-sm font-semibold text-ink">Catatan</h2>
                             <p class="mt-3 text-sm leading-6 text-muted">
-                                Terima kasih telah mempercayakan kebutuhan bisnis Anda kepada kami. Mohon cantumkan nomor invoice pada berita transfer.
+                                Produksi berjalan setelah DP minimal 50% diterima dan mockup/desain sudah di-ACC. Pelunasan dilakukan sebelum barang dikirim atau diambil.
                             </p>
                         </section>
                     </div>
 
                     <footer class="mt-10 flex flex-col gap-2 border-t border-line pt-5 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
                         <p>Invoice ini dibuat secara elektronik dan sah tanpa tanda tangan.</p>
-                        <p class="font-medium text-brand-800">YokPrinting.ID</p>
+                        <p class="font-medium text-brand-800">YokPrinting.ID · {{ $yokPrintingAddress }}</p>
                     </footer>
                 </div>
             </article>
 
             <p class="print-hide mx-auto mt-4 max-w-[900px] text-center text-xs text-muted">
-                Pratinjau menggunakan data tiruan. Periksa kembali detail sebelum invoice dikirim.
+                Periksa kembali detail sebelum invoice dikirim.
             </p>
         </main>
 

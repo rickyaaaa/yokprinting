@@ -37,7 +37,6 @@
                     <div>
                         <div class="mb-2 flex flex-wrap items-center gap-2">
                             <span class="rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-800">Dari notifikasi</span>
-                            <span class="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent">Data tiruan</span>
                         </div>
                         <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Daftar invoice jatuh tempo</h1>
                         <p class="mt-1 max-w-3xl text-sm leading-6 text-muted">Daftar tindak lanjut dari notifikasi dashboard untuk invoice overdue dan invoice yang segera jatuh tempo.</p>

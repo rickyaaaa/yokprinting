@@ -21,7 +21,7 @@ class ProductCrudApiTest extends TestCase
             'name' => 'Cetak katalog premium',
             'category_id' => $premium->id,
             'category' => $premium->name,
-            'price' => 6000000,
+            'purchase_price' => 4200000,
             'stock' => 42,
         ]);
         Product::query()->create([
@@ -29,7 +29,7 @@ class ProductCrudApiTest extends TestCase
             'name' => 'Paket desain brand refresh',
             'category_id' => $design->id,
             'category' => $design->name,
-            'price' => 12000000,
+            'purchase_price' => 2500000,
             'stock' => null,
         ]);
         Product::query()->create([
@@ -37,13 +37,13 @@ class ProductCrudApiTest extends TestCase
             'name' => 'Produk nonaktif',
             'category_id' => $premium->id,
             'category' => $premium->name,
-            'price' => 100000,
+            'purchase_price' => 100000,
             'status' => Product::STATUS_INACTIVE,
         ]);
 
         $this->getJson(route('api.products.index', [
             'category_id' => $premium->id,
-            'sort' => 'price',
+            'sort' => 'purchase_price',
             'direction' => 'desc',
         ]))
             ->assertOk()
@@ -66,18 +66,29 @@ class ProductCrudApiTest extends TestCase
         $category = ProductCategory::query()->create(['name' => 'Materi promosi']);
 
         $createResponse = $this->postJson(route('api.products.store'), [
-            'sku' => 'PRM-FLYER-01',
             'name' => 'Flyer promosi bulanan',
             'category_id' => $category->id,
-            'unit' => 'rim',
-            'price' => 7900000,
+            'unit' => Product::UNIT_PCS,
+            'brand' => 'YokPrinting',
+            'short_description' => 'Flyer promo untuk kampanye bulanan.',
+            'purchase_price' => 4900000,
             'stock' => 6,
             'minimum_stock' => 12,
+            'minimum_order_qty' => 1000,
+            'package_conversion' => 500,
+            'length_cm' => 21,
+            'width_cm' => 29.7,
+            'height_cm' => 1.5,
+            'weight_gram' => 750,
             'track_stock' => true,
         ])
             ->assertCreated()
-            ->assertJsonPath('data.sku', 'PRM-FLYER-01')
+            ->assertJsonPath('data.sku', 'H-001')
+            ->assertJsonPath('data.unit', Product::UNIT_PCS)
             ->assertJsonPath('data.category', 'Materi promosi')
+            ->assertJsonPath('data.brand', 'YokPrinting')
+            ->assertJsonPath('data.purchase_price', 4900000)
+            ->assertJsonPath('data.package_conversion', 500)
             ->assertJsonPath('data.track_stock', true);
 
         $productId = $createResponse->json('data.id');
@@ -87,11 +98,11 @@ class ProductCrudApiTest extends TestCase
             ->assertJsonPath('data.minimum_stock', 12);
 
         $this->patchJson(route('api.products.update', $productId), [
-            'price' => 8100000,
+            'purchase_price' => 5100000,
             'status' => Product::STATUS_INACTIVE,
         ])
             ->assertOk()
-            ->assertJsonPath('data.price', 8100000)
+            ->assertJsonPath('data.purchase_price', 5100000)
             ->assertJsonPath('data.status', Product::STATUS_INACTIVE);
 
         $this->deleteJson(route('api.products.destroy', $productId))
@@ -105,17 +116,18 @@ class ProductCrudApiTest extends TestCase
         Product::query()->create([
             'sku' => 'PRN-CATALOG-01',
             'name' => 'Cetak katalog premium',
-            'price' => 6000000,
+            'purchase_price' => 6000000,
         ]);
 
         $this->postJson(route('api.products.store'), [
             'sku' => 'PRN-CATALOG-01',
             'name' => '',
-            'price' => -1,
+            'unit' => 'dus',
+            'purchase_price' => -1,
             'status' => 'archived',
         ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['sku', 'name', 'price', 'status']);
+            ->assertJsonValidationErrors(['sku', 'name', 'unit', 'purchase_price', 'status']);
 
         $this->getJson(route('api.products.index', [
             'status' => 'archived',

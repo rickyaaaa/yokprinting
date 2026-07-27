@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -38,7 +40,7 @@ class ExampleTest extends TestCase
             ->assertSee('invoice-validation-summary')
             ->assertSee('data-validation-field="due_date"', escape: false)
             ->assertSee('data-validation-field="items"', escape: false)
-            ->assertSee('Draft tersimpan via API tiruan')
+            ->assertSee('Draft tersimpan via API')
             ->assertSee('Pratinjau invoice')
             ->assertSee(route('invoices.preview'))
             ->assertSee('Peran &amp; akses', escape: false)
@@ -143,7 +145,7 @@ class ExampleTest extends TestCase
             ->assertOk()
             ->assertSee('Peran & Akses - YokPrinting.ID', escape: false)
             ->assertSee('Daftar peran')
-            ->assertSee('Matrix permission tiruan')
+            ->assertSee('Matrix permission')
             ->assertSee('Owner')
             ->assertSee('Admin Finance')
             ->assertSee('finance_admin')
@@ -195,6 +197,8 @@ class ExampleTest extends TestCase
             ->assertSee('activity-module-filter')
             ->assertSee('activity-date-from')
             ->assertSee('export-activity-log-placeholder')
+            ->assertSee('id="app-sidebar"', false)
+            ->assertSee('Buka navigasi')
             ->assertSee(route('roles.index'))
             ->assertSee(route('dashboard'));
     }
@@ -248,6 +252,35 @@ class ExampleTest extends TestCase
             ->assertSee('permission-saved-notice')
             ->assertSee(route('roles.edit', 'finance_admin'))
             ->assertSee(route('roles.index'));
+    }
+
+    public function test_role_permissions_page_uses_persisted_database_permissions(): void
+    {
+        $role = Role::query()->create([
+            'name' => 'Owner',
+            'code' => Role::CODE_OWNER,
+            'is_system' => true,
+        ]);
+        $dashboardView = Permission::query()->create([
+            'name' => 'Lihat Dashboard',
+            'code' => 'dashboard.view',
+            'module' => 'dashboard',
+            'action' => 'view',
+        ]);
+        Permission::query()->create([
+            'name' => 'Hapus Role',
+            'code' => 'role.delete',
+            'module' => 'role',
+            'action' => 'delete',
+        ]);
+        $role->permissions()->sync([$dashboardView->id]);
+
+        $html = $this->get('/roles/owner/permissions')
+            ->assertOk()
+            ->content();
+
+        $this->assertMatchesRegularExpression('/data-testid="permission-dashboard\.view"[\s\S]{0,260}checked|checked[\s\S]{0,260}data-testid="permission-dashboard\.view"/', $html);
+        $this->assertDoesNotMatchRegularExpression('/data-testid="permission-role\.delete"[\s\S]{0,260}checked|checked[\s\S]{0,260}data-testid="permission-role\.delete"/', $html);
     }
 
     public function test_customers_index_page_is_available(): void
@@ -352,7 +385,8 @@ class ExampleTest extends TestCase
             ->assertOk()
             ->assertSee('Tambah produk baru')
             ->assertSee('Informasi produk')
-            ->assertSee('Harga & stok', escape: false)
+            ->assertSee('Harga beli & stok', escape: false)
+            ->assertSee('Satuan master produk dikunci ke PCS')
             ->assertSee('Preview katalog')
             ->assertSee('productForm')
             ->assertSee('product-validation-summary')
@@ -368,7 +402,7 @@ class ExampleTest extends TestCase
             ->assertOk()
             ->assertSee('Edit produk PRN-CATALOG-01')
             ->assertSee('Cetak katalog premium')
-            ->assertSee('6000000')
+            ->assertSee('4200000')
             ->assertSee('Simpan perubahan')
             ->assertSee('productForm')
             ->assertSee('Perubahan produk tersimpan')
@@ -500,10 +534,12 @@ class ExampleTest extends TestCase
     {
         $this->get('/invoices/preview')
             ->assertOk()
-            ->assertSee('Ruang Karya Digital')
+            ->assertSee('YokPrinting.ID')
+            ->assertSee('Jl. Karyawan II')
             ->assertSee('PT Sinar Nusantara')
-            ->assertSee('Paket Desain Identitas Brand')
-            ->assertSee('Rp22.408.125')
+            ->assertSee('Sablon Cup 16 Oz Oval')
+            ->assertSee('Rp19.980.000')
+            ->assertSee('Minimal DP 50%')
             ->assertSee('Kembali ke editor')
             ->assertSee('Simpan draft')
             ->assertSee('Kirim email')

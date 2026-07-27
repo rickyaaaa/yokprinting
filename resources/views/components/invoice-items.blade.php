@@ -91,10 +91,10 @@
                             <input type="hidden" :name="`items[${index}][packaging_unit]`" :value="item.packagingUnit">
                             <input type="hidden" :name="`items[${index}][description]`" :value="cupDescription(item)">
 
-                            <div class="mt-4 grid gap-3 rounded-lg border border-line bg-canvas p-3 sm:grid-cols-5">
+                            <div class="mt-4 grid min-w-[32rem] grid-cols-[5rem_5rem_4.75rem_5rem_7rem] gap-2 rounded-lg border border-line bg-canvas p-3">
                                 <div>
                                     <label class="mb-1 block text-[11px] font-semibold text-muted" :for="`cup-size-${item.key}`">Ukuran</label>
-                                    <select :id="`cup-size-${item.key}`" x-model="item.cupSize" :name="`items[${index}][cup_size]`" class="form-control h-9 text-xs">
+                                    <select :id="`cup-size-${item.key}`" x-model="item.cupSize" :name="`items[${index}][cup_size]`" class="form-control spec-select">
                                         <option>12 Oz</option>
                                         <option>14 Oz</option>
                                         <option>16 Oz</option>
@@ -104,14 +104,14 @@
                                 </div>
                                 <div>
                                     <label class="mb-1 block text-[11px] font-semibold text-muted" :for="`cup-model-${item.key}`">Model</label>
-                                    <select :id="`cup-model-${item.key}`" x-model="item.cupModel" :name="`items[${index}][cup_model]`" class="form-control h-9 text-xs">
+                                    <select :id="`cup-model-${item.key}`" x-model="item.cupModel" :name="`items[${index}][cup_model]`" class="form-control spec-select">
                                         <option>Datar</option>
                                         <option>Oval</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label class="mb-1 block text-[11px] font-semibold text-muted" :for="`grammage-${item.key}`">Gramasi</label>
-                                    <select :id="`grammage-${item.key}`" x-model="item.grammage" :name="`items[${index}][grammage]`" class="form-control h-9 text-xs">
+                                    <select :id="`grammage-${item.key}`" x-model="item.grammage" :name="`items[${index}][grammage]`" class="form-control spec-select">
                                         <option>7gr</option>
                                         <option>8gr</option>
                                         <option>9gr</option>
@@ -120,20 +120,21 @@
                                 </div>
                                 <div>
                                     <label class="mb-1 block text-[11px] font-semibold text-muted" :for="`ink-${item.key}`">Tinta</label>
-                                    <input :id="`ink-${item.key}`" x-model="item.screenPrintingColor" :name="`items[${index}][screen_printing_color]`" class="form-control h-9 text-xs" placeholder="Hitam">
+                                    <input :id="`ink-${item.key}`" x-model="item.screenPrintingColor" :name="`items[${index}][screen_printing_color]`" class="form-control h-10 px-2 text-xs" placeholder="Hitam">
                                 </div>
                                 <div>
-                                    <label class="mb-1 block text-[11px] font-semibold text-muted" :for="`sides-${item.key}`">Sisi</label>
-                                    <select :id="`sides-${item.key}`" x-model.number="item.sides" :name="`items[${index}][sides]`" class="form-control h-9 text-xs">
-                                        <option :value="1">1 Sisi</option>
-                                        <option :value="2">2 Sisi</option>
+                                    <label class="mb-1 block text-[11px] font-semibold text-muted" :for="`jenis-cetak-${item.key}`">Jenis cetak</label>
+                                    <select :id="`jenis-cetak-${item.key}`" x-model="item.jenisCetak" :name="`items[${index}][jenis_cetak]`" class="form-control spec-select">
+                                        <option>1 warna</option>
+                                        <option>2 warna</option>
+                                        <option>3 warna</option>
                                     </select>
                                 </div>
                             </div>
 
                             <p class="mt-2 text-xs leading-5 text-muted">
                                 <span class="font-medium text-ink" x-text="cupDescription(item)"></span>
-                                <span aria-hidden="true"> Â· </span>
+                                <span aria-hidden="true"> · </span>
                                 MOQ <span x-text="`${item.moqQuantity} ${item.packagingUnit}`"></span>, kelipatan <span x-text="`${item.orderIncrement} ${item.packagingUnit}`"></span>.
                             </p>
                         </td>

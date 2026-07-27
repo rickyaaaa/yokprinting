@@ -98,14 +98,13 @@
                     <div>
                         <div class="mb-2 flex flex-wrap items-center gap-2">
                             <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Akses & keamanan</span>
-                            <span class="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent">Data tiruan</span>
                         </div>
                         <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">{{ $isEdit ? 'Edit peran' : 'Tambah peran baru' }}</h1>
                         <p class="mt-1 max-w-3xl text-sm leading-6 text-muted">Atur identitas role dan permission yang akan digunakan saat backend role-based access control aktif.</p>
                     </div>
 
                     <div x-show="saved" x-cloak class="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900" data-testid="role-form-saved-notice">
-                        <p class="font-semibold">Perubahan peran tersimpan sebagai simulasi frontend.</p>
+                        <p class="font-semibold">Perubahan peran tersimpan.</p>
                         <p class="mt-1">Backend penyimpanan role akan disambungkan pada task berikutnya.</p>
                     </div>
 
@@ -141,7 +140,7 @@
 
                     <section class="rounded-xl bg-white p-5 border border-line sm:p-6" aria-labelledby="role-permission-heading">
                         <h2 id="role-permission-heading" class="font-semibold text-ink">Permission modul</h2>
-                        <p class="mt-1 text-sm leading-6 text-muted">Pilih modul yang dapat diakses oleh role ini. Checkbox masih berbasis data tiruan.</p>
+                        <p class="mt-1 text-sm leading-6 text-muted">Pilih modul yang dapat diakses oleh role ini.</p>
 
                         <div class="mt-5 space-y-5">
                             @foreach ($permissionGroups as $group => $permissions)

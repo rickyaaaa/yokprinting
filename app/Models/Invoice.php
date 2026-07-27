@@ -41,6 +41,20 @@ class Invoice extends Model
 
     public const PRODUCTION_COMPLETED = 'completed';
 
+    public const SHIPPING_NONE = 'none';
+
+    public const SHIPPING_PAID_BY_CUSTOMER = 'paid_by_customer';
+
+    public const SHIPPING_COMPANY_FREE_SHIPPING = 'company_free_shipping';
+
+    public const ORDER_PROCESS_DRAFT = 'draft';
+
+    public const ORDER_PROCESS_IN_PRODUCTION = 'in_production';
+
+    public const ORDER_PROCESS_READY_TO_SHIP = 'ready_to_ship';
+
+    public const ORDER_PROCESS_COMPLETED = 'completed';
+
     /**
      * The model's default values for attributes.
      *
@@ -57,6 +71,11 @@ class Invoice extends Model
         'tax_rate' => 0,
         'tax_amount' => 0,
         'total_amount' => 0,
+        'shipping_type' => self::SHIPPING_NONE,
+        'shipping_cost' => 0,
+        'order_process_status' => self::ORDER_PROCESS_DRAFT,
+        'total_hpp' => 0,
+        'gross_profit' => 0,
         'dp_required_percent' => 50,
         'template' => 'default',
     ];
@@ -83,6 +102,11 @@ class Invoice extends Model
         'tax_rate',
         'tax_amount',
         'total_amount',
+        'shipping_type',
+        'shipping_cost',
+        'order_process_status',
+        'total_hpp',
+        'gross_profit',
         'dp_required_percent',
         'notes',
         'terms',
@@ -112,6 +136,9 @@ class Invoice extends Model
             'tax_rate' => 'decimal:2',
             'tax_amount' => 'decimal:2',
             'total_amount' => 'decimal:2',
+            'shipping_cost' => 'decimal:2',
+            'total_hpp' => 'decimal:2',
+            'gross_profit' => 'decimal:2',
             'dp_required_percent' => 'decimal:2',
             'metadata' => 'array',
             'sent_at' => 'datetime',

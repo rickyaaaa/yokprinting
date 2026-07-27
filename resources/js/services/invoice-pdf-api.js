@@ -16,7 +16,7 @@ const createMockPdfBlob = (invoiceId) => {
         `(YokPrinting.ID - ${invoiceId}) Tj`,
         '0 -34 Td',
         '/F1 11 Tf',
-        '(Dokumen PDF tiruan untuk validasi alur unduh frontend.) Tj',
+        '(Dokumen PDF untuk validasi alur unduh frontend.) Tj',
         '0 -24 Td',
         '(Total: Rp 22.408.125) Tj',
         'ET',

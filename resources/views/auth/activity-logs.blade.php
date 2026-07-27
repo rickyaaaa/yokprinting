@@ -21,25 +21,33 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body>
-        <main class="min-h-screen bg-canvas">
-            <header class="border-b border-line bg-white/95 px-4 py-4 backdrop-blur-sm sm:px-6 lg:px-8">
-                <div class="mx-auto flex w-full max-w-[1280px] items-center justify-between gap-4">
-                    <a href="{{ route('dashboard') }}" class="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 hover:text-brand-800">
-                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="m15 18-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                        Kembali ke dashboard
-                    </a>
-                    <a href="{{ route('roles.index') }}" class="hidden text-sm font-semibold text-muted hover:text-ink sm:inline">Peran & akses</a>
-                </div>
-            </header>
+        <div class="min-h-screen lg:flex" x-data="{ sidebarOpen: false }" @keydown.escape.window="sidebarOpen = false">
+            <div class="fixed inset-0 z-30 bg-ink/45 lg:hidden" x-cloak x-show="sidebarOpen" x-transition.opacity @click="sidebarOpen = false" aria-hidden="true"></div>
 
-            <div class="mx-auto w-full max-w-[1280px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+            <x-app-sidebar />
+
+            <div class="min-w-0 flex-1">
+                <header class="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
+                    <button type="button" class="mr-3 rounded-lg p-2 text-muted hover:bg-brand-50 hover:text-brand-800 lg:hidden" @click="sidebarOpen = true" aria-controls="app-sidebar" :aria-expanded="sidebarOpen" aria-label="Buka navigasi">
+                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                            <path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                    <div class="flex min-w-0 items-center gap-2 text-sm">
+                        <a href="{{ route('dashboard') }}" class="hidden text-muted hover:text-ink sm:inline">Dashboard</a>
+                        <svg class="hidden size-4 text-line sm:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="m9 18 6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span class="truncate font-medium text-ink">Log aktivitas</span>
+                    </div>
+                    <a href="{{ route('roles.index') }}" class="ml-auto hidden text-sm font-semibold text-muted hover:text-ink sm:inline">Peran & akses</a>
+                </header>
+
+                <main class="mx-auto w-full max-w-[1280px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
                 <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                         <div class="mb-2 flex flex-wrap items-center gap-2">
                             <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Audit log</span>
-                            <span class="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent">Data tiruan</span>
                         </div>
                         <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Log aktivitas</h1>
                         <p class="mt-1 max-w-3xl text-sm leading-6 text-muted">Pantau aktivitas login, perubahan data, update permission, dan event keamanan penting.</p>
@@ -146,7 +154,8 @@
                         </table>
                     </div>
                 </section>
+                </main>
             </div>
-        </main>
+        </div>
     </body>
 </html>

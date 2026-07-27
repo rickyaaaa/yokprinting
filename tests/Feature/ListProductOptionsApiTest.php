@@ -16,31 +16,34 @@ class ListProductOptionsApiTest extends TestCase
             'sku' => 'JSA-WEB-03',
             'name' => 'Website Company Profile',
             'category' => 'Pengembangan web',
-            'price' => 8750000,
+            'brand' => 'YokPrinting',
+            'purchase_price' => 5750000,
             'stock' => null,
         ]);
         Product::query()->create([
             'sku' => 'JSA-BRAND-01',
             'name' => 'Paket Desain Identitas Brand',
             'category' => 'Jasa kreatif',
-            'price' => 12500000,
+            'purchase_price' => 6500000,
             'stock' => 4,
             'track_stock' => true,
         ]);
         Product::query()->create([
             'sku' => 'JSA-OLD-01',
             'name' => 'Produk Nonaktif',
-            'price' => 100000,
+            'purchase_price' => 100000,
             'status' => Product::STATUS_INACTIVE,
         ]);
 
-        $this->getJson(route('api.products.index'))
+        $this->getJson(route('api.products.options.index'))
             ->assertOk()
             ->assertJsonCount(2, 'data')
             ->assertJsonPath('data.0.name', 'Paket Desain Identitas Brand')
             ->assertJsonPath('data.0.sku', 'JSA-BRAND-01')
-            ->assertJsonPath('data.0.price', 12500000)
+            ->assertJsonMissingPath('data.0.price')
+            ->assertJsonPath('data.0.purchase_price', 6500000)
             ->assertJsonPath('data.0.stock', 4)
+            ->assertJsonPath('data.0.unit', Product::UNIT_PCS)
             ->assertJsonPath('data.1.name', 'Website Company Profile')
             ->assertJsonPath('data.1.stock', null)
             ->assertJsonPath('meta.count', 2)
@@ -53,21 +56,21 @@ class ListProductOptionsApiTest extends TestCase
             'sku' => 'JSA-BRAND-01',
             'name' => 'Paket Desain Identitas Brand',
             'category' => 'Jasa kreatif',
-            'price' => 12500000,
+            'purchase_price' => 6500000,
         ]);
         $website = Product::query()->create([
             'sku' => 'JSA-WEB-03',
             'name' => 'Website Company Profile',
             'category' => 'Pengembangan web',
-            'price' => 8750000,
+            'purchase_price' => 5750000,
         ]);
 
-        $this->getJson(route('api.products.index', ['search' => 'pengembangan']))
+        $this->getJson(route('api.products.options.index', ['search' => 'pengembangan']))
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.id', $website->id);
 
-        $this->getJson(route('api.products.index', ['ids' => [$brand->id]]))
+        $this->getJson(route('api.products.options.index', ['ids' => [$brand->id]]))
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.id', $brand->id);
@@ -75,7 +78,7 @@ class ListProductOptionsApiTest extends TestCase
 
     public function test_product_option_query_is_validated(): void
     {
-        $this->getJson(route('api.products.index', [
+        $this->getJson(route('api.products.options.index', [
             'status' => 'archived',
             'limit' => 101,
         ]))

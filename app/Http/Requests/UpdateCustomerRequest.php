@@ -30,7 +30,6 @@ class UpdateCustomerRequest extends FormRequest
         return [
             'code' => ['sometimes', 'required', 'string', 'max:50', Rule::unique('customers', 'code')->ignore($customer)],
             'name' => ['sometimes', 'required', 'string', 'max:255'],
-            'segment' => ['sometimes', 'nullable', 'string', 'max:50'],
             'email' => ['sometimes', 'required', 'email:rfc', 'max:255', Rule::unique('customers', 'email')->ignore($customer)],
             'phone' => ['sometimes', 'nullable', 'string', 'max:50'],
             'address' => ['sometimes', 'required', 'string', 'max:2000'],

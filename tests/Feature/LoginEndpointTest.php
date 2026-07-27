@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class LoginEndpointTest extends TestCase
@@ -85,5 +87,31 @@ class LoginEndpointTest extends TestCase
 
         $this->assertAuthenticatedAs($user);
         $this->assertNotNull($user->refresh()->last_login_at);
+    }
+
+    public function test_login_page_uses_fresh_csrf_token_and_disables_browser_cache(): void
+    {
+        $response = $this->get(route('login'))
+            ->assertOk()
+            ->assertSee('name="_token"', false)
+            ->assertSee('name="csrf-token"', false)
+            ->assertHeader('Pragma', 'no-cache')
+            ->assertHeader('Expires', '0');
+
+        $cacheControl = $response->headers->get('Cache-Control');
+
+        $this->assertStringContainsString('no-store', $cacheControl);
+        $this->assertStringContainsString('no-cache', $cacheControl);
+        $this->assertStringContainsString('must-revalidate', $cacheControl);
+    }
+
+    public function test_expired_login_csrf_token_redirects_back_to_login_with_helpful_message(): void
+    {
+        Route::post('/csrf-mismatch-probe', fn () => throw new TokenMismatchException)
+            ->middleware('web');
+
+        $this->post('/csrf-mismatch-probe')
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('status', 'Sesi login kedaluwarsa. Silakan coba login lagi.');
     }
 }

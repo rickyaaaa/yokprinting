@@ -17,7 +17,6 @@ class CustomerTransactionHistoryApiTest extends TestCase
         $customer = Customer::query()->create([
             'code' => 'CUS-920',
             'name' => 'PT Sinar Nusantara',
-            'segment' => 'Corporate',
             'email' => 'finance@sinar.example.com',
         ]);
 
@@ -62,6 +61,7 @@ class CustomerTransactionHistoryApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('status', 'success')
             ->assertJsonPath('data.customer.code', 'CUS-920')
+            ->assertJsonPath('data.customer.activity_status', Customer::ACTIVITY_NEVER_ORDERED)
             ->assertJsonPath('data.summary.invoice_count', 2)
             ->assertJsonPath('data.summary.total_amount', 15000000)
             ->assertJsonPath('data.summary.paid_amount', 4000000)

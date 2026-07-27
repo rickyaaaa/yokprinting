@@ -32,7 +32,7 @@ class ListProductsRequest extends FormRequest
             'status' => ['sometimes', Rule::in([Product::STATUS_ACTIVE, Product::STATUS_INACTIVE, 'all'])],
             'category' => ['sometimes', 'nullable', 'string', 'max:100'],
             'category_id' => ['sometimes', 'nullable', 'integer', 'exists:product_categories,id'],
-            'sort' => ['sometimes', Rule::in(['name', 'sku', 'price', 'stock', 'created_at'])],
+            'sort' => ['sometimes', Rule::in(['name', 'sku', 'purchase_price', 'stock', 'created_at'])],
             'direction' => ['sometimes', Rule::in(['asc', 'desc'])],
             'limit' => ['sometimes', 'integer', 'between:1,100'],
         ];

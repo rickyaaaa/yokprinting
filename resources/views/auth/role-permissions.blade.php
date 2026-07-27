@@ -1,12 +1,29 @@
 @php
-    $roleCode = $roleCode ?? 'finance_admin';
-    $roles = [
-        'owner' => ['name' => 'Owner', 'code' => 'owner', 'risk' => 'Tinggi', 'description' => 'Role tertinggi dengan akses pengaturan dan permission.'],
-        'finance_admin' => ['name' => 'Admin Finance', 'code' => 'finance_admin', 'risk' => 'Sedang', 'description' => 'Mengelola invoice, pembayaran, dan laporan finance.'],
-        'sales' => ['name' => 'Sales', 'code' => 'sales', 'risk' => 'Rendah', 'description' => 'Fokus pada customer dan invoice draft.'],
-        'viewer' => ['name' => 'Viewer', 'code' => 'viewer', 'risk' => 'Rendah', 'description' => 'Akses baca untuk dashboard dan laporan.'],
+    use App\Models\Permission;
+    use App\Models\Role;
+
+    $roleCode = $roleCode ?? Role::CODE_FINANCE_ADMIN;
+    $roleModel = Role::query()
+        ->with('permissions')
+        ->where('code', $roleCode)
+        ->first();
+    $fallbackRoles = [
+        Role::CODE_OWNER => ['name' => 'Owner', 'risk' => 'Tinggi', 'description' => 'Role tertinggi dengan akses pengaturan dan permission.'],
+        Role::CODE_FINANCE_ADMIN => ['name' => 'Admin Finance', 'risk' => 'Sedang', 'description' => 'Mengelola invoice, pembayaran, dan laporan finance.'],
+        'sales' => ['name' => 'Sales', 'risk' => 'Rendah', 'description' => 'Fokus pada customer dan invoice draft.'],
+        Role::CODE_VIEWER => ['name' => 'Viewer', 'risk' => 'Rendah', 'description' => 'Akses baca untuk dashboard dan laporan.'],
     ];
-    $role = $roles[$roleCode] ?? $roles['finance_admin'];
+    $fallbackRole = $fallbackRoles[$roleCode] ?? [
+        'name' => str($roleCode)->replace('_', ' ')->title()->toString(),
+        'risk' => 'Sedang',
+        'description' => 'Atur izin akses untuk role ini.',
+    ];
+    $role = [
+        'name' => $roleModel?->name ?? $fallbackRole['name'],
+        'code' => $roleModel?->code ?? $roleCode,
+        'risk' => $fallbackRole['risk'],
+        'description' => $roleModel?->description ?? $fallbackRole['description'],
+    ];
 
     $modules = [
         'dashboard' => ['label' => 'Dashboard', 'description' => 'Ringkasan bisnis dan aktivitas terbaru.'],
@@ -27,22 +44,17 @@
         'export' => 'Export',
     ];
 
-    $presets = [
-        'owner' => [
-            'dashboard' => ['view'], 'invoice' => ['view', 'create', 'update', 'delete', 'export'], 'customer' => ['view', 'create', 'update', 'delete', 'export'], 'product' => ['view', 'create', 'update', 'delete', 'export'], 'payment' => ['view', 'create', 'update', 'delete', 'export'], 'report' => ['view', 'export'], 'setting' => ['view', 'update'], 'role' => ['view', 'create', 'update', 'delete'],
-        ],
-        'finance_admin' => [
-            'dashboard' => ['view'], 'invoice' => ['view', 'create', 'update', 'export'], 'customer' => ['view', 'create', 'update'], 'product' => ['view'], 'payment' => ['view', 'create', 'update', 'export'], 'report' => ['view', 'export'], 'setting' => [], 'role' => [],
-        ],
-        'sales' => [
-            'dashboard' => ['view'], 'invoice' => ['view', 'create', 'update'], 'customer' => ['view', 'create', 'update'], 'product' => ['view'], 'payment' => ['view'], 'report' => [], 'setting' => [], 'role' => [],
-        ],
-        'viewer' => [
-            'dashboard' => ['view'], 'invoice' => ['view'], 'customer' => ['view'], 'product' => ['view'], 'payment' => ['view'], 'report' => ['view'], 'setting' => [], 'role' => [],
-        ],
-    ];
+    $selectedCodes = $roleModel
+        ? $roleModel->permissions->pluck('code')->values()
+        : collect();
+    $selected = $selectedCodes
+        ->mapToGroups(function (string $code): array {
+            [$module, $action] = array_pad(explode('.', $code, 2), 2, null);
 
-    $selected = $presets[$role['code']] ?? $presets['finance_admin'];
+            return $module && $action ? [$module => $action] : [];
+        })
+        ->map(fn ($actions) => $actions->values()->all())
+        ->all();
 @endphp
 
 <!DOCTYPE html>
@@ -70,7 +82,14 @@
                 </div>
             </header>
 
-            <form class="mx-auto w-full max-w-[1280px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8" method="POST" action="/roles/{{ $role['code'] }}/permissions" x-data="{ saved: false }" @submit.prevent="saved = true" novalidate>
+            <form
+                class="mx-auto w-full max-w-[1280px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
+                method="POST"
+                action="{{ route('api.roles.permissions.update', $role['code']) }}"
+                x-data="rolePermissionsForm(@js($role['code']))"
+                @submit.prevent="submit($event)"
+                novalidate
+            >
                 @csrf
                 @method('PUT')
 
@@ -78,19 +97,23 @@
                     <div>
                         <div class="mb-2 flex flex-wrap items-center gap-2">
                             <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Permission detail</span>
-                            <span class="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent">Data tiruan</span>
                         </div>
                         <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Pengaturan izin {{ $role['name'] }}</h1>
                         <p class="mt-1 max-w-3xl text-sm leading-6 text-muted">{{ $role['description'] }} Pilih aksi yang boleh dilakukan di tiap modul.</p>
                     </div>
-                    <button type="submit" class="inline-flex w-fit items-center rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800" data-testid="save-permissions-button">
-                        Simpan izin
+                    <button type="submit" class="inline-flex w-fit items-center rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-wait disabled:opacity-70" data-testid="save-permissions-button" :disabled="saving">
+                        <span x-text="saving ? 'Menyimpan...' : 'Simpan izin'"></span>
                     </button>
                 </div>
 
                 <div x-show="saved" x-cloak class="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900" data-testid="permission-saved-notice">
-                    <p class="font-semibold">Pengaturan izin tersimpan sebagai simulasi frontend.</p>
-                    <p class="mt-1">Backend permission akan menyimpan matrix ini pada task berikutnya.</p>
+                    <p class="font-semibold">Pengaturan izin tersimpan.</p>
+                    <p class="mt-1" x-text="savedMessage"></p>
+                </div>
+
+                <div x-show="errorMessage" x-cloak class="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900" data-testid="permission-save-error" role="alert">
+                    <p class="font-semibold">Izin belum tersimpan.</p>
+                    <p class="mt-1" x-text="errorMessage"></p>
                 </div>
 
                 <section class="mb-6 grid gap-4 md:grid-cols-3" aria-label="Ringkasan izin peran">
@@ -106,8 +129,8 @@
                     </article>
                     <article class="rounded-xl bg-white p-5 border border-line">
                         <p class="text-xs font-semibold text-muted">Status halaman</p>
-                        <h2 class="mt-2 text-lg font-semibold text-ink">Frontend mock</h2>
-                        <p class="mt-1 text-xs text-muted">Belum tersimpan ke database.</p>
+                        <h2 class="mt-2 text-lg font-semibold text-ink">Backend aktif</h2>
+                        <p class="mt-1 text-xs text-muted">Perubahan disimpan ke matrix permission role.</p>
                     </article>
                 </section>
 
@@ -140,8 +163,8 @@
                                                 <label class="inline-flex size-8 items-center justify-center rounded-lg hover:bg-brand-50">
                                                     <input
                                                         type="checkbox"
-                                                        name="permissions[{{ $moduleKey }}][]"
-                                                        value="{{ $actionKey }}"
+                                                        name="permissions[]"
+                                                        value="{{ $permissionKey }}"
                                                         class="size-4 rounded border-line text-brand-700 focus:ring-brand-500"
                                                         @checked(in_array($actionKey, $selected[$moduleKey] ?? [], true))
                                                         data-testid="permission-{{ $permissionKey }}"
