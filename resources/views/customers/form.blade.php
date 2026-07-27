@@ -6,7 +6,7 @@
         'CUS-003' => ['code' => 'CUS-003', 'name' => 'PT Bumi Lestari', 'segment' => 'Corporate', 'email' => 'finance@bumilestari.example', 'phone' => '+62 22 7788 440', 'taxNumber' => '04.551.320.8-441.000', 'address' => 'Jl. Asia Afrika No. 77', 'city' => 'Bandung', 'province' => 'Jawa Barat', 'postalCode' => '40111', 'status' => 'Perlu follow-up', 'notes' => 'Perlu dihubungi terkait invoice overdue.'],
     ];
     $isEdit = $customerCode !== null;
-    $customer = $customers[$customerCode] ?? ['code' => 'CUS-007', 'name' => '', 'segment' => 'UMKM', 'email' => '', 'phone' => '', 'taxNumber' => '', 'address' => '', 'city' => '', 'province' => '', 'postalCode' => '', 'status' => 'Aktif', 'notes' => ''];
+    $customer = $customers[$customerCode] ?? ['code' => '', 'name' => '', 'email' => '', 'phone' => '', 'taxNumber' => '', 'address' => '', 'city' => '', 'province' => '', 'postalCode' => '', 'status' => 'Aktif', 'notes' => ''];
     $title = $isEdit ? 'Edit pelanggan '.$customer['code'] : 'Tambah pelanggan baru';
 @endphp
 
@@ -87,8 +87,8 @@
                                 data-testid="customer-saved-notice"
                                 class="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900"
                             >
-                                <p class="font-semibold" x-text="isEdit ? 'Perubahan pelanggan tersimpan.' : 'Pelanggan baru tersimpan sebagai draft.'"></p>
-                                <p class="mt-1">Simulasi frontend selesai. Backend penyimpanan akan menyusul pada layer berikutnya.</p>
+                                <p class="font-semibold" x-text="isEdit ? 'Perubahan pelanggan tersimpan.' : 'Pelanggan baru tersimpan.'"></p>
+                                <p class="mt-1">Kode pelanggan dibuat otomatis oleh sistem setelah data tersimpan.</p>
                             </div>
 
                             <div
@@ -109,23 +109,9 @@
                                 <h2 id="customer-identity-heading" class="font-semibold text-ink">Identitas pelanggan</h2>
                                 <div class="mt-5 grid gap-4 md:grid-cols-2">
                                     <label class="block">
-                                        <span class="text-sm font-medium text-ink">Kode pelanggan</span>
-                                        <input class="form-control mt-1.5" x-model="form.code" data-validation-field="code" :aria-invalid="Boolean(fieldErrors.code)" @input="clearFieldError('code')">
-                                        <span class="mt-1 block text-xs text-red-700" x-show="fieldErrors.code" x-text="fieldErrors.code"></span>
-                                    </label>
-                                    <label class="block">
                                         <span class="text-sm font-medium text-ink">Nama pelanggan</span>
                                         <input class="form-control mt-1.5" x-model="form.name" data-validation-field="name" placeholder="Contoh: PT Sinar Nusantara" :aria-invalid="Boolean(fieldErrors.name)" @input="clearFieldError('name')">
                                         <span class="mt-1 block text-xs text-red-700" x-show="fieldErrors.name" x-text="fieldErrors.name"></span>
-                                    </label>
-                                    <label class="block">
-                                        <span class="text-sm font-medium text-ink">Segmen</span>
-                                        <select class="form-control mt-1.5" x-model="form.segment">
-                                            <option>Enterprise</option>
-                                            <option>Corporate</option>
-                                            <option>UMKM</option>
-                                            <option>Retail</option>
-                                        </select>
                                     </label>
                                     <label class="block">
                                         <span class="text-sm font-medium text-ink">Status</span>
@@ -190,14 +176,10 @@
                                         <span class="grid size-11 place-items-center rounded-full bg-brand-100 text-sm font-bold text-brand-800" x-text="initials"></span>
                                         <div class="min-w-0">
                                             <p class="truncate font-semibold text-ink" x-text="form.name || 'Nama pelanggan'"></p>
-                                            <p class="mt-0.5 font-mono text-xs text-muted" x-text="form.code"></p>
+                                            <p class="mt-0.5 font-mono text-xs text-muted" x-text="form.code || 'Kode dibuat otomatis'"></p>
                                         </div>
                                     </div>
                                     <dl class="mt-5 space-y-3 text-sm">
-                                        <div class="flex justify-between gap-3">
-                                            <dt class="text-muted">Segmen</dt>
-                                            <dd class="font-medium text-ink" x-text="form.segment"></dd>
-                                        </div>
                                         <div class="flex justify-between gap-3">
                                             <dt class="text-muted">Status</dt>
                                             <dd><span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="statusClass(form.status)" x-text="form.status"></span></dd>
@@ -212,7 +194,7 @@
 
                             <section class="rounded-xl border border-brand-200 bg-brand-50 p-5 text-sm text-brand-900">
                                 <h2 class="font-semibold">Catatan workflow</h2>
-                                <p class="mt-3 leading-6">Form pelanggan siap diarahkan ke backend saat modul customer disambungkan penuh.</p>
+                                <p class="mt-3 leading-6">Kode pelanggan dibuat otomatis berurutan, jadi admin cukup mengisi identitas dan kontak pelanggan.</p>
                             </section>
 
                             <div class="rounded-xl bg-white p-5 border border-line">

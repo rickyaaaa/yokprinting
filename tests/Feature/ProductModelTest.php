@@ -48,7 +48,7 @@ class ProductModelTest extends TestCase
             'screen_printing_color' => 'Hitam',
             'sides' => 2,
             'purchase_price' => 650,
-            'minimum_order_qty' => 1000,
+            'minimum_order_qty' => 500,
             'package_conversion' => 500,
             'packaging_unit' => 'pcs',
         ]);
@@ -61,6 +61,7 @@ class ProductModelTest extends TestCase
             $product->cupDescription(),
         );
         $this->assertTrue($product->isValidOrderQuantity(2000));
+        $this->assertTrue($product->isValidOrderQuantity(500));
         $this->assertFalse($product->isValidOrderQuantity(999));
         $this->assertTrue($product->isValidOrderQuantity(1500));
         $this->assertFalse($product->isValidOrderQuantity(1750));

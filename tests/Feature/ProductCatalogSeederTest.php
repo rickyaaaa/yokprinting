@@ -22,7 +22,7 @@ class ProductCatalogSeederTest extends TestCase
             'name' => 'Cup Injection 12Oz Datar (360ml) Natural',
             'category' => 'Cup Injection',
             'unit' => Product::UNIT_PCS,
-            'minimum_order_qty' => 1000,
+            'minimum_order_qty' => 500,
             'package_conversion' => 500,
         ]);
 
@@ -31,7 +31,7 @@ class ProductCatalogSeederTest extends TestCase
             'name' => 'LID Bowl 360ml',
             'category' => 'Tutup / Lid',
             'unit' => Product::UNIT_PCS,
-            'minimum_order_qty' => 1000,
+            'minimum_order_qty' => 500,
             'package_conversion' => 500,
         ]);
     }

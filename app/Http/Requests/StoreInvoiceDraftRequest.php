@@ -114,18 +114,8 @@ class StoreInvoiceDraftRequest extends FormRequest
                         continue;
                     }
 
-                    $minimum = max(1, (int) $product->minimum_order_qty);
-                    $increment = max(1, (int) $product->package_conversion);
+                    $increment = max(1, (int) ($product->package_conversion ?: $product->order_increment ?: 500));
                     $unit = strtolower($product->unit ?: Product::UNIT_PCS);
-
-                    if ($minimum > 0 && $quantity < $minimum) {
-                        $validator->errors()->add(
-                            "items.{$index}.quantity",
-                            "Jumlah item minimal {$minimum} {$unit}.",
-                        );
-
-                        continue;
-                    }
 
                     if ($increment > 0 && $quantity % $increment !== 0) {
                         $validator->errors()->add(

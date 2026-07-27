@@ -42,6 +42,33 @@ class CustomerCrudApiTest extends TestCase
             ->assertJsonPath('data.notes', 'PIC finance minta invoice dikirim setiap Senin.');
     }
 
+    public function test_customer_code_is_generated_when_omitted(): void
+    {
+        Customer::query()->create([
+            'code' => 'CUS-009',
+            'name' => 'PT Existing Customer',
+            'email' => 'existing@example.com',
+            'address' => 'Jl. Existing No. 1',
+            'city' => 'Tangerang',
+        ]);
+
+        $this->postJson(route('api.customers.store'), [
+            'name' => 'YokPrinting Baru',
+            'email' => 'baru@yokprinting.test',
+            'phone' => '+62 812 1000 2000',
+            'address' => 'Jl. Karyawan II',
+            'city' => 'Tangerang',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.code', 'CUS-010')
+            ->assertJsonPath('data.name', 'YokPrinting Baru');
+
+        $this->assertDatabaseHas('customers', [
+            'code' => 'CUS-010',
+            'email' => 'baru@yokprinting.test',
+        ]);
+    }
+
     public function test_customer_can_be_updated_and_soft_deleted(): void
     {
         $customer = Customer::query()->create([

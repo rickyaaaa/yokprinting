@@ -118,8 +118,8 @@ class CreateInvoiceDraft
                     $item['cup_model'] = $item['cup_model'] ?? $product->cup_model;
                     $item['grammage'] = $item['grammage'] ?? $product->grammage;
                     $item['screen_printing_color'] = $item['screen_printing_color'] ?? $product->screen_printing_color;
-                    $item['moq_quantity'] = $product->minimum_order_qty ?: $product->moq_quantity;
-                    $item['order_increment'] = $product->package_conversion ?: $product->order_increment;
+                    $item['order_increment'] = $product->package_conversion ?: $product->order_increment ?: 500;
+                    $item['moq_quantity'] = $item['order_increment'];
                     $item['packaging_unit'] = $product->unit ?: Product::UNIT_PCS;
                     $item['purchase_cost_snapshot'] = $product->purchase_price;
                 }

@@ -45,7 +45,7 @@ class ProductCatalogSeeder extends Seeder
                     'purchase_price' => 0,
                     'stock' => 0,
                     'minimum_stock' => 1000,
-                    'minimum_order_qty' => 1000,
+                    'minimum_order_qty' => 500,
                     'package_conversion' => 500,
                     'length_cm' => null,
                     'width_cm' => null,
@@ -54,7 +54,7 @@ class ProductCatalogSeeder extends Seeder
                     'dimensions' => [
                         'conversion_note' => '1 Dus = 1.000 Pcs',
                     ],
-                    'moq_quantity' => 1000,
+                    'moq_quantity' => 500,
                     'order_increment' => 500,
                     'packaging_unit' => 'Pcs',
                     'track_stock' => true,

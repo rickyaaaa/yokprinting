@@ -74,7 +74,7 @@ class ProductCrudApiTest extends TestCase
             'purchase_price' => 4900000,
             'stock' => 6,
             'minimum_stock' => 12,
-            'minimum_order_qty' => 1000,
+            'minimum_order_qty' => 500,
             'package_conversion' => 500,
             'length_cm' => 21,
             'width_cm' => 29.7,

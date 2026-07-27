@@ -197,7 +197,7 @@
                             <p class="mt-2 text-xs leading-5 text-muted">
                                 <span class="font-medium text-ink" x-text="cupDescription(item)"></span>
                                 <span aria-hidden="true"> · </span>
-                                MOQ <span x-text="`${item.moqQuantity} ${item.packagingUnit}`"></span>, kelipatan <span x-text="`${item.orderIncrement} ${item.packagingUnit}`"></span>.
+                                Kelipatan jumlah <span x-text="`${item.orderIncrement} ${item.packagingUnit}`"></span>.
                             </p>
                         </td>
                         <td class="px-3 py-4 align-top">
@@ -207,8 +207,8 @@
                                 :aria-label="`Jumlah ${productName(item.productId)}`"
                                 type="number"
                                 data-validation-field="items"
-                                min="1"
-                                step="1"
+                                :min="item.orderIncrement"
+                                :step="item.orderIncrement"
                                 class="form-control text-center"
                                 :class="{ 'border-red-400 ring-2 ring-red-100': fieldErrors?.items }"
                                 :aria-invalid="Boolean(fieldErrors?.items)"

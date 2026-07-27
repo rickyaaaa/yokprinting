@@ -318,7 +318,9 @@ class ExampleTest extends TestCase
             ->assertSee('customer-validation-summary')
             ->assertSee('customer-saved-notice')
             ->assertSee('Simpan pelanggan')
-            ->assertSee('Backend penyimpanan akan menyusul')
+            ->assertSee('Kode pelanggan dibuat otomatis')
+            ->assertDontSee('Kode pelanggan</span>', escape: false)
+            ->assertDontSee('Segmen</span>', escape: false)
             ->assertSee(route('customers.index'));
     }
 

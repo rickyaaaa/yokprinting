@@ -88,3 +88,30 @@ export async function listCustomers({ search = '' } = {}) {
 
     return body;
 }
+
+const jsonHeaders = () => ({
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+});
+
+export async function createCustomer(payload) {
+    const response = await fetch('/api/customers', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: jsonHeaders(),
+        body: JSON.stringify(payload),
+    });
+    const body = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+        const error = new CustomerApiError(
+            body.message ?? 'Pelanggan belum dapat disimpan.',
+            response.status,
+        );
+        error.errors = body.errors ?? {};
+        throw error;
+    }
+
+    return body;
+}

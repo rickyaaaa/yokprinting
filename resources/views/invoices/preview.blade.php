@@ -4,7 +4,7 @@
     $items = [
         [
             'name' => 'Sablon Cup 16 Oz Oval (8gr)',
-            'description' => '1 warna tinta hitam, posisi logo tengah. MOQ 1.000 pcs, kelipatan order 500 pcs.',
+            'description' => '1 warna tinta hitam, posisi logo tengah. Kelipatan order 500 pcs.',
             'quantity' => '10.000 pcs',
             'price' => 'Rp850',
             'total' => 'Rp8.500.000',

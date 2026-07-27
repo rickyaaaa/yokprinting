@@ -35,10 +35,10 @@ class Product extends Model
     protected $attributes = [
         'unit' => self::UNIT_PCS,
         'purchase_price' => 0,
-        'minimum_order_qty' => 1,
+        'minimum_order_qty' => 500,
         'package_conversion' => 500,
         'minimum_stock' => 0,
-        'moq_quantity' => 1000,
+        'moq_quantity' => 500,
         'order_increment' => 500,
         'packaging_unit' => 'pcs',
         'track_stock' => false,
@@ -224,10 +224,9 @@ class Product extends Model
      */
     public function isValidOrderQuantity(int $quantity): bool
     {
-        $minimum = max(1, (int) ($this->minimum_order_qty ?: $this->moq_quantity));
-        $increment = max(1, (int) ($this->package_conversion ?: $this->order_increment));
+        $increment = max(1, (int) ($this->package_conversion ?: $this->order_increment ?: 500));
 
-        return $quantity >= $minimum && $quantity % $increment === 0;
+        return $quantity > 0 && $quantity % $increment === 0;
     }
 
     /**

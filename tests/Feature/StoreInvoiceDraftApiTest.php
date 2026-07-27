@@ -52,7 +52,7 @@ class StoreInvoiceDraftApiTest extends TestCase
         Product::query()
             ->whereKey($payload['items'][0]['product_id'])
             ->update([
-                'minimum_order_qty' => 1000,
+                'minimum_order_qty' => 500,
                 'package_conversion' => 500,
                 'unit' => 'Pcs',
             ]);
@@ -66,7 +66,7 @@ class StoreInvoiceDraftApiTest extends TestCase
                 'grammage' => '8gr',
                 'screen_printing_color' => 'Hitam',
                 'jenis_cetak' => '2 warna',
-                'moq_quantity' => 1000,
+                'moq_quantity' => 500,
                 'order_increment' => 500,
                 'packaging_unit' => 'pcs',
                 'quantity' => 2000,
@@ -103,7 +103,7 @@ class StoreInvoiceDraftApiTest extends TestCase
             'grammage' => '8gr',
             'screen_printing_color' => 'Hitam',
             'jenis_cetak' => '2 warna',
-            'moq_quantity' => 1000,
+            'moq_quantity' => 500,
             'order_increment' => 500,
             'packaging_unit' => 'Pcs',
             'description' => 'Sablon Cup 12 Oz Oval (8gr) - 2 warna (Tinta Hitam)',
@@ -127,7 +127,7 @@ class StoreInvoiceDraftApiTest extends TestCase
         Product::query()
             ->whereKey($payload['items'][0]['product_id'])
             ->update([
-                'minimum_order_qty' => 1000,
+                'minimum_order_qty' => 500,
                 'package_conversion' => 500,
             ]);
         $payload['items'][0]['quantity'] = 1750;
@@ -135,6 +135,30 @@ class StoreInvoiceDraftApiTest extends TestCase
         $this->postJson(route('api.invoices.drafts.store'), $payload)
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['items.0.quantity']);
+    }
+
+    public function test_invoice_draft_accepts_five_hundred_quantity_increment(): void
+    {
+        $payload = $this->validPayload();
+        Product::query()
+            ->whereKey($payload['items'][0]['product_id'])
+            ->update([
+                'minimum_order_qty' => 1000,
+                'package_conversion' => 500,
+            ]);
+        $payload['items'] = [
+            [
+                ...$payload['items'][0],
+                'quantity' => 500,
+                'price' => 1000,
+            ],
+        ];
+        $payload['discount']['value'] = 0;
+        $payload['tax']['enabled'] = false;
+
+        $this->postJson(route('api.invoices.drafts.store'), $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.subtotal', '500000.00');
     }
 
     public function test_customer_paid_shipping_is_added_to_invoice_total_without_inflating_profit(): void

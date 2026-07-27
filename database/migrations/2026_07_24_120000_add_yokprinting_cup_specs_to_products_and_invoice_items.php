@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('grammage', 10)->nullable()->after('cup_model');
             $table->string('screen_printing_color', 50)->nullable()->after('grammage');
             $table->unsignedTinyInteger('sides')->nullable()->after('screen_printing_color');
-            $table->unsignedInteger('moq_quantity')->default(1000)->after('minimum_stock');
+            $table->unsignedInteger('moq_quantity')->default(500)->after('minimum_stock');
             $table->unsignedInteger('order_increment')->default(500)->after('moq_quantity');
             $table->string('packaging_unit', 20)->default('pcs')->after('order_increment');
 

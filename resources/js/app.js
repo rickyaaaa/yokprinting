@@ -14,7 +14,7 @@ import {
     PointElement,
     Tooltip,
 } from 'chart.js';
-import { listCustomers } from './services/customer-api';
+import { createCustomer, listCustomers } from './services/customer-api';
 import { sendInvoiceEmail } from './services/invoice-delivery-api';
 import { saveInvoiceDraft } from './services/invoice-api';
 import { downloadInvoicePdf } from './services/invoice-pdf-api';
@@ -148,10 +148,6 @@ const validateInvoiceDraft = (payload) => {
         errors.items = 'Setiap baris harus memiliki produk.';
     } else if (payload.items.some((item) => item.quantity < 1)) {
         errors.items = 'Jumlah setiap item minimal 1.';
-    } else if (payload.items.some((item) => item.moq_quantity && item.quantity < item.moq_quantity)) {
-        const item = payload.items.find((row) => row.moq_quantity && row.quantity < row.moq_quantity);
-
-        errors.items = `Jumlah ${item.product_name || 'item'} minimal ${item.moq_quantity} ${item.packaging_unit || 'pcs'}.`;
     } else if (payload.items.some((item) => item.order_increment && item.quantity % item.order_increment !== 0)) {
         const item = payload.items.find((row) => row.order_increment && row.quantity % row.order_increment !== 0);
 
@@ -885,10 +881,10 @@ Alpine.data('invoiceItems', () => ({
             grammage: product.grammage ?? '8gr',
             screenPrintingColor: product.screen_printing_color ?? 'Hitam',
             jenisCetak: product.sides ? `${product.sides} warna` : '1 warna',
-            moqQuantity: Number(product.minimum_order_qty || product.moq_quantity) || 1,
-            orderIncrement: Number(product.package_conversion || product.order_increment) || 1,
+            moqQuantity: Number(product.package_conversion || product.order_increment || product.minimum_order_qty || product.moq_quantity) || 500,
+            orderIncrement: Number(product.package_conversion || product.order_increment || product.minimum_order_qty || product.moq_quantity) || 500,
             packagingUnit: product.unit ?? product.packaging_unit ?? 'Pcs',
-            quantity: Number(product.minimum_order_qty || product.moq_quantity) || 1,
+            quantity: Number(product.package_conversion || product.order_increment || product.minimum_order_qty || product.moq_quantity) || 500,
             price: product.price ?? 0,
         };
     },
@@ -913,7 +909,6 @@ Alpine.data('invoiceItems', () => ({
         return [
             product.brand,
             product.category,
-            product.short_description,
         ].filter(Boolean).join(' · ');
     },
 
@@ -924,7 +919,6 @@ Alpine.data('invoiceItems', () => ({
             product.name,
             product.brand,
             product.category,
-            product.short_description,
         ].filter(Boolean).join(' ').toLowerCase();
     },
 
@@ -987,18 +981,18 @@ Alpine.data('invoiceItems', () => ({
             item.grammage = product.grammage ?? item.grammage;
             item.screenPrintingColor = product.screen_printing_color ?? item.screenPrintingColor;
             item.jenisCetak = product.sides ? `${product.sides} warna` : item.jenisCetak;
-            item.moqQuantity = Number(product.minimum_order_qty || product.moq_quantity) || item.moqQuantity;
-            item.orderIncrement = Number(product.package_conversion || product.order_increment) || item.orderIncrement;
+            item.orderIncrement = Number(product.package_conversion || product.order_increment || product.minimum_order_qty || product.moq_quantity) || item.orderIncrement;
+            item.moqQuantity = item.orderIncrement;
             item.packagingUnit = product.unit ?? product.packaging_unit ?? item.packagingUnit;
-            item.quantity = Math.max(Number(item.quantity) || 0, item.moqQuantity || 1);
+            item.quantity = Math.max(Number(item.quantity) || 0, item.orderIncrement || 1);
             item.price = product.price ?? 0;
             this.normalizeQuantity(item);
         }
     },
 
     normalizeQuantity(item) {
-        const minimum = Math.max(1, Number(item.moqQuantity) || 1);
-        const increment = Math.max(1, Number(item.orderIncrement) || minimum);
+        const increment = Math.max(1, Number(item.orderIncrement) || Number(item.moqQuantity) || 500);
+        const minimum = increment;
         const requested = Math.max(minimum, Number(item.quantity) || minimum);
         const overflow = requested % increment;
 
@@ -1439,9 +1433,8 @@ Alpine.data('customerForm', (initialForm = {}, isEditMode = false) => ({
     saved: false,
     fieldErrors: {},
     form: {
-        code: initialForm.code ?? 'CUS-007',
+        code: initialForm.code ?? '',
         name: initialForm.name ?? '',
-        segment: initialForm.segment ?? 'UMKM',
         email: initialForm.email ?? '',
         phone: initialForm.phone ?? '',
         taxNumber: initialForm.taxNumber ?? '',
@@ -1484,10 +1477,6 @@ Alpine.data('customerForm', (initialForm = {}, isEditMode = false) => ({
         const errors = {};
         const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-        if (!this.form.code.trim()) {
-            errors.code = 'Kode pelanggan wajib diisi.';
-        }
-
         if (!this.form.name.trim()) {
             errors.name = 'Nama pelanggan wajib diisi.';
         }
@@ -1513,7 +1502,39 @@ Alpine.data('customerForm', (initialForm = {}, isEditMode = false) => ({
         return errors;
     },
 
-    submit() {
+    payload() {
+        return {
+            name: this.form.name.trim(),
+            email: this.form.email.trim(),
+            phone: this.form.phone.trim() || null,
+            tax_number: this.form.taxNumber.trim() || null,
+            address: this.form.address.trim(),
+            city: this.form.city.trim(),
+            province: this.form.province.trim() || null,
+            postal_code: this.form.postalCode.trim() || null,
+            status: {
+                Aktif: 'active',
+                Nonaktif: 'inactive',
+                'Perlu follow-up': 'inactive_1m',
+                Prospek: 'active',
+            }[this.form.status] ?? 'active',
+            notes: this.form.notes.trim() || null,
+        };
+    },
+
+    applyApiErrors(errors = {}) {
+        const fieldMap = {
+            tax_number: 'taxNumber',
+            postal_code: 'postalCode',
+        };
+
+        this.fieldErrors = Object.entries(errors).reduce((fields, [field, messages]) => ({
+            ...fields,
+            [fieldMap[field] ?? field]: Array.isArray(messages) ? messages[0] : messages,
+        }), {});
+    },
+
+    async submit() {
         if (this.saving) {
             return;
         }
@@ -1527,10 +1548,31 @@ Alpine.data('customerForm', (initialForm = {}, isEditMode = false) => ({
 
         this.saving = true;
 
-        window.setTimeout(() => {
+        try {
+            if (this.isEdit) {
+                window.setTimeout(() => {
+                    this.saved = true;
+                    this.saving = false;
+                }, 450);
+
+                return;
+            }
+
+            const response = await createCustomer(this.payload());
+
+            this.form.code = response.data.code;
             this.saved = true;
+        } catch (error) {
+            if (error?.errors) {
+                this.applyApiErrors(error.errors);
+            } else {
+                this.fieldErrors = {
+                    form: error?.message ?? 'Pelanggan belum dapat disimpan.',
+                };
+            }
+        } finally {
             this.saving = false;
-        }, 450);
+        }
     },
 
     statusClass(status) {
@@ -1733,7 +1775,7 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
         purchasePrice: initialForm.purchasePrice ?? initialForm.purchase_price ?? 0,
         stock: initialForm.stock ?? 10,
         minimumStock: initialForm.minimumStock ?? 5,
-        minimumOrderQty: initialForm.minimumOrderQty ?? initialForm.minimum_order_qty ?? 1000,
+        minimumOrderQty: initialForm.minimumOrderQty ?? initialForm.minimum_order_qty ?? 500,
         packageConversion: initialForm.packageConversion ?? initialForm.package_conversion ?? 500,
         shortDescription: initialForm.shortDescription ?? initialForm.short_description ?? '',
         status: initialForm.status ?? 'Aktif',
@@ -1773,7 +1815,7 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
             purchasePrice: Number(product.purchase_price) || 0,
             stock: Number(product.stock) || 0,
             minimumStock: Number(product.minimum_stock) || 0,
-            minimumOrderQty: Number(product.minimum_order_qty) || 1000,
+            minimumOrderQty: Number(product.minimum_order_qty) || 500,
             packageConversion: Number(product.package_conversion) || 500,
             shortDescription: product.short_description ?? '',
             status: product.status === 'inactive' ? 'Nonaktif' : 'Aktif',
@@ -1850,7 +1892,7 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
             purchase_price: Number(this.form.purchasePrice) || 0,
             stock: this.form.trackStock ? Number(this.form.stock) || 0 : null,
             minimum_stock: this.form.trackStock ? Number(this.form.minimumStock) || 0 : 0,
-            minimum_order_qty: Number(this.form.minimumOrderQty) || 1000,
+            minimum_order_qty: Number(this.form.minimumOrderQty) || 500,
             package_conversion: Number(this.form.packageConversion) || 500,
             short_description: this.form.shortDescription || null,
             description: this.form.description || this.form.shortDescription || null,

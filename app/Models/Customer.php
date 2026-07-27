@@ -77,6 +77,18 @@ class Customer extends Model
     }
 
     /**
+     * Bootstrap customer lifecycle hooks.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (Customer $customer): void {
+            if (blank($customer->code)) {
+                $customer->code = static::nextCode();
+            }
+        });
+    }
+
+    /**
      * Get the customer's display initials.
      */
     public function initials(): string
@@ -149,5 +161,25 @@ class Customer extends Model
     public function scopeSelectable(Builder $query): Builder
     {
         return $query->where('status', self::STATUS_ACTIVE);
+    }
+
+    /**
+     * Generate the next sequential customer code.
+     */
+    public static function nextCode(): string
+    {
+        $lastNumber = static::withTrashed()
+            ->where('code', 'like', 'CUS-%')
+            ->pluck('code')
+            ->map(function (?string $code): int {
+                if (! $code || ! preg_match('/^CUS-(\d+)$/', $code, $matches)) {
+                    return 0;
+                }
+
+                return (int) $matches[1];
+            })
+            ->max() ?? 0;
+
+        return 'CUS-'.str_pad((string) ($lastNumber + 1), 3, '0', STR_PAD_LEFT);
     }
 }
