@@ -19,6 +19,7 @@ import { sendInvoiceEmail } from './services/invoice-delivery-api';
 import { persistInvoiceDraft, saveInvoiceDraft } from './services/invoice-api';
 import { downloadInvoicePdf, downloadInvoicePreviewPdf } from './services/invoice-pdf-api';
 import {
+    bulkUpdateProductStock,
     createProduct,
     deleteProduct,
     getProduct,
@@ -2158,6 +2159,12 @@ Alpine.data('productIndexTable', (initialProducts = []) => ({
     products: initialProducts,
     loading: false,
     error: '',
+    bulkEditorOpen: false,
+    bulkStockMode: 'stock',
+    bulkStockValue: 500,
+    bulkSaving: false,
+    bulkStockError: '',
+    bulkStockSuccess: '',
 
     statusOptions: [
         { key: 'all', label: 'Semua Status' },
@@ -2221,11 +2228,13 @@ Alpine.data('productIndexTable', (initialProducts = []) => ({
             purchasePriceValue: Number(product.purchase_price) || 0,
             stock: product.track_stock === false ? 'Tidak dilacak' : `${stockValue} ${product.unit ?? 'Pcs'}`,
             stockValue: product.track_stock === false ? 999999 : stockValue,
+            currentStock: stockValue,
             minimumStock,
             sales: product.sales ?? 0,
             status,
             rawStatus: product.status,
             trackStock,
+            updatedAt: product.updated_at,
         };
     },
 
@@ -2309,10 +2318,112 @@ Alpine.data('productIndexTable', (initialProducts = []) => ({
         });
     },
 
+    applyBulkUpdates(updates = []) {
+        const updatesById = new Map(updates.map((update) => [Number(update.id), update]));
+
+        this.products = this.products.map((product) => {
+            const update = updatesById.get(Number(product.id));
+
+            if (!update) {
+                return product;
+            }
+
+            const stockValue = update.stock === null ? 0 : Number(update.stock) || 0;
+            const minimumStock = normalizeMinimumStock(update.minimum_stock);
+            const status = product.rawStatus === 'inactive'
+                ? 'Nonaktif'
+                : isProductLowStock({
+                    status: product.rawStatus,
+                    trackStock: product.trackStock,
+                    stock: stockValue,
+                    minimumStock,
+                })
+                    ? 'Stok menipis'
+                    : 'Aktif';
+
+            return {
+                ...product,
+                stock: product.trackStock === false ? 'Tidak dilacak' : `${stockValue} ${product.unit}`,
+                stockValue: product.trackStock === false ? 999999 : stockValue,
+                currentStock: stockValue,
+                minimumStock,
+                status,
+                updatedAt: update.updated_at,
+            };
+        });
+    },
+
     resetFilters() {
         this.query = '';
         this.statusFilter = 'all';
         this.categoryFilter = 'all';
+    },
+
+    openBulkStockEditor() {
+        this.bulkEditorOpen = true;
+        this.bulkStockMode = 'stock';
+        this.bulkStockValue = 500;
+        this.bulkStockError = '';
+        this.bulkStockSuccess = '';
+    },
+
+    closeBulkStockEditor() {
+        if (this.bulkSaving) {
+            return;
+        }
+
+        this.bulkEditorOpen = false;
+        this.bulkStockError = '';
+    },
+
+    async applyBulkStock() {
+        const value = Number(this.bulkStockValue);
+
+        this.bulkStockError = '';
+        this.bulkStockSuccess = '';
+
+        if (!Number.isFinite(value) || value < 0) {
+            this.bulkStockError = 'Nilai stok harus angka 0 atau lebih.';
+            return;
+        }
+
+        const productsToUpdate = [...this.filteredProducts];
+
+        if (productsToUpdate.length === 0) {
+            this.bulkStockError = 'Tidak ada produk yang cocok dengan filter saat ini.';
+            return;
+        }
+
+        this.bulkSaving = true;
+
+        try {
+            const response = await bulkUpdateProductStock(productsToUpdate.map((product) => ({
+                id: product.id,
+                field: this.bulkStockMode,
+                value,
+                expected_value: this.bulkStockMode === 'minimum_stock'
+                    ? product.minimumStock
+                    : product.currentStock,
+                expected_updated_at: product.updatedAt,
+            })));
+
+            this.applyBulkUpdates(response.data);
+            this.bulkStockSuccess = `${response.meta.updated_count} produk berhasil diperbarui.`;
+
+            window.setTimeout(() => {
+                this.bulkEditorOpen = false;
+                this.bulkStockSuccess = '';
+            }, 900);
+        } catch (error) {
+            const [errorField, messages] = Object.entries(error?.errors ?? {})[0] ?? [];
+            const itemMessage = Array.isArray(messages) ? messages[0] : messages;
+
+            this.bulkStockError = itemMessage
+                ? `${errorField}: ${itemMessage}`
+                : error?.message ?? 'Bulk edit stok belum berhasil disimpan.';
+        } finally {
+            this.bulkSaving = false;
+        }
     },
 
     async deleteProduct(product) {

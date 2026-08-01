@@ -220,6 +220,27 @@ export async function updateProduct(id, payload) {
     return body;
 }
 
+export async function bulkUpdateProductStock(items) {
+    const response = await fetch('/api/products/bulk-stock', {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: jsonHeaders(),
+        body: JSON.stringify({ items }),
+    });
+    const body = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+        const error = new ProductApiError(
+            body.message ?? 'Bulk edit stok belum dapat disimpan.',
+            response.status,
+        );
+        error.errors = body.errors ?? {};
+        throw error;
+    }
+
+    return body;
+}
+
 export async function deleteProduct(id) {
     const response = await fetch(`/api/products/${id}`, {
         method: 'DELETE',
