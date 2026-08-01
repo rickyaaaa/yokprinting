@@ -22,6 +22,7 @@ class ProductCatalogSeederTest extends TestCase
             'name' => 'Cup Injection 12Oz Datar (360ml) Natural',
             'category' => 'Cup Injection',
             'unit' => Product::UNIT_PCS,
+            'minimum_stock' => 500,
             'minimum_order_qty' => 500,
             'package_conversion' => 500,
         ]);
@@ -31,8 +32,25 @@ class ProductCatalogSeederTest extends TestCase
             'name' => 'LID Bowl 360ml',
             'category' => 'Tutup / Lid',
             'unit' => Product::UNIT_PCS,
+            'minimum_stock' => 500,
             'minimum_order_qty' => 500,
             'package_conversion' => 500,
+        ]);
+    }
+
+    public function test_reseeding_preserves_an_explicit_zero_minimum_stock(): void
+    {
+        $this->seed(ProductCatalogSeeder::class);
+
+        Product::query()
+            ->where('sku', 'H-001')
+            ->update(['minimum_stock' => 0]);
+
+        $this->seed(ProductCatalogSeeder::class);
+
+        $this->assertDatabaseHas('products', [
+            'sku' => 'H-001',
+            'minimum_stock' => 0,
         ]);
     }
 }
