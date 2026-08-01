@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ListSalesReportInvoicesRequest;
 use App\Models\Invoice;
-use Carbon\CarbonImmutable;
+use App\Support\SalesReportPeriodPresets;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
 
@@ -17,8 +17,9 @@ class SalesReportInvoiceController extends Controller
     public function index(ListSalesReportInvoicesRequest $request): JsonResponse
     {
         $filters = $request->validated();
-        $dateFrom = $this->resolveDateFrom($filters['date_from'] ?? null);
-        $dateTo = $this->resolveDateTo($filters['date_to'] ?? null);
+        $range = SalesReportPeriodPresets::resolve($filters['date_from'] ?? null, $filters['date_to'] ?? null);
+        $dateFrom = $range['from'];
+        $dateTo = $range['to'];
         $status = $filters['status'] ?? 'all';
         $category = $filters['category'] ?? null;
         $keyword = $filters['q'] ?? null;
@@ -73,20 +74,6 @@ class SalesReportInvoiceController extends Controller
                 'direction' => $direction,
             ],
         ]);
-    }
-
-    private function resolveDateFrom(?string $date): CarbonImmutable
-    {
-        return $date !== null
-            ? CarbonImmutable::parse($date)->startOfDay()
-            : CarbonImmutable::now()->startOfMonth();
-    }
-
-    private function resolveDateTo(?string $date): CarbonImmutable
-    {
-        return $date !== null
-            ? CarbonImmutable::parse($date)->endOfDay()
-            : CarbonImmutable::now()->endOfDay();
     }
 
     /**

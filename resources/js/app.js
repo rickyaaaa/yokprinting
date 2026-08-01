@@ -1605,16 +1605,20 @@ Alpine.data('invoicePreviewActions', () => ({
     },
 }));
 
-Alpine.data('salesReportTable', (initialSales = []) => ({
+Alpine.data('salesReportTable', (periodPresets = {}) => ({
     query: '',
     statusFilter: 'all',
     categoryFilter: 'all',
-    periodPreset: '2026-07',
-    startDate: '2026-07-01',
-    endDate: '2026-07-31',
+    periodPreset: 'monthly',
+    startDate: periodPresets.monthly?.date_from ?? '',
+    endDate: periodPresets.monthly?.date_to ?? '',
+    periodPresets,
     showCustomDate: false,
+    loading: false,
+    loadError: '',
     exporting: false,
     exportSuccess: false,
+    summaryCards: [],
 
     statusOptions: [
         { key: 'all', label: 'Semua Status' },
@@ -1624,46 +1628,108 @@ Alpine.data('salesReportTable', (initialSales = []) => ({
         { key: 'Overdue', label: 'Overdue' },
     ],
 
-    categoryOptions: [
-        { key: 'all', label: 'Semua Kategori' },
-        { key: 'Jasa desain', label: 'Jasa desain' },
-        { key: 'Cetak premium', label: 'Cetak premium' },
-        { key: 'Materi promosi', label: 'Materi promosi' },
-    ],
-
     periodOptions: [
-        { key: '2026-07', label: 'Juli 2026' },
-        { key: '2026-06', label: 'Juni 2026' },
-        { key: 'Q2-2026', label: 'Kuartal 2 (Q2 2026)' },
-        { key: '2026-YTD', label: 'Tahun 2026 (YTD)' },
+        { key: 'weekly', label: 'Mingguan' },
+        { key: 'monthly', label: 'Bulanan' },
+        { key: 'yearly', label: 'Tahunan' },
         { key: 'custom', label: 'Rentang Kustom...' },
     ],
 
-    sales: initialSales,
+    sales: [],
 
-    get isFiltered() {
-        return this.query.trim() !== '' || this.statusFilter !== 'all' || this.categoryFilter !== 'all' || this.periodPreset !== '2026-07';
+    init() {
+        this.loadReport();
     },
 
-    selectPeriod(preset) {
+    get categoryOptions() {
+        const categories = [...new Set(this.sales.flatMap((row) => row.categories ?? [row.category]))]
+            .filter(Boolean)
+            .sort((left, right) => left.localeCompare(right, 'id'));
+
+        return [
+            { key: 'all', label: 'Semua Kategori' },
+            ...categories.map((category) => ({ key: category, label: category })),
+        ];
+    },
+
+    get isFiltered() {
+        return this.query.trim() !== '' || this.statusFilter !== 'all' || this.categoryFilter !== 'all' || this.periodPreset !== 'monthly';
+    },
+
+    async selectPeriod(preset) {
         this.periodPreset = preset;
+
         if (preset === 'custom') {
             this.showCustomDate = true;
             return;
         }
+
         this.showCustomDate = false;
-        if (preset === '2026-07') {
-            this.startDate = '2026-07-01';
-            this.endDate = '2026-07-31';
-        } else if (preset === '2026-06') {
-            this.startDate = '2026-06-01';
-            this.endDate = '2026-06-30';
-        } else if (preset === 'Q2-2026') {
-            this.startDate = '2026-04-01';
-            this.endDate = '2026-06-30';
-        } else if (preset === '2026-YTD') {
-            this.startDate = '2026-01-01';
-            this.endDate = '2026-12-31';
+
+        const period = this.periodPresets[preset];
+
+        if (period) {
+            this.startDate = period.date_from;
+            this.endDate = period.date_to;
+            await this.loadReport();
+        }
+    },
+
+    reportParams() {
+        return new URLSearchParams({
+            date_from: this.startDate,
+            date_to: this.endDate,
+        });
+    },
+
+    async loadReport() {
+        if (!this.startDate || !this.endDate) return;
+
+        this.loading = true;
+        this.loadError = '';
+
+        try {
+            const params = this.reportParams().toString();
+            const [invoiceResponse, summaryResponse] = await Promise.all([
+                fetch(`/api/reports/sales/invoices?${params}`, {
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json' },
+                }),
+                fetch(`/api/reports/sales/summary?${params}`, {
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json' },
+                }),
+            ]);
+
+            if (!invoiceResponse.ok || !summaryResponse.ok) {
+                throw new Error('Data laporan belum berhasil dimuat.');
+            }
+
+            const [invoicePayload, summaryPayload] = await Promise.all([
+                invoiceResponse.json(),
+                summaryResponse.json(),
+            ]);
+
+            this.sales = (invoicePayload.data ?? []).map((row) => ({
+                customer: row.customer?.name ?? '-',
+                product: row.product,
+                category: row.category,
+                categories: row.categories ?? [],
+                invoice: row.invoice_number,
+                date: row.issue_date_formatted,
+                rawDate: row.issue_date,
+                amount: row.total_amount_formatted,
+                rawAmount: Number(row.total_amount),
+                margin: row.margin_label,
+                status: row.status_label,
+            }));
+            this.summaryCards = summaryPayload.data?.cards ?? [];
+        } catch (error) {
+            this.sales = [];
+            this.summaryCards = [];
+            this.loadError = error?.message ?? 'Data laporan belum berhasil dimuat.';
+        } finally {
+            this.loading = false;
         }
     },
 
@@ -1672,7 +1738,8 @@ Alpine.data('salesReportTable', (initialSales = []) => ({
 
         return this.sales.filter((row) => {
             const matchesStatus = this.statusFilter === 'all' || row.status === this.statusFilter;
-            const matchesCategory = this.categoryFilter === 'all' || row.category === this.categoryFilter;
+            const matchesCategory = this.categoryFilter === 'all' ||
+                (row.categories ?? [row.category]).includes(this.categoryFilter);
             const matchesKeyword = !keyword ||
                 `${row.customer} ${row.product} ${row.invoice} ${row.category} ${row.status}`
                     .toLocaleLowerCase('id')
@@ -1697,6 +1764,23 @@ Alpine.data('salesReportTable', (initialSales = []) => ({
         return this.filteredSales.length;
     },
 
+    get productMix() {
+        const totals = this.filteredSales.reduce((result, row) => {
+            result[row.category] = (result[row.category] ?? 0) + (row.rawAmount || 0);
+            return result;
+        }, {});
+        const grandTotal = Object.values(totals).reduce((sum, amount) => sum + amount, 0);
+        const tones = ['bg-brand-600', 'bg-accent', 'bg-yellow-500', 'bg-green-600'];
+
+        return Object.entries(totals)
+            .sort(([, left], [, right]) => right - left)
+            .map(([label, amount], index) => ({
+                label,
+                value: grandTotal > 0 ? `${Math.round((amount / grandTotal) * 100)}%` : '0%',
+                class: tones[index % tones.length],
+            }));
+    },
+
     setStatusFilter(key) {
         this.statusFilter = key;
     },
@@ -1705,43 +1789,61 @@ Alpine.data('salesReportTable', (initialSales = []) => ({
         this.query = '';
         this.statusFilter = 'all';
         this.categoryFilter = 'all';
-        this.selectPeriod('2026-07');
+        this.selectPeriod('monthly');
     },
 
-    exportExcel() {
+    async exportExcel() {
         if (this.exporting) return;
+
         this.exporting = true;
         this.exportSuccess = false;
 
-        const headers = ['Pelanggan', 'Produk', 'Kategori', 'Invoice', 'Tanggal', 'Penjualan', 'Margin', 'Status'];
-        const rows = this.filteredSales.map((r) => [
-            `"${r.customer}"`,
-            `"${r.product}"`,
-            `"${r.category}"`,
-            `"${r.invoice}"`,
-            `"${r.date}"`,
-            `"${r.amount}"`,
-            `"${r.margin}"`,
-            `"${r.status}"`,
-        ]);
+        const statusMap = {
+            Lunas: 'paid',
+            Parsial: 'partial',
+            Menunggu: 'unpaid',
+            Overdue: 'overdue',
+        };
+        const params = new URLSearchParams({
+            ...Object.fromEntries(this.reportParams()),
+            status: statusMap[this.statusFilter] ?? 'all',
+            category: this.categoryFilter === 'all' ? '' : this.categoryFilter,
+            q: this.query.trim(),
+        });
 
-        const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
+        try {
+            const response = await fetch(`/api/reports/sales/export?${params.toString()}`, {
+                credentials: 'same-origin',
+                headers: { Accept: 'text/csv' },
+            });
 
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `laporan-penjualan-${new Date().toISOString().slice(0, 10)}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+            if (!response.ok) {
+                throw new Error('Export laporan belum berhasil.');
+            }
 
-        this.exporting = false;
-        this.exportSuccess = true;
-        window.setTimeout(() => {
-            this.exportSuccess = false;
-        }, 3000);
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const disposition = response.headers.get('Content-Disposition') ?? '';
+            const filename = disposition.match(/filename="([^"]+)"/)?.[1]
+                ?? `laporan-penjualan-${this.periodPreset}-${this.endDate}.csv`;
+            const link = document.createElement('a');
+
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+            this.exportSuccess = true;
+            window.setTimeout(() => {
+                this.exportSuccess = false;
+            }, 3000);
+        } catch (error) {
+            window.alert(error?.message ?? 'Export laporan belum berhasil.');
+        } finally {
+            this.exporting = false;
+        }
     },
 
     statusClass(status) {
@@ -1751,6 +1853,13 @@ Alpine.data('salesReportTable', (initialSales = []) => ({
             Parsial: 'bg-brand-100 text-brand-800',
             Menunggu: 'bg-yellow-100 text-yellow-900',
         }[status] ?? 'bg-canvas text-muted';
+    },
+
+    summaryToneClass(tone) {
+        return {
+            success: 'bg-green-100 text-green-800',
+            warning: 'bg-yellow-100 text-yellow-900',
+        }[tone] ?? 'bg-brand-100 text-brand-800';
     },
 }));
 
@@ -2931,59 +3040,67 @@ Alpine.data('companyProfileSettings', (initialForm = {}) => ({
     },
 }));
 
-const salesReportDatasets = {
-    monthly: {
-        label: '6 bulan terakhir',
-        labels: ['Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul'],
-        revenue: [46000000, 58000000, 52000000, 71000000, 64000000, 86400000],
-        target: [40000000, 50000000, 50000000, 65000000, 65000000, 80000000],
-    },
-    quarterly: {
-        label: '4 kuartal terakhir',
-        labels: ['Q4 2025', 'Q1 2026', 'Q2 2026', 'Q3 2026'],
-        revenue: [142000000, 168000000, 187000000, 221400000],
-        target: [130000000, 150000000, 175000000, 200000000],
-    },
-    yearly: {
-        label: '3 tahun terakhir',
-        labels: ['2024', '2025', '2026'],
-        revenue: [720000000, 940000000, 1180000000],
-        target: [650000000, 850000000, 1000000000],
-    },
-};
-
 Alpine.data('salesReportChart', () => ({
     chart: null,
     selectedPeriod: 'monthly',
+    dataset: {
+        labels: [],
+        revenue: [],
+        target: [],
+    },
+    loading: false,
+    loadError: '',
     periods: [
+        { key: 'weekly', label: 'Mingguan' },
         { key: 'monthly', label: 'Bulanan' },
-        { key: 'quarterly', label: 'Kuartal' },
         { key: 'yearly', label: 'Tahunan' },
     ],
 
-    get currentDataset() {
-        return salesReportDatasets[this.selectedPeriod];
-    },
-
     init() {
-        this.$nextTick(() => this.renderChart());
+        this.loadChart();
     },
 
-    selectPeriod(period) {
-        if (this.selectedPeriod === period || !salesReportDatasets[period]) {
+    async selectPeriod(period) {
+        if (this.selectedPeriod === period || !this.periods.some((option) => option.key === period)) {
             return;
         }
 
         this.selectedPeriod = period;
+        await this.loadChart();
+    },
 
-        if (!this.chart) {
-            this.renderChart();
-            return;
+    async loadChart() {
+        this.loading = true;
+        this.loadError = '';
+
+        try {
+            const response = await fetch(`/api/reports/sales/revenue-chart?period=${encodeURIComponent(this.selectedPeriod)}`, {
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json' },
+            });
+
+            if (!response.ok) {
+                throw new Error('Grafik laporan belum berhasil dimuat.');
+            }
+
+            const payload = await response.json();
+            this.dataset = {
+                labels: payload.data?.labels ?? [],
+                revenue: payload.data?.revenue ?? [],
+                target: payload.data?.target ?? [],
+            };
+
+            if (this.chart) {
+                this.chart.destroy();
+                this.chart = null;
+            }
+
+            this.$nextTick(() => this.renderChart());
+        } catch (error) {
+            this.loadError = error?.message ?? 'Grafik laporan belum berhasil dimuat.';
+        } finally {
+            this.loading = false;
         }
-
-        this.chart.data = this.buildChartData();
-        this.chart.options.scales.y.suggestedMax = this.suggestedMax();
-        this.chart.update();
     },
 
     renderChart() {
@@ -3069,21 +3186,19 @@ Alpine.data('salesReportChart', () => ({
     },
 
     buildChartData() {
-        const dataset = this.currentDataset;
-
         return {
-            labels: dataset.labels,
+            labels: this.dataset.labels,
             datasets: [
                 {
                     label: 'Pendapatan',
-                    data: dataset.revenue,
+                    data: this.dataset.revenue,
                     backgroundColor: '#52772c',
                     borderRadius: 8,
                     maxBarThickness: 42,
                 },
                 {
                     label: 'Target',
-                    data: dataset.target,
+                    data: this.dataset.target,
                     backgroundColor: '#234c8c',
                     borderRadius: 8,
                     maxBarThickness: 42,
@@ -3093,7 +3208,7 @@ Alpine.data('salesReportChart', () => ({
     },
 
     suggestedMax() {
-        return Math.max(...this.currentDataset.revenue) * 1.2;
+        return Math.max(1, ...this.dataset.revenue) * 1.2;
     },
 }));
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\SalesReportSummaryRequest;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Support\SalesReportPeriodPresets;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -19,8 +20,9 @@ class SalesReportSummaryController extends Controller
     public function __invoke(SalesReportSummaryRequest $request): JsonResponse
     {
         $filters = $request->validated();
-        $dateFrom = $this->resolveDateFrom($filters['date_from'] ?? null);
-        $dateTo = $this->resolveDateTo($filters['date_to'] ?? null);
+        $range = SalesReportPeriodPresets::resolve($filters['date_from'] ?? null, $filters['date_to'] ?? null);
+        $dateFrom = $range['from'];
+        $dateTo = $range['to'];
         $invoices = $this->invoiceQuery($dateFrom, $dateTo)
             ->withSum([
                 'payments as verified_paid_amount' => fn ($query) => $query
@@ -83,20 +85,6 @@ class SalesReportSummaryController extends Controller
                 'status_breakdown' => $this->statusBreakdown($invoices),
             ],
         ]);
-    }
-
-    private function resolveDateFrom(?string $date): CarbonImmutable
-    {
-        return $date !== null
-            ? CarbonImmutable::parse($date)->startOfDay()
-            : CarbonImmutable::now()->startOfMonth();
-    }
-
-    private function resolveDateTo(?string $date): CarbonImmutable
-    {
-        return $date !== null
-            ? CarbonImmutable::parse($date)->endOfDay()
-            : CarbonImmutable::now()->endOfDay();
     }
 
     private function invoiceQuery(CarbonImmutable $dateFrom, CarbonImmutable $dateTo): Builder
