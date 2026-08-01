@@ -43,9 +43,40 @@ class GenerateInvoicePdf
         return $path;
     }
 
+    /**
+     * Generate a PDF directly from the invoice preview snapshot.
+     *
+     * @param  array<string, mixed>  $preview
+     */
+    public function generatePreview(array $preview): GeneratedInvoicePdf
+    {
+        $options = new Options;
+        $options->set('defaultFont', 'DejaVu Sans');
+        $options->set('isRemoteEnabled', false);
+        $options->set('isPhpEnabled', false);
+
+        $dompdf = new Dompdf($options);
+        $dompdf->setPaper('a4');
+        $dompdf->loadHtml(
+            view('pdf.invoices.preview', ['preview' => $preview])->render(),
+            'UTF-8',
+        );
+        $dompdf->render();
+
+        return new GeneratedInvoicePdf(
+            contents: $dompdf->output(),
+            filename: $this->filenameFromNumber((string) ($preview['invoice_number'] ?? 'preview')),
+        );
+    }
+
     private function filename(Invoice $invoice): string
     {
-        $invoiceNumber = Str::of($invoice->invoice_number)
+        return $this->filenameFromNumber($invoice->invoice_number);
+    }
+
+    private function filenameFromNumber(string $invoiceNumber): string
+    {
+        $invoiceNumber = Str::of($invoiceNumber)
             ->replaceMatches('/[^A-Za-z0-9_-]+/', '-')
             ->trim('-')
             ->lower();

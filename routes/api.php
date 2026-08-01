@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\InvoiceDraftController;
 use App\Http\Controllers\Api\InvoicePaymentController;
 use App\Http\Controllers\Api\InvoicePaymentDetailController;
 use App\Http\Controllers\Api\InvoicePdfController;
+use App\Http\Controllers\Api\InvoicePreviewPdfController;
 use App\Http\Controllers\Api\PaymentHistoryController;
 use App\Http\Controllers\Api\ProductCategoryController;
 use App\Http\Controllers\Api\ProductController;
@@ -185,6 +186,10 @@ Route::get('/payments/receivables', [ReceivableController::class, 'index'])
 
 Route::get('/payments/history', [PaymentHistoryController::class, 'index'])
     ->name('api.payments.history.index');
+Route::post('/invoices/preview/pdf', InvoicePreviewPdfController::class)
+    ->middleware(['auth', 'permission:invoice.export', 'throttle:invoice-pdf'])
+    ->name('api.invoices.preview.pdf.download');
+
 
 Route::get('/reports/sales/summary', SalesReportSummaryController::class)
     ->middleware(['auth', 'permission:report.view'])
