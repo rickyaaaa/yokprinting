@@ -166,7 +166,8 @@ Route::post('/stock-movements', [StockMovementController::class, 'store'])
     ->middleware('auth')
     ->name('api.stock-movements.store');
 
-Route::post('/invoices/{invoice:invoice_number}/send', [InvoiceDeliveryController::class, 'send'])
+Route::post('/invoices/{invoice}/send', [InvoiceDeliveryController::class, 'send'])
+    ->middleware(['auth', 'permission:invoice.update'])
     ->name('api.invoices.send');
 
 Route::post('/invoices/{invoice:invoice_number}/payments', [InvoicePaymentController::class, 'store'])

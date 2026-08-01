@@ -1,29 +1,6 @@
 @php
     $yokPrintingLogo = 'data:image/png;base64,'.base64_encode(file_get_contents(public_path('images/yokprinting-logo.png')));
     $yokPrintingAddress = 'Jl. Karyawan II, RT.005/RW.005, Karang Tengah, Kec. Karang Tengah, Kota Tangerang, Banten 15157';
-    $items = [
-        [
-            'name' => 'Sablon Cup 16 Oz Oval (8gr)',
-            'description' => '1 warna tinta hitam, posisi logo tengah. Kelipatan order 500 pcs.',
-            'quantity' => '10.000 pcs',
-            'price' => 'Rp850',
-            'total' => 'Rp8.500.000',
-        ],
-        [
-            'name' => 'Sablon Cup 12 Oz Datar (7gr)',
-            'description' => '1 warna tinta putih, 1 sisi, untuk kebutuhan kemasan minuman F&B.',
-            'quantity' => '8.000 pcs',
-            'price' => 'Rp700',
-            'total' => 'Rp5.600.000',
-        ],
-        [
-            'name' => 'Dus Kemasan Cup 16 Oz',
-            'description' => 'Dus packing pengiriman, kelipatan 10 dus.',
-            'quantity' => '200 dus',
-            'price' => 'Rp19.500',
-            'total' => 'Rp3.900.000',
-        ],
-    ];
 @endphp
 
 <!DOCTYPE html>
@@ -43,7 +20,7 @@
         <header class="print-hide sticky top-0 z-20 border-b border-line bg-white/95 backdrop-blur-sm">
             <div class="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
                 <a
-                    href="{{ route('invoices.create') }}"
+                    href="{{ route('invoices.create') }}#restore-draft"
                     class="inline-flex items-center gap-2 rounded-lg p-2 text-sm font-medium text-muted hover:bg-brand-50 hover:text-brand-800 sm:px-3"
                 >
                     <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -55,7 +32,7 @@
                 <span class="hidden h-6 w-px bg-line sm:block"></span>
                 <div class="hidden min-w-0 sm:block">
                     <p class="truncate text-sm font-semibold text-ink">Pratinjau invoice</p>
-                    <p class="truncate text-xs text-muted">INV-2026-0079</p>
+                    <p class="truncate text-xs text-muted" x-text="invoiceNumber">INV-2026-0079</p>
                 </div>
                 <div class="ml-auto flex items-center gap-2">
                     <span class="hidden items-center gap-2 text-xs text-muted lg:inline-flex" aria-live="polite">
@@ -81,7 +58,7 @@
                         type="button"
                         data-testid="preview-email-action"
                         class="hidden min-w-32 items-center justify-center gap-2 rounded-lg border border-brand-300 bg-white px-3.5 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-50 disabled:cursor-wait disabled:opacity-70 lg:inline-flex"
-                        :disabled="sendingEmail"
+                        :disabled="sendingEmail || !canSendEmail"
                         :aria-busy="sendingEmail"
                         @click="sendEmail()"
                     >
@@ -128,7 +105,7 @@
                     type="button"
                     data-testid="preview-email-action-mobile"
                     class="inline-flex items-center justify-center gap-2 px-2 py-2.5 text-xs font-semibold text-brand-800 hover:bg-brand-50 disabled:cursor-wait disabled:opacity-70 sm:text-sm"
-                    :disabled="sendingEmail"
+                    :disabled="sendingEmail || !canSendEmail"
                     :aria-busy="sendingEmail"
                     @click="sendEmail()"
                 >
@@ -171,7 +148,7 @@
         </header>
 
         <main class="invoice-preview-shell px-3 py-6 sm:px-6 sm:py-10">
-            <article class="invoice-paper mx-auto max-w-[900px] overflow-hidden rounded-xl bg-white shadow-[0_4px_8px_oklch(0.2_0.02_113/0.12)]" aria-label="Invoice INV-2026-0079">
+            <article class="invoice-paper mx-auto max-w-[900px] overflow-hidden rounded-xl bg-white shadow-[0_4px_8px_oklch(0.2_0.02_113/0.12)]" :aria-label="`Invoice ${invoiceNumber}`">
                 <div class="h-2 bg-brand-700"></div>
                 <div class="p-5 sm:p-8 md:p-10">
                     <div class="flex flex-col gap-8 border-b border-line pb-8 sm:flex-row sm:items-start sm:justify-between">
@@ -199,7 +176,7 @@
 
                         <div class="text-left sm:text-right">
                             <p class="text-3xl font-bold tracking-[-0.035em] text-brand-800">INVOICE</p>
-                            <p class="mt-2 font-mono text-sm font-semibold text-ink">INV-2026-0079</p>
+                            <p class="mt-2 font-mono text-sm font-semibold text-ink" x-text="invoiceNumber">INV-2026-0079</p>
                             <span
                                 class="mt-3 inline-flex rounded-full px-3 py-1 text-xs font-semibold"
                                 :class="invoiceStatus === 'Terkirim' ? 'bg-green-100 text-green-800' : 'bg-brand-100 text-brand-800'"
@@ -212,11 +189,10 @@
                     <div class="grid gap-8 border-b border-line py-8 sm:grid-cols-[minmax(0,1fr)_17rem]">
                         <div>
                             <p class="text-xs font-semibold text-muted">Ditagihkan kepada</p>
-                            <h1 class="mt-2 text-lg font-semibold text-ink">PT Sinar Nusantara</h1>
+                            <h1 class="mt-2 text-lg font-semibold text-ink" x-text="preview.customer.name">PT Sinar Nusantara</h1>
                             <address class="mt-2 max-w-sm text-sm not-italic leading-6 text-muted">
-                                Jl. Jenderal Sudirman No. 88<br>
-                                Jakarta Selatan 12190<br>
-                                finance@sinarnusantara.co.id &middot; +62 21 555 0198
+                                <span x-text="preview.customer.address || '-'">Jl. Jenderal Sudirman No. 88, Jakarta Selatan 12190</span><br>
+                                <span x-text="customerContactLine || '-'">finance@sinarnusantara.co.id &middot; +62 21 555 0198</span>
                                 {{--
                                 finance@sinarnusantara.co.id · +62 21 555 0198
                                 {{--
@@ -227,9 +203,9 @@
 
                         <dl class="grid grid-cols-[1fr_auto] gap-x-6 gap-y-3 text-sm">
                             <dt class="text-muted">Tanggal invoice</dt>
-                            <dd class="font-medium text-ink">23 Juli 2026</dd>
+                            <dd class="font-medium text-ink" x-text="preview.issue_date_label">23 Juli 2026</dd>
                             <dt class="text-muted">Mata uang</dt>
-                            <dd class="font-medium text-ink">IDR</dd>
+                            <dd class="font-medium text-ink" x-text="preview.currency">IDR</dd>
                         </dl>
                     </div>
 
@@ -245,17 +221,17 @@
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-line">
-                                    @foreach ($items as $item)
+                                    <template x-for="item in preview.items" :key="item.key">
                                         <tr>
                                             <td class="py-5 pr-4 align-top">
-                                                <p class="font-semibold text-ink">{{ $item['name'] }}</p>
-                                                <p class="mt-1 max-w-md text-xs leading-5 text-muted">{{ $item['description'] }}</p>
+                                                <p class="font-semibold text-ink" x-text="item.name"></p>
+                                                <p class="mt-1 max-w-md text-xs leading-5 text-muted" x-text="item.note"></p>
                                             </td>
-                                            <td class="px-2 py-5 text-center align-top text-ink">{{ $item['quantity'] }}</td>
-                                            <td class="px-2 py-5 text-right align-top text-muted">{{ $item['price'] }}</td>
-                                            <td class="py-5 pl-2 text-right align-top font-semibold text-ink">{{ $item['total'] }}</td>
+                                            <td class="px-2 py-5 text-center align-top text-ink" x-text="item.quantity_label"></td>
+                                            <td class="px-2 py-5 text-right align-top text-muted" x-text="formatCurrency(item.unit_price)"></td>
+                                            <td class="py-5 pl-2 text-right align-top font-semibold text-ink" x-text="formatCurrency(item.line_total)"></td>
                                         </tr>
-                                    @endforeach
+                                    </template>
                                 </tbody>
                             </table>
                         </div>
@@ -264,23 +240,27 @@
                             <dl class="w-full max-w-sm space-y-3 text-sm">
                                 <div class="flex justify-between gap-6">
                                     <dt class="text-muted">Subtotal</dt>
-                                    <dd class="font-medium text-ink">Rp18.000.000</dd>
+                                    <dd class="font-medium text-ink" x-text="formatCurrency(preview.subtotal)">Rp150.000</dd>
                                 </div>
                                 <div class="flex justify-between gap-6">
-                                    <dt class="text-muted">Diskon</dt>
-                                    <dd class="font-medium text-red-700">− Rp0</dd>
+                                    <dt class="text-muted" x-text="discountLabel">Diskon</dt>
+                                    <dd class="font-medium text-red-700" x-text="`− ${formatCurrency(preview.discount_amount)}`">− Rp7.500</dd>
                                 </div>
                                 <div class="flex justify-between gap-6">
-                                    <dt class="text-muted">PPN (11%)</dt>
-                                    <dd class="font-medium text-ink">Rp1.980.000</dd>
+                                    <dt class="text-muted" x-text="taxLabel">PPN (11%)</dt>
+                                    <dd class="font-medium text-ink" x-text="formatCurrency(preview.tax_amount)">Rp15.675</dd>
+                                </div>
+                                <div class="flex justify-between gap-6" x-show="preview.shipping_cost > 0">
+                                    <dt class="text-muted" x-text="preview.is_free_shipping ? 'Free ongkir' : 'Ongkir'">Ongkir</dt>
+                                    <dd class="font-medium" :class="preview.is_free_shipping ? 'text-red-700' : 'text-ink'" x-text="preview.is_free_shipping ? `− ${formatCurrency(preview.shipping_cost)}` : formatCurrency(preview.shipping_cost)">Rp0</dd>
                                 </div>
                                 <div class="flex items-end justify-between gap-6 border-t-2 border-brand-700 pt-4">
                                     <dt class="font-semibold text-ink">Total tagihan</dt>
-                                    <dd class="text-xl font-bold tracking-[-0.025em] text-brand-800">Rp19.980.000</dd>
+                                    <dd class="text-xl font-bold tracking-[-0.025em] text-brand-800" x-text="formatCurrency(preview.total_amount)">Rp158.175</dd>
                                 </div>
                                 <div class="flex justify-between gap-6 rounded-lg bg-brand-50 px-3 py-2">
-                                    <dt class="font-semibold text-brand-900">Minimal DP 50%</dt>
-                                    <dd class="font-bold text-brand-900">Rp9.990.000</dd>
+                                    <dt class="font-semibold text-brand-900">Minimal DP <span x-text="`${preview.dp_required_percent}%`">50%</span></dt>
+                                    <dd class="font-bold text-brand-900" x-text="formatCurrency(preview.dp_amount)">Rp79.088</dd>
                                 </div>
                             </dl>
                         </div>
@@ -307,9 +287,10 @@
 
                         <section aria-labelledby="notes-heading">
                             <h2 id="notes-heading" class="text-sm font-semibold text-ink">Catatan</h2>
-                            <p class="mt-3 text-sm leading-6 text-muted">
+                            <p class="mt-3 text-sm leading-6 text-muted" x-text="preview.notes">
                                 Produksi berjalan setelah DP minimal 50% diterima dan mockup/desain sudah di-ACC. Pelunasan dilakukan sebelum barang dikirim atau diambil.
                             </p>
+                            <p class="mt-3 text-xs leading-5 text-muted" x-text="preview.terms"></p>
                         </section>
                     </div>
 
