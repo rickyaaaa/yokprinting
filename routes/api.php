@@ -175,7 +175,8 @@ Route::post('/invoices/{invoice:invoice_number}/payments', [InvoicePaymentContro
 Route::get('/invoices/{invoice:invoice_number}/payment-detail', [InvoicePaymentDetailController::class, 'show'])
     ->name('api.invoices.payment-detail.show');
 
-Route::get('/invoices/{invoice:invoice_number}/pdf', [InvoicePdfController::class, 'download'])
+Route::get('/invoices/{invoice}/pdf', [InvoicePdfController::class, 'download'])
+    ->middleware(['auth', 'permission:invoice.export', 'throttle:invoice-pdf'])
     ->name('api.invoices.pdf.download');
 
 Route::get('/payments/receivables', [ReceivableController::class, 'index'])
@@ -185,15 +186,19 @@ Route::get('/payments/history', [PaymentHistoryController::class, 'index'])
     ->name('api.payments.history.index');
 
 Route::get('/reports/sales/summary', SalesReportSummaryController::class)
+    ->middleware(['auth', 'permission:report.view'])
     ->name('api.reports.sales.summary');
 
 Route::get('/reports/sales/invoices', [SalesReportInvoiceController::class, 'index'])
+    ->middleware(['auth', 'permission:report.view'])
     ->name('api.reports.sales.invoices.index');
 
 Route::get('/reports/sales/revenue-chart', SalesReportRevenueChartController::class)
+    ->middleware(['auth', 'permission:report.view'])
     ->name('api.reports.sales.revenue-chart');
 
 Route::get('/reports/sales/export', SalesReportExportController::class)
+    ->middleware(['auth', 'permission:report.export'])
     ->name('api.reports.sales.export');
 
 Route::get('/reports/gross-profit', [GrossProfitReportController::class, 'index'])
