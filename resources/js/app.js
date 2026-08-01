@@ -26,6 +26,12 @@ import {
     listProducts,
     updateProduct as updateCatalogProduct,
 } from './services/product-api';
+import {
+    isProductLowStock,
+    minimumStockForForm,
+    minimumStockForPayload,
+    normalizeMinimumStock,
+} from './support/minimum-stock';
 
 window.Alpine = Alpine;
 
@@ -204,7 +210,7 @@ const buildInvoicePreviewSnapshot = (payload) => {
             const note = [
                 sku ? `SKU: ${sku}` : '',
                 orderIncrement ? `Kelipatan jumlah ${formatNumber(orderIncrement)} ${unit}` : '',
-            ].filter(Boolean).join(' ? ');
+            ].filter(Boolean).join(' · ');
 
             return {
                 key: `${item.product_id || 'item'}-${index}`,
@@ -1145,7 +1151,7 @@ Alpine.data('invoiceItems', () => ({
             restored.productId = product?.id ?? Number(savedItem.product_id) ?? null;
             restored.productName = savedItem.product_name || product?.name || '';
             restored.sku = savedItem.sku || product?.sku || product?.code || '';
-            restored.productSearch = product ? this.productLabel(product) : [restored.sku, restored.productName].filter(Boolean).join(' ? ');
+            restored.productSearch = product ? this.productLabel(product) : [restored.sku, restored.productName].filter(Boolean).join(' — ');
             restored.cupSize = savedItem.cup_size || product?.cup_size || restored.cupSize;
             restored.cupModel = savedItem.cup_model || product?.cup_model || restored.cupModel;
             restored.grammage = savedItem.grammage || product?.grammage || restored.grammage;
@@ -1355,7 +1361,7 @@ Alpine.data('invoicePreviewActions', () => ({
             {
                 key: 'sample-1',
                 name: 'Cup Injection 12Oz Datar (360ml) Natural',
-                note: 'SKU: H-001 ? Kelipatan jumlah 500 Pcs',
+                note: 'SKU: H-001 · Kelipatan jumlah 500 Pcs',
                 quantity: 500,
                 unit: 'Pcs',
                 quantity_label: '500 Pcs',
@@ -1444,7 +1450,7 @@ Alpine.data('invoicePreviewActions', () => ({
         return [
             this.preview.customer?.email,
             this.preview.customer?.phone,
-        ].filter(Boolean).join(' ? ');
+        ].filter(Boolean).join(' · ');
     },
 
     get discountLabel() {
@@ -2191,10 +2197,16 @@ Alpine.data('productIndexTable', (initialProducts = []) => ({
 
     normalizeProduct(product) {
         const stockValue = product.stock === null ? 0 : Number(product.stock) || 0;
-        const minimumStock = Number(product.minimum_stock) || 0;
+        const minimumStock = normalizeMinimumStock(product.minimum_stock);
+        const trackStock = product.track_stock ?? true;
         const status = product.status === 'inactive'
             ? 'Nonaktif'
-            : minimumStock > 0 && stockValue <= minimumStock
+            : isProductLowStock({
+                status: product.status,
+                trackStock,
+                stock: stockValue,
+                minimumStock,
+            })
                 ? 'Stok menipis'
                 : 'Aktif';
 
@@ -2213,7 +2225,7 @@ Alpine.data('productIndexTable', (initialProducts = []) => ({
             sales: product.sales ?? 0,
             status,
             rawStatus: product.status,
-            trackStock: product.track_stock,
+            trackStock,
         };
     },
 
@@ -2289,9 +2301,12 @@ Alpine.data('productIndexTable', (initialProducts = []) => ({
     },
 
     isLowStock(product) {
-        return product.status !== 'Nonaktif' &&
-            product.minimumStock > 0 &&
-            product.stockValue <= product.minimumStock;
+        return isProductLowStock({
+            status: product.rawStatus,
+            trackStock: product.trackStock,
+            stock: product.stockValue,
+            minimumStock: product.minimumStock,
+        });
     },
 
     resetFilters() {
@@ -2334,7 +2349,7 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
         unit: initialForm.unit ?? 'Pcs',
         purchasePrice: initialForm.purchasePrice ?? initialForm.purchase_price ?? 0,
         stock: initialForm.stock ?? 10,
-        minimumStock: initialForm.minimumStock ?? 5,
+        minimumStock: minimumStockForForm(initialForm),
         minimumOrderQty: initialForm.minimumOrderQty ?? initialForm.minimum_order_qty ?? 500,
         packageConversion: initialForm.packageConversion ?? initialForm.package_conversion ?? 500,
         shortDescription: initialForm.shortDescription ?? initialForm.short_description ?? '',
@@ -2374,7 +2389,7 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
             unit: product.unit ?? 'Pcs',
             purchasePrice: Number(product.purchase_price) || 0,
             stock: Number(product.stock) || 0,
-            minimumStock: Number(product.minimum_stock) || 0,
+            minimumStock: minimumStockForForm(product),
             minimumOrderQty: Number(product.minimum_order_qty) || 500,
             packageConversion: Number(product.package_conversion) || 500,
             shortDescription: product.short_description ?? '',
@@ -2451,7 +2466,7 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
             unit: 'Pcs',
             purchase_price: Number(this.form.purchasePrice) || 0,
             stock: this.form.trackStock ? Number(this.form.stock) || 0 : null,
-            minimum_stock: this.form.trackStock ? Number(this.form.minimumStock) || 0 : 0,
+            minimum_stock: minimumStockForPayload(this.form.minimumStock, this.form.trackStock),
             minimum_order_qty: Number(this.form.minimumOrderQty) || 500,
             package_conversion: Number(this.form.packageConversion) || 500,
             short_description: this.form.shortDescription || null,

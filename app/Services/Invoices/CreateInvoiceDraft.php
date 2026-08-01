@@ -156,7 +156,7 @@ class CreateInvoiceDraft
 
             $product->refresh();
             $stock = (float) ($product->stock ?? 0);
-            $minimumStock = (float) ($product->minimum_stock ?? 0);
+            $minimumStock = $product->minimumStockValue();
 
             if ($stock < 0 || $stock <= $minimumStock) {
                 $alerts[] = [
