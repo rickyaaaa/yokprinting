@@ -1,6 +1,8 @@
 <?php
 
 use App\Jobs\MarkOverdueInvoicesJob;
+use App\Jobs\PurgeExpiredExpensesJob;
+use App\Jobs\RetryExpenseProofCleanupJob;
 use App\Jobs\SendDueInvoiceReminderEmailsJob;
 use App\Jobs\UpdateCustomerFollowUpStatusesJob;
 use Illuminate\Foundation\Inspiring;
@@ -28,3 +30,14 @@ Schedule::job(new UpdateCustomerFollowUpStatusesJob)
     ->timezone(config('app.timezone'))
     ->withoutOverlapping()
     ->name('update-customer-follow-up-statuses');
+
+Schedule::job(new RetryExpenseProofCleanupJob)
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->name('retry-expense-proof-cleanup');
+
+Schedule::job(new PurgeExpiredExpensesJob)
+    ->dailyAt('02:30')
+    ->timezone(config('app.timezone'))
+    ->withoutOverlapping()
+    ->name('purge-expired-expenses');

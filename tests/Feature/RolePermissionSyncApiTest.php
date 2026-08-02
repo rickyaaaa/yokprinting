@@ -54,9 +54,10 @@ class RolePermissionSyncApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('message', 'Role permissions synced successfully.')
             ->assertJsonPath('data.role.code', Role::CODE_FINANCE_ADMIN)
-            ->assertJsonPath('data.permission_count', 2)
+            ->assertJsonPath('data.permission_count', 6)
             ->assertJsonFragment(['code' => 'invoice.view'])
-            ->assertJsonFragment(['code' => 'invoice.export']);
+            ->assertJsonFragment(['code' => 'invoice.export'])
+            ->assertJsonFragment(['code' => 'expense.view']);
 
         $this->assertDatabaseHas('permission_role', [
             'role_id' => $role->id,

@@ -23,6 +23,12 @@
             && $currentRole->status !== \App\Models\Role::STATUS_DISABLED
             && $currentRole->permissions->contains('code', 'expense.view'))
     );
+    $canViewReports = $currentUser?->isActive() && (
+        $currentUser->role === \App\Models\User::ROLE_OWNER
+        || ($currentRole
+            && $currentRole->status !== \App\Models\Role::STATUS_DISABLED
+            && $currentRole->permissions->contains('code', 'report.view'))
+    );
 
     $navGroups = [
         [
@@ -42,7 +48,8 @@
             'items' => [
                 ['label' => 'Pelanggan', 'route' => 'customers.index', 'active' => ['customers.*'], 'icon' => 'customers'],
                 ['label' => 'Produk', 'route' => 'products.index', 'active' => ['products.*'], 'icon' => 'products'],
-                ['label' => 'Laporan', 'route' => 'reports.sales.index', 'active' => ['reports.*'], 'icon' => 'reports'],
+                ['label' => 'Laporan penjualan', 'route' => 'reports.sales.index', 'active' => ['reports.sales.*'], 'icon' => 'reports', 'visible' => $canViewReports],
+                ['label' => 'Laba rugi', 'route' => 'reports.profit-loss.index', 'active' => ['reports.profit-loss.*'], 'icon' => 'profit-loss', 'visible' => $canViewReports],
                 ['label' => 'Pengaturan', 'route' => 'settings.company-profile.edit', 'active' => ['settings.*'], 'icon' => 'settings'],
             ],
         ],
@@ -139,6 +146,11 @@
 
                                 @case('reports')
                                     <path d="M5 20V10M12 20V4M19 20v-7" stroke-linecap="round"/>
+                                    @break
+
+                                @case('profit-loss')
+                                    <path d="M4 19h16M6 16V9m6 7V5m6 11v-4" stroke-linecap="round"/>
+                                    <path d="m5 7 5-3 4 3 5-4" stroke-linecap="round" stroke-linejoin="round"/>
                                     @break
 
                                 @case('settings')

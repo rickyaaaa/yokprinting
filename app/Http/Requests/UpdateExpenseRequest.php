@@ -26,6 +26,7 @@ class UpdateExpenseRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'version' => ['required', 'integer', 'min:1'],
             'expense_date' => ['sometimes', 'required', 'date'],
             'category' => ['sometimes', 'required', Rule::in(Expense::categories())],
             'subcategory' => ['sometimes', 'nullable', Rule::in(Expense::employeeSubcategories())],

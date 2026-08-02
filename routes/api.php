@@ -8,7 +8,6 @@ use App\Http\Controllers\Api\CustomerOptionController;
 use App\Http\Controllers\Api\CustomerStatementController;
 use App\Http\Controllers\Api\CustomerTransactionHistoryController;
 use App\Http\Controllers\Api\DueInvoiceNotificationController;
-use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\FinancialSummaryController;
 use App\Http\Controllers\Api\GrossProfitReportController;
 use App\Http\Controllers\Api\InvoiceDeliveryController;
@@ -161,30 +160,6 @@ Route::match(['put', 'patch'], '/roles/{role:code}/permissions', [RolePermission
 Route::get('/activity-logs', [ActivityLogController::class, 'index'])
     ->middleware(['auth', 'permission:activity_log.view'])
     ->name('api.activity-logs.index');
-
-Route::get('/expenses', [ExpenseController::class, 'index'])
-    ->middleware(['auth', 'permission:expense.view'])
-    ->name('api.expenses.index');
-
-Route::post('/expenses', [ExpenseController::class, 'store'])
-    ->middleware(['auth', 'permission:expense.create'])
-    ->name('api.expenses.store');
-
-Route::get('/expenses/{expense}', [ExpenseController::class, 'show'])
-    ->middleware(['auth', 'permission:expense.view'])
-    ->name('api.expenses.show');
-
-Route::match(['put', 'patch'], '/expenses/{expense}', [ExpenseController::class, 'update'])
-    ->middleware(['auth', 'permission:expense.update'])
-    ->name('api.expenses.update');
-
-Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy'])
-    ->middleware(['auth', 'permission:expense.delete'])
-    ->name('api.expenses.destroy');
-
-Route::get('/expenses/{expense}/proof', [ExpenseController::class, 'downloadProof'])
-    ->middleware(['auth', 'permission:expense.view'])
-    ->name('api.expenses.proof.download');
 
 Route::get('/notifications/due-invoices', [DueInvoiceNotificationController::class, 'index'])
     ->middleware('auth')

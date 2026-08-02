@@ -30,7 +30,7 @@ class RolePermissionController extends Controller
         $before = $role->permissions()->pluck('code')->all();
         $syncPayload = $this->buildSyncPayload($request->validated());
 
-        $role->permissions()->sync($syncPayload);
+        $role->syncPermissions($syncPayload);
         $role->refresh()->load('permissions');
 
         $activityLogger->record(

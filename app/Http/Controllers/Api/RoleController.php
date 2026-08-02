@@ -80,7 +80,7 @@ class RoleController extends Controller
         $role = Role::query()->create($payload);
 
         if ($permissionIds !== null) {
-            $role->permissions()->sync($permissionIds);
+            $role->syncPermissions($permissionIds);
         }
 
         $activityLogger->record(
@@ -120,7 +120,7 @@ class RoleController extends Controller
         $role->update($payload);
 
         if ($permissionIds !== null) {
-            $role->permissions()->sync($permissionIds);
+            $role->syncPermissions($permissionIds);
         }
 
         $activityLogger->record(

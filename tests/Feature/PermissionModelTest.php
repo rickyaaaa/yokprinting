@@ -77,7 +77,8 @@ class PermissionModelTest extends TestCase
 
         $this->assertTrue($role->hasPermission('invoice.export'));
         $this->assertTrue($permission->roles->contains($role));
-        $this->assertFalse($role->permissions->first()->pivot->constraints['owned_branch_only']);
+        $invoiceExport = $role->permissions->firstWhere('code', 'invoice.export');
+        $this->assertFalse($invoiceExport->pivot->constraints['owned_branch_only']);
     }
 
     public function test_permission_scope_filters_by_module(): void

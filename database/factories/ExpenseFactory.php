@@ -30,6 +30,7 @@ class ExpenseFactory extends Factory
             'proof_original_name' => 'bukti-pembayaran.pdf',
             'proof_mime_type' => 'application/pdf',
             'created_by' => User::factory(),
+            'version' => 1,
         ];
     }
 

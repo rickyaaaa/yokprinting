@@ -2,28 +2,31 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\ExpenseProofUnavailableException;
+use App\Exceptions\ExpenseVersionConflictException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ListExpensesRequest;
 use App\Http\Requests\StoreExpenseRequest;
 use App\Http\Requests\UpdateExpenseRequest;
 use App\Models\ActivityLog;
 use App\Models\Expense;
+use App\Models\ExpenseProofCleanupTask;
+use App\Services\Expenses\ExpenseProofCleanup;
 use App\Services\Security\ActivityLogger;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
 
 class ExpenseController extends Controller
 {
-    /**
-     * List expenses with filters, pagination, and a filtered total.
-     */
     public function index(ListExpensesRequest $request): JsonResponse
     {
         $validated = $request->validated();
@@ -79,18 +82,16 @@ class ExpenseController extends Controller
         ]);
     }
 
-    /**
-     * Store a newly created expense and its private payment proof.
-     */
-    public function store(StoreExpenseRequest $request, ActivityLogger $activityLogger): JsonResponse
-    {
+    public function store(
+        StoreExpenseRequest $request,
+        ActivityLogger $activityLogger,
+        ExpenseProofCleanup $proofCleanup,
+    ): JsonResponse {
         $proof = $request->file('proof_payment');
-        $proofPath = $proof->store('expense-proofs', 'local');
+        $proofPath = $proof->store('expense-proofs', $this->proofDisk());
 
         if (! $proofPath) {
-            return response()->json([
-                'message' => 'Bukti pembayaran gagal disimpan.',
-            ], 500);
+            return response()->json(['message' => 'Bukti pembayaran gagal disimpan.'], 500);
         }
 
         try {
@@ -119,7 +120,7 @@ class ExpenseController extends Controller
                 return $expense;
             });
         } catch (Throwable $exception) {
-            Storage::disk('local')->delete($proofPath);
+            $this->cleanupNewProof($proofCleanup, $proofPath, 'create_rollback');
 
             throw $exception;
         }
@@ -130,138 +131,264 @@ class ExpenseController extends Controller
         ], 201);
     }
 
-    /**
-     * Display an expense.
-     */
     public function show(Expense $expense): JsonResponse
     {
         return response()->json([
             'data' => $this->serializeExpense($expense->load('creator:id,name,email,role')),
-            'meta' => [
-                'reference' => $this->referenceData(),
-            ],
+            'meta' => ['reference' => $this->referenceData()],
         ]);
     }
 
-    /**
-     * Update an expense and replace its proof when supplied.
-     */
-    public function update(UpdateExpenseRequest $request, Expense $expense, ActivityLogger $activityLogger): JsonResponse
-    {
+    public function update(
+        UpdateExpenseRequest $request,
+        Expense $expense,
+        ActivityLogger $activityLogger,
+        ExpenseProofCleanup $proofCleanup,
+    ): JsonResponse {
         $proof = $request->file('proof_payment');
-        $newProofPath = $proof?->store('expense-proofs', 'local');
+        $newProofPath = $proof?->store('expense-proofs', $this->proofDisk());
 
         if ($proof && ! $newProofPath) {
-            return response()->json([
-                'message' => 'Bukti pembayaran pengganti gagal disimpan.',
-            ], 500);
+            return response()->json(['message' => 'Bukti pembayaran pengganti gagal disimpan.'], 500);
         }
 
-        $oldProofPath = $expense->proof_path;
+        $cleanupTask = null;
+        $updatedExpense = null;
 
         try {
-            DB::transaction(function () use ($request, $expense, $activityLogger, $proof, $newProofPath): void {
-                $before = $this->auditSnapshot($expense);
-                $payload = $request->safe()->except('proof_payment');
-                $category = $payload['category'] ?? $expense->category;
+            DB::transaction(function () use (
+                $request,
+                $expense,
+                $activityLogger,
+                $proofCleanup,
+                $proof,
+                $newProofPath,
+                &$cleanupTask,
+                &$updatedExpense,
+            ): void {
+                $locked = Expense::query()->lockForUpdate()->findOrFail($expense->getKey());
+
+                if ((int) $request->validated('version') !== $locked->version) {
+                    throw new ExpenseVersionConflictException($locked->version);
+                }
+
+                $before = $this->auditSnapshot($locked);
+                $payload = $request->safe()->except('proof_payment', 'version');
+                $category = $payload['category'] ?? $locked->category;
 
                 if ($category !== Expense::CATEGORY_EMPLOYEE) {
                     $payload['subcategory'] = null;
                 }
 
                 if ($proof && $newProofPath) {
+                    $oldProofPath = $locked->proof_path;
                     $payload['proof_path'] = $newProofPath;
                     $payload['proof_original_name'] = $this->normalizedProofName($proof);
                     $payload['proof_mime_type'] = $proof->getMimeType() ?: 'application/octet-stream';
+                    $cleanupTask = $proofCleanup->queue(
+                        $oldProofPath,
+                        'proof_replaced',
+                        $locked->getKey(),
+                    );
                 }
 
-                $expense->update($payload);
+                $payload['version'] = $locked->version + 1;
+                $locked->update($payload);
+                $locked->refresh();
 
                 $activityLogger->record(
                     module: 'expense',
                     action: 'update',
                     event: 'Expense updated',
-                    description: "Pengeluaran {$expense->categoryLabel()} diperbarui.",
-                    subject: $expense,
+                    description: "Pengeluaran {$locked->categoryLabel()} diperbarui.",
+                    subject: $locked,
                     metadata: [
                         'before' => $before,
-                        'after' => $this->auditSnapshot($expense->refresh()),
+                        'after' => $this->auditSnapshot($locked),
                     ],
                     riskLevel: ActivityLog::RISK_MEDIUM,
                 );
+
+                $updatedExpense = $locked;
             });
+        } catch (ExpenseVersionConflictException $exception) {
+            if ($newProofPath) {
+                $this->cleanupNewProof($proofCleanup, $newProofPath, 'version_conflict', $expense->getKey());
+            }
+
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'current_version' => $exception->currentVersion,
+            ], 409);
         } catch (Throwable $exception) {
             if ($newProofPath) {
-                Storage::disk('local')->delete($newProofPath);
+                $this->cleanupNewProof($proofCleanup, $newProofPath, 'update_rollback', $expense->getKey());
             }
 
             throw $exception;
         }
 
-        if ($newProofPath && $oldProofPath !== $newProofPath) {
-            Storage::disk('local')->delete($oldProofPath);
+        if ($cleanupTask instanceof ExpenseProofCleanupTask) {
+            $proofCleanup->attempt($cleanupTask);
         }
 
         return response()->json([
-            'data' => $this->serializeExpense($expense->refresh()->load('creator:id,name,email,role')),
+            'data' => $this->serializeExpense($updatedExpense->load('creator:id,name,email,role')),
             'message' => 'Pengeluaran berhasil diperbarui.',
         ]);
     }
 
-    /**
-     * Soft delete an expense while preserving its evidence for audit recovery.
-     */
     public function destroy(Expense $expense, ActivityLogger $activityLogger): JsonResponse
     {
         DB::transaction(function () use ($expense, $activityLogger): void {
+            $locked = Expense::query()->lockForUpdate()->findOrFail($expense->getKey());
+            $before = $this->auditSnapshot($locked);
+
             $activityLogger->record(
                 module: 'expense',
                 action: 'delete',
-                event: 'Expense deleted',
-                description: "Pengeluaran {$expense->categoryLabel()} dihapus.",
-                subject: $expense,
-                metadata: $this->auditSnapshot($expense),
+                event: 'Expense soft deleted',
+                description: "Pengeluaran {$locked->categoryLabel()} dihapus sementara.",
+                subject: $locked,
+                metadata: $before,
                 riskLevel: ActivityLog::RISK_HIGH,
             );
 
-            $expense->delete();
+            $locked->delete();
         });
 
         return response()->json(status: 204);
     }
 
-    /**
-     * Download a private payment proof.
-     */
-    public function downloadProof(Request $request, Expense $expense, ActivityLogger $activityLogger): StreamedResponse
+    public function restore(string $expense, ActivityLogger $activityLogger): JsonResponse
     {
-        abort_unless(Storage::disk('local')->exists($expense->proof_path), 404);
+        try {
+            $restored = DB::transaction(function () use ($expense, $activityLogger): Expense {
+                $locked = Expense::onlyTrashed()->lockForUpdate()->findOrFail($expense);
+
+                if (! Storage::disk($this->proofDisk())->exists($locked->proof_path)) {
+                    throw new ExpenseProofUnavailableException($locked->getKey());
+                }
+
+                $locked->restore();
+                $locked->increment('version');
+                $locked->refresh();
+
+                $activityLogger->record(
+                    module: 'expense',
+                    action: 'restore',
+                    event: 'Expense restored',
+                    description: 'Pengeluaran dipulihkan dari masa retensi.',
+                    subject: $locked,
+                    metadata: $this->auditSnapshot($locked),
+                    riskLevel: ActivityLog::RISK_HIGH,
+                );
+
+                return $locked;
+            });
+        } catch (ExpenseProofUnavailableException $exception) {
+            $failedExpense = Expense::onlyTrashed()->find($exception->expenseId);
+            $activityLogger->record(
+                module: 'expense',
+                action: 'restore_failed',
+                event: 'Expense restore failed',
+                description: 'Pengeluaran tidak dipulihkan karena bukti audit tidak tersedia.',
+                subject: $failedExpense,
+                riskLevel: ActivityLog::RISK_HIGH,
+            );
+
+            return response()->json(['message' => $exception->getMessage()], 409);
+        }
+
+        return response()->json([
+            'data' => $this->serializeExpense($restored->load('creator:id,name,email,role')),
+            'message' => 'Pengeluaran berhasil dipulihkan.',
+        ]);
+    }
+
+    public function downloadProof(
+        Request $request,
+        string $expense,
+        ActivityLogger $activityLogger,
+    ): StreamedResponse {
+        $expenseModel = Expense::withTrashed()->findOrFail($expense);
 
         $activityLogger->record(
             module: 'expense',
-            action: 'proof_download',
-            event: 'Expense proof downloaded',
-            description: "Bukti pengeluaran {$expense->getKey()} diunduh.",
-            subject: $expense,
-            metadata: [
-                'proof_original_name' => $expense->proof_original_name,
-            ],
+            action: 'proof_download_requested',
+            event: 'Expense proof download requested',
+            description: "Bukti pengeluaran {$expenseModel->getKey()} diminta.",
+            subject: $expenseModel,
+            metadata: ['proof_original_name' => $expenseModel->proof_original_name],
         );
 
-        return Storage::disk('local')->download(
-            $expense->proof_path,
-            $expense->proof_original_name,
-            ['Content-Type' => $expense->proof_mime_type],
+        try {
+            $stream = Storage::disk($this->proofDisk())->readStream($expenseModel->proof_path);
+
+            if (! is_resource($stream)) {
+                abort(404, 'Bukti pengeluaran tidak ditemukan.');
+            }
+        } catch (Throwable $exception) {
+            $activityLogger->record(
+                module: 'expense',
+                action: 'proof_download_failed',
+                event: 'Expense proof download failed',
+                description: 'Storage gagal menyediakan bukti pengeluaran.',
+                subject: $expenseModel,
+                metadata: ['error' => mb_substr($exception->getMessage(), 0, 500)],
+                riskLevel: ActivityLog::RISK_MEDIUM,
+            );
+
+            if ($exception instanceof NotFoundHttpException) {
+                throw $exception;
+            }
+
+            abort(503, 'Bukti pengeluaran belum dapat disediakan.');
+        }
+
+        $activityLogger->record(
+            module: 'expense',
+            action: 'proof_download_prepared',
+            event: 'Expense proof prepared for download',
+            description: 'Storage berhasil menyediakan bukti pengeluaran untuk dikirim.',
+            subject: $expenseModel,
+            metadata: ['proof_original_name' => $expenseModel->proof_original_name],
+        );
+
+        return response()->streamDownload(
+            function () use ($stream, $activityLogger, $expenseModel): void {
+                try {
+                    fpassthru($stream);
+                } catch (Throwable $exception) {
+                    $activityLogger->record(
+                        module: 'expense',
+                        action: 'proof_download_stream_failed',
+                        event: 'Expense proof stream failed',
+                        description: 'Pengiriman stream bukti pengeluaran terputus.',
+                        subject: $expenseModel,
+                        metadata: ['error' => mb_substr($exception->getMessage(), 0, 500)],
+                        riskLevel: ActivityLog::RISK_MEDIUM,
+                    );
+                } finally {
+                    if (is_resource($stream)) {
+                        fclose($stream);
+                    }
+                }
+            },
+            $this->safeDownloadName($expenseModel->proof_original_name),
+            [
+                'Content-Type' => $expenseModel->proof_mime_type,
+                'X-Content-Type-Options' => 'nosniff',
+            ],
         );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     private function serializeExpense(Expense $expense): array
     {
         return [
             'id' => $expense->getKey(),
+            'version' => $expense->version,
             'expense_date' => $expense->expense_date?->toDateString(),
             'category' => $expense->category,
             'category_label' => $expense->categoryLabel(),
@@ -273,7 +400,7 @@ class ExpenseController extends Controller
             'payment_method' => $expense->payment_method,
             'proof_original_name' => $expense->proof_original_name,
             'proof_mime_type' => $expense->proof_mime_type,
-            'proof_download_url' => route('api.expenses.proof.download', $expense),
+            'proof_download_url' => route('api.expenses.proof.download', $expense->getKey()),
             'created_by' => $expense->created_by,
             'creator' => $expense->relationLoaded('creator') && $expense->creator ? [
                 'id' => $expense->creator->getKey(),
@@ -286,9 +413,7 @@ class ExpenseController extends Controller
         ];
     }
 
-    /**
-     * @return array{categories: array<string, string>, employee_subcategories: array<string, string>}
-     */
+    /** @return array{categories: array<string, string>, employee_subcategories: array<string, string>} */
     private function referenceData(): array
     {
         return [
@@ -297,14 +422,11 @@ class ExpenseController extends Controller
         ];
     }
 
-    /**
-     * Avoid recording private storage paths in the audit log.
-     *
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     private function auditSnapshot(Expense $expense): array
     {
         return [
+            'version' => $expense->version,
             'expense_date' => $expense->expense_date?->toDateString(),
             'category' => $expense->category,
             'subcategory' => $expense->subcategory,
@@ -317,9 +439,6 @@ class ExpenseController extends Controller
         ];
     }
 
-    /**
-     * Keep download filenames readable without accepting path or header characters.
-     */
     private function normalizedProofName(UploadedFile $proof): string
     {
         $originalName = $proof->getClientOriginalName();
@@ -329,5 +448,34 @@ class ExpenseController extends Controller
         $extension = Str::lower($proof->getClientOriginalExtension());
 
         return $extension === '' ? $baseName : "{$baseName}.{$extension}";
+    }
+
+    private function safeDownloadName(string $name): string
+    {
+        $safe = preg_replace('~[\x00-\x1F\x7F/\\\\]+~u', '_', $name) ?: 'bukti-pembayaran';
+
+        return Str::limit(trim($safe, ' .'), 220, '') ?: 'bukti-pembayaran';
+    }
+
+    private function cleanupNewProof(
+        ExpenseProofCleanup $proofCleanup,
+        string $path,
+        string $reason,
+        ?int $expenseId = null,
+    ): void {
+        try {
+            $proofCleanup->cleanup($path, $reason, $expenseId);
+        } catch (Throwable $cleanupException) {
+            Log::critical('Could not persist an expense proof cleanup retry task.', [
+                'expense_id' => $expenseId,
+                'reason' => $reason,
+                'exception' => $cleanupException,
+            ]);
+        }
+    }
+
+    private function proofDisk(): string
+    {
+        return (string) config('expenses.proof_disk', 'expense_proofs');
     }
 }

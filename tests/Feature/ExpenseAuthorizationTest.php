@@ -49,13 +49,13 @@ class ExpenseAuthorizationTest extends TestCase
 
     public function test_expense_permissions_are_enforced_per_crud_action(): void
     {
-        Storage::fake('local');
+        Storage::fake('expense_proofs');
         $creator = User::factory()->create();
         $expense = Expense::factory()->create([
             'created_by' => $creator->id,
             'proof_path' => 'expense-proofs/authorized.pdf',
         ]);
-        Storage::disk('local')->put($expense->proof_path, 'proof');
+        Storage::disk('expense_proofs')->put($expense->proof_path, 'proof');
 
         $viewer = $this->userWithPermissions(['expense.view']);
         $this->actingAs($viewer);
@@ -76,7 +76,10 @@ class ExpenseAuthorizationTest extends TestCase
 
         $updater = $this->userWithPermissions(['expense.update']);
         $this->actingAs($updater);
-        $this->patchJson(route('api.expenses.update', $expense), ['description' => 'Diperbarui oleh pengguna berizin.'])
+        $this->patchJson(route('api.expenses.update', $expense), [
+            'version' => $expense->version,
+            'description' => 'Diperbarui oleh pengguna berizin.',
+        ])
             ->assertOk();
         $this->get(route('expenses.edit', $expense))->assertOk();
         $this->deleteJson(route('api.expenses.destroy', $expense))->assertForbidden();
@@ -110,12 +113,8 @@ class ExpenseAuthorizationTest extends TestCase
         $role = Role::factory()->create();
 
         foreach ($permissionCodes as $permissionCode) {
-            [$module, $action] = explode('.', $permissionCode, 2);
-            $role->permissions()->attach(Permission::factory()->create([
-                'code' => $permissionCode,
-                'module' => $module,
-                'action' => $action,
-            ]));
+            $permission = Permission::query()->where('code', $permissionCode)->firstOrFail();
+            $role->permissions()->syncWithoutDetaching($permission);
         }
 
         return User::factory()->create(['role' => $role->code]);
