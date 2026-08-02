@@ -83,12 +83,13 @@ class ProfitLossReport
         $premisesExpenses = $this->expenseTotal($expenseRows, Expense::CATEGORY_PREMISES);
 
         // Production and shopping expenses cannot yet be reconciled to inventory/HPP.
-        // Excluding them from recognized P&L expenses prevents unsupported double counting.
+        // Report both defensible boundaries instead of choosing one unsupported result.
         $unclassifiedExpenses = $this->money($productionExpenses + $shoppingExpenses);
         $recognizedExpenses = $this->money($shippingExpenses + $employeeExpenses + $premisesExpenses);
         $recordedExpenses = $this->money($recognizedExpenses + $unclassifiedExpenses);
         $grossProfit = $this->money($salesRevenue - $totalHpp);
-        $netProfit = $this->money($grossProfit - $recognizedExpenses);
+        $netProfitMaximum = $this->money($grossProfit - $recognizedExpenses);
+        $netProfitMinimum = $this->money($netProfitMaximum - $unclassifiedExpenses);
 
         return [
             'period' => $range,
@@ -101,7 +102,9 @@ class ProfitLossReport
                     Expense::CATEGORY_PRODUCTION,
                     Expense::CATEGORY_SHOPPING,
                 ],
-                'decision_required' => 'Owner perlu menentukan apakah Biaya Produksi dan Belanjaan merupakan biaya tambahan di luar HPP atau transaksi pembelian yang sudah tercermin dalam purchase_cost_snapshot. Sampai ada relasi/klasifikasi tersebut, keduanya ditampilkan sebagai pengeluaran tercatat tetapi tidak dikurangkan lagi dari laba untuk mencegah double counting.',
+                'minimum_profit_basis' => 'Minimum: Biaya Produksi dan Belanjaan dikurangkan.',
+                'maximum_profit_basis' => 'Maksimum: Biaya Produksi dan Belanjaan tidak dikurangkan karena mungkin sudah termasuk HPP.',
+                'decision_required' => 'Owner perlu menentukan apakah Biaya Produksi dan Belanjaan merupakan biaya tambahan di luar HPP atau sudah tercermin dalam HPP.',
             ],
             'summary' => [
                 'gross_sales' => $grossSales,
@@ -122,9 +125,14 @@ class ProfitLossReport
                 'unclassified_expenses' => $unclassifiedExpenses,
                 'recognized_expenses' => $recognizedExpenses,
                 'recorded_expenses' => $recordedExpenses,
-                'net_profit' => $netProfit,
-                'profit_reconciliation_difference' => $this->money(
-                    $netProfit - ($salesRevenue - $totalHpp - $recognizedExpenses),
+                'net_profit_minimum' => $netProfitMinimum,
+                'net_profit_maximum' => $netProfitMaximum,
+                'profit_range' => $this->money($netProfitMaximum - $netProfitMinimum),
+                'minimum_profit_reconciliation_difference' => $this->money(
+                    $netProfitMinimum - ($salesRevenue - $totalHpp - $recordedExpenses),
+                ),
+                'maximum_profit_reconciliation_difference' => $this->money(
+                    $netProfitMaximum - ($salesRevenue - $totalHpp - $recognizedExpenses),
                 ),
                 'sales_quantity' => round((float) $salesQuantity, 4),
                 'invoice_count' => (int) $invoiceSummary->invoice_count,

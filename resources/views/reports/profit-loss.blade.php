@@ -158,9 +158,13 @@
                                     <dt class="font-semibold text-ink">Pengeluaran Diakui di Laba Rugi</dt>
                                     <dd class="text-right font-semibold tabular-nums text-ink" x-text="formatMoney(report.summary.recognized_expenses)"></dd>
                                 </div>
-                                <div class="flex items-center justify-between gap-6 border-t-2 border-ink px-5 py-5">
-                                    <dt class="text-base font-semibold text-ink" x-text="report.accounting_policy.profit_is_provisional ? 'Laba Bersih Sementara' : 'Laba Bersih'"></dt>
-                                    <dd class="rounded-lg border px-3 py-2 text-right text-lg font-semibold tabular-nums" :class="netProfitTone" x-text="formatMoney(report.summary.net_profit)"></dd>
+                                <div class="flex items-center justify-between gap-6 border-t-2 border-ink px-5 py-4">
+                                    <dt class="text-base font-semibold text-ink">Laba Bersih Minimum</dt>
+                                    <dd class="rounded-lg border px-3 py-2 text-right text-lg font-semibold tabular-nums" :class="profitTone(report.summary.net_profit_minimum)" x-text="formatMoney(report.summary.net_profit_minimum)"></dd>
+                                </div>
+                                <div class="flex items-center justify-between gap-6 px-5 py-4">
+                                    <dt class="text-base font-semibold text-ink">Laba Bersih Maksimum</dt>
+                                    <dd class="rounded-lg border px-3 py-2 text-right text-lg font-semibold tabular-nums" :class="profitTone(report.summary.net_profit_maximum)" x-text="formatMoney(report.summary.net_profit_maximum)"></dd>
                                 </div>
                             </dl>
                         </section>
@@ -186,6 +190,8 @@
                             <section class="rounded-xl border border-line bg-canvas p-5 text-sm leading-6 text-muted">
                                 <h2 class="font-semibold text-ink">Dasar perhitungan</h2>
                                 <p class="mt-2">Hanya invoice final berstatus terkirim yang dihitung. Draft dan invoice dibatalkan dikecualikan. Pajak serta ongkir pelanggan hanya merekonsiliasi total invoice dan bukan omzet.</p>
+                                <p class="mt-3" x-text="report.accounting_policy.minimum_profit_basis"></p>
+                                <p class="mt-1" x-text="report.accounting_policy.maximum_profit_basis"></p>
                                 <p class="mt-3 font-medium text-amber-800" x-show="report.accounting_policy.profit_is_provisional" x-text="report.accounting_policy.decision_required"></p>
                             </section>
                         </aside>

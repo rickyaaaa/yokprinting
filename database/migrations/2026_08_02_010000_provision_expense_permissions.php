@@ -20,9 +20,9 @@ return new class extends Migration
         ];
 
         foreach ($definitions as $action => [$name, $riskLevel, $sortOrder]) {
-            DB::table('permissions')->updateOrInsert(
-                ['code' => "expense.{$action}"],
+            DB::table('permissions')->insertOrIgnore([
                 [
+                    'code' => "expense.{$action}",
                     'name' => $name,
                     'module' => 'expense',
                     'action' => $action,
@@ -35,7 +35,7 @@ return new class extends Migration
                     'created_at' => $now,
                     'updated_at' => $now,
                 ],
-            );
+            ]);
         }
 
         $financeRoleId = DB::table('roles')->where('code', 'finance_admin')->value('id');
@@ -45,24 +45,27 @@ return new class extends Migration
 
         if ($financeRoleId) {
             foreach ($permissionIds as $permissionId) {
-                DB::table('permission_role')->updateOrInsert(
-                    ['role_id' => $financeRoleId, 'permission_id' => $permissionId],
-                    ['constraints' => null, 'created_at' => $now, 'updated_at' => $now],
-                );
+                DB::table('permission_role')->insertOrIgnore([
+                    [
+                        'role_id' => $financeRoleId,
+                        'permission_id' => $permissionId,
+                        'constraints' => null,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ],
+                ]);
             }
         }
     }
 
     /**
-     * Remove only the deployment data introduced by this migration.
+     * Expense permissions are durable deployment data also used by the base
+     * expense module. Rolling this migration back must therefore be
+     * non-destructive: there is no reliable way to distinguish rows created
+     * here from rows that existed before the migration ran.
      */
     public function down(): void
     {
-        $permissionIds = DB::table('permissions')
-            ->whereIn('code', ['expense.view', 'expense.create', 'expense.update', 'expense.delete'])
-            ->pluck('id');
-
-        DB::table('permission_role')->whereIn('permission_id', $permissionIds)->delete();
-        DB::table('permissions')->whereIn('id', $permissionIds)->delete();
+        // Intentionally left blank.
     }
 };

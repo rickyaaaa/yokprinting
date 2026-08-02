@@ -54,8 +54,11 @@ export const registerProfitLossComponents = (Alpine) => {
                 recognized_expenses: 0,
                 recorded_expenses: 0,
                 gross_profit: 0,
-                net_profit: 0,
-                profit_reconciliation_difference: 0,
+                net_profit_minimum: 0,
+                net_profit_maximum: 0,
+                profit_range: 0,
+                minimum_profit_reconciliation_difference: 0,
+                maximum_profit_reconciliation_difference: 0,
                 sales_quantity: 0,
                 invoice_count: 0,
                 expense_count: 0,
@@ -173,8 +176,8 @@ export const registerProfitLossComponents = (Alpine) => {
             return quantity.format(Number(value ?? 0));
         },
 
-        get netProfitTone() {
-            return Number(this.report.summary.net_profit) >= 0
+        profitTone(value) {
+            return Number(value) >= 0
                 ? 'text-green-700 bg-green-50 border-green-200'
                 : 'text-red-700 bg-red-50 border-red-200';
         },

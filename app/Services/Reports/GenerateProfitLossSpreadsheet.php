@@ -7,6 +7,8 @@ use ZipArchive;
 
 class GenerateProfitLossSpreadsheet
 {
+    public function __construct(private readonly TemporaryReportFileCleanup $temporaryFileCleanup) {}
+
     /**
      * Generate a standards-compliant XLSX workbook without moving report calculations
      * out of the server-side report service.
@@ -59,9 +61,7 @@ class GenerateProfitLossSpreadsheet
                 contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             );
         } finally {
-            if (is_file($temporaryPath)) {
-                @unlink($temporaryPath);
-            }
+            $this->temporaryFileCleanup->delete($temporaryPath);
         }
     }
 
@@ -118,16 +118,20 @@ class GenerateProfitLossSpreadsheet
             $this->row(20, [$this->textCell('A20', 'Pengeluaran belum diklasifikasikan terhadap HPP'), $this->numberCell('B20', $summary['unclassified_expenses'], 4)]),
             $this->row(21, [$this->textCell('A21', 'Total Pengeluaran Tercatat', 3), $this->numberCell('B21', $summary['recorded_expenses'], 5)]),
             $this->row(22, [$this->textCell('A22', 'Pengeluaran Diakui di Laba Rugi', 3), $this->numberCell('B22', $summary['recognized_expenses'], 5)]),
-            $this->row(23, [$this->textCell('A23', $report['accounting_policy']['profit_is_provisional'] ? 'Laba Bersih Sementara' : 'Laba Bersih', 3), $this->numberCell('B23', $summary['net_profit'], 5)]),
-            $this->row(24, [$this->textCell('A24', 'Qty Penjualan'), $this->numberCell('B24', $summary['sales_quantity'], 7)]),
-            $this->row(25, [$this->textCell('A25', 'Jumlah Invoice'), $this->numberCell('B25', $summary['invoice_count'], 8)]),
-            $this->row(26, [$this->textCell('A26', 'Jumlah Transaksi Pengeluaran'), $this->numberCell('B26', $summary['expense_count'], 8)]),
-            $this->row(27, [$this->textCell('A27', 'Selisih rekonsiliasi invoice'), $this->numberCell('B27', $summary['invoice_reconciliation_difference'], 4)]),
-            $this->row(28, [$this->textCell('A28', 'Selisih rekonsiliasi laba'), $this->numberCell('B28', $summary['profit_reconciliation_difference'], 4)]),
-            $this->row(30, [
-                $this->textCell('A30', 'Keputusan bisnis diperlukan', 6),
-                $this->textCell('B30', $report['accounting_policy']['decision_required'], 6),
+            $this->row(23, [$this->textCell('A23', 'Laba Bersih Minimum', 3), $this->numberCell('B23', $summary['net_profit_minimum'], 5)]),
+            $this->row(24, [$this->textCell('A24', 'Laba Bersih Maksimum', 3), $this->numberCell('B24', $summary['net_profit_maximum'], 5)]),
+            $this->row(25, [$this->textCell('A25', 'Qty Penjualan'), $this->numberCell('B25', $summary['sales_quantity'], 7)]),
+            $this->row(26, [$this->textCell('A26', 'Jumlah Invoice'), $this->numberCell('B26', $summary['invoice_count'], 8)]),
+            $this->row(27, [$this->textCell('A27', 'Jumlah Transaksi Pengeluaran'), $this->numberCell('B27', $summary['expense_count'], 8)]),
+            $this->row(28, [$this->textCell('A28', 'Selisih rekonsiliasi invoice'), $this->numberCell('B28', $summary['invoice_reconciliation_difference'], 4)]),
+            $this->row(29, [$this->textCell('A29', 'Selisih rekonsiliasi laba minimum'), $this->numberCell('B29', $summary['minimum_profit_reconciliation_difference'], 4)]),
+            $this->row(30, [$this->textCell('A30', 'Selisih rekonsiliasi laba maksimum'), $this->numberCell('B30', $summary['maximum_profit_reconciliation_difference'], 4)]),
+            $this->row(32, [
+                $this->textCell('A32', 'Keputusan bisnis diperlukan', 6),
+                $this->textCell('B32', $report['accounting_policy']['decision_required'], 6),
             ]),
+            $this->row(33, [$this->textCell('A33', 'Basis laba minimum', 6), $this->textCell('B33', $report['accounting_policy']['minimum_profit_basis'], 6)]),
+            $this->row(34, [$this->textCell('A34', 'Basis laba maksimum', 6), $this->textCell('B34', $report['accounting_policy']['maximum_profit_basis'], 6)]),
         ];
 
         return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'

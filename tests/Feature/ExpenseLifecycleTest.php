@@ -15,6 +15,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
+use RuntimeException;
 use Tests\TestCase;
 
 class ExpenseLifecycleTest extends TestCase
@@ -76,10 +77,12 @@ class ExpenseLifecycleTest extends TestCase
         Storage::disk('expense_proofs')->assertMissing($expired->proof_path);
         Storage::disk('expense_proofs')->assertExists($retained->proof_path);
         $this->assertDatabaseHas('activity_logs', [
-            'action' => 'purge',
+            'action' => 'purge_queued',
             'subject_id' => $expired->getKey(),
             'risk_level' => ActivityLog::RISK_HIGH,
         ]);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'proof_cleanup_succeeded']);
+        $this->assertDatabaseCount('expense_proof_cleanup_tasks', 0);
     }
 
     public function test_restore_without_retained_proof_is_rejected_and_failure_is_audited(): void
@@ -125,6 +128,92 @@ class ExpenseLifecycleTest extends TestCase
         $this->assertSame(1, $processed);
         $this->assertDatabaseCount('expense_proof_cleanup_tasks', 0);
         Storage::disk('expense_proofs')->assertMissing($task->path);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'proof_cleanup_succeeded']);
+    }
+
+    public function test_purge_database_failure_keeps_record_and_proof_without_creating_outbox_task(): void
+    {
+        Storage::fake('expense_proofs');
+        Carbon::setTestNow('2026-08-02 10:00:00');
+        config(['expenses.proof_retention_days' => 30]);
+        $expense = Expense::factory()->create();
+        Storage::disk('expense_proofs')->put($expense->proof_path, 'retained-proof');
+        $expense->delete();
+        Expense::withTrashed()->whereKey($expense)->update(['deleted_at' => now()->subDays(31)]);
+        $logger = Mockery::mock(ActivityLogger::class);
+        $logger->shouldReceive('record')->once()->andThrow(new RuntimeException('database audit failure'));
+
+        try {
+            app(PurgeExpiredExpensesJob::class)->handle(app(ExpenseProofCleanup::class), $logger);
+            $this->fail('Expected purge transaction to fail.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('database audit failure', $exception->getMessage());
+        }
+
+        $this->assertSoftDeleted('expenses', ['id' => $expense->getKey()]);
+        Storage::disk('expense_proofs')->assertExists($expense->proof_path);
+        $this->assertDatabaseCount('expense_proof_cleanup_tasks', 0);
+    }
+
+    public function test_purge_commits_outbox_before_storage_failure_and_retry_finishes_cleanup(): void
+    {
+        Carbon::setTestNow('2026-08-02 10:00:00');
+        config(['expenses.proof_retention_days' => 30]);
+        $realDisk = Storage::fake('expense_proofs');
+        $expense = Expense::factory()->create();
+        $realDisk->put($expense->proof_path, 'proof');
+        $expense->delete();
+        Expense::withTrashed()->whereKey($expense)->update(['deleted_at' => now()->subDays(31)]);
+        $failingDisk = Mockery::mock($realDisk)->makePartial();
+        $failingDisk->shouldReceive('delete')->once()->with($expense->proof_path)->andReturnFalse();
+        Storage::set('expense_proofs', $failingDisk);
+
+        $this->assertSame(1, app(PurgeExpiredExpensesJob::class)->handle(
+            app(ExpenseProofCleanup::class),
+            app(ActivityLogger::class),
+        ));
+
+        $this->assertNull(Expense::withTrashed()->find($expense->getKey()));
+        $task = ExpenseProofCleanupTask::query()->firstOrFail();
+        $this->assertSame('retention_purge', $task->reason);
+        $this->assertSame(1, $task->attempts);
+        $realDisk->assertExists($expense->proof_path);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'purge_queued']);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'proof_cleanup_failed']);
+
+        Storage::set('expense_proofs', $realDisk);
+        $task->update(['next_attempt_at' => now()]);
+        app(RetryExpenseProofCleanupJob::class)->handle(app(ExpenseProofCleanup::class));
+
+        $realDisk->assertMissing($expense->proof_path);
+        $this->assertDatabaseCount('expense_proof_cleanup_tasks', 0);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'proof_cleanup_succeeded']);
+    }
+
+    public function test_cleanup_audit_database_failure_after_file_delete_keeps_outbox_for_retry(): void
+    {
+        Storage::fake('expense_proofs');
+        Storage::disk('expense_proofs')->put('expense-proofs/purge-audit.pdf', 'proof');
+        $task = ExpenseProofCleanupTask::query()->create([
+            'disk' => 'expense_proofs',
+            'path' => 'expense-proofs/purge-audit.pdf',
+            'reason' => 'retention_purge',
+        ]);
+        $logger = Mockery::mock(ActivityLogger::class);
+        $logger->shouldReceive('record')->twice()->andThrow(new RuntimeException('audit database unavailable'));
+        $cleanup = new ExpenseProofCleanup($logger);
+
+        $this->assertFalse($cleanup->attempt($task));
+        Storage::disk('expense_proofs')->assertMissing($task->path);
+        $this->assertDatabaseHas('expense_proof_cleanup_tasks', [
+            'id' => $task->getKey(),
+            'attempts' => 1,
+        ]);
+
+        $task->refresh()->update(['next_attempt_at' => now()]);
+        app(RetryExpenseProofCleanupJob::class)->handle(app(ExpenseProofCleanup::class));
+
+        $this->assertDatabaseCount('expense_proof_cleanup_tasks', 0);
         $this->assertDatabaseHas('activity_logs', ['action' => 'proof_cleanup_succeeded']);
     }
 }

@@ -5,6 +5,7 @@ use App\Jobs\PurgeExpiredExpensesJob;
 use App\Jobs\RetryExpenseProofCleanupJob;
 use App\Jobs\SendDueInvoiceReminderEmailsJob;
 use App\Jobs\UpdateCustomerFollowUpStatusesJob;
+use App\Services\Operations\OperationalHealth;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -12,6 +13,11 @@ use Illuminate\Support\Facades\Schedule;
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Schedule::call(fn () => app(OperationalHealth::class)->schedulerTick())
+    ->everyMinute()
+    ->name('operational-heartbeats')
+    ->withoutOverlapping();
 
 Schedule::job(new MarkOverdueInvoicesJob)
     ->dailyAt('07:00')

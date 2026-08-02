@@ -71,8 +71,17 @@ class ExpenseConcurrencyAndStorageTest extends TestCase
             ->assertServerError();
 
         $this->assertDatabaseCount('expenses', 0);
-        $this->assertDatabaseCount('expense_proof_cleanup_tasks', 0);
         $this->assertSame([], Storage::disk('expense_proofs')->allFiles('expense-proofs'));
+        $task = ExpenseProofCleanupTask::query()->firstOrFail();
+        $this->assertSame('create_rollback', $task->reason);
+        $this->assertSame(1, $task->attempts);
+
+        $this->app->instance(ActivityLogger::class, new ActivityLogger);
+        $task->update(['next_attempt_at' => now()]);
+        app(RetryExpenseProofCleanupJob::class)->handle(app(ExpenseProofCleanup::class));
+
+        $this->assertDatabaseCount('expense_proof_cleanup_tasks', 0);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'proof_cleanup_succeeded']);
     }
 
     public function test_failed_old_proof_delete_keeps_successful_update_consistent_and_retries_cleanup(): void

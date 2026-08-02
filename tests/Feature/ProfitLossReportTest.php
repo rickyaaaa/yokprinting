@@ -8,9 +8,13 @@ use App\Models\Invoice;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Reports\GenerateProfitLossSpreadsheet;
 use App\Services\Reports\ProfitLossReport;
+use App\Services\Reports\TemporaryReportFileCleanup;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
+use Mockery;
 use Tests\TestCase;
 use ZipArchive;
 
@@ -59,7 +63,6 @@ class ProfitLossReportTest extends TestCase
             'date_to' => '2027-03-31',
             'sales_revenue' => 1,
             'gross_profit' => 1,
-            'net_profit' => 1,
         ]))
             ->assertOk()
             ->assertJsonPath('data.period.date_from', '2027-03-01')
@@ -81,8 +84,11 @@ class ProfitLossReportTest extends TestCase
             ->assertJsonPath('data.summary.recognized_expenses', 550)
             ->assertJsonPath('data.summary.recorded_expenses', 1050)
             ->assertJsonPath('data.summary.gross_profit', 1000)
-            ->assertJsonPath('data.summary.net_profit', 450)
-            ->assertJsonPath('data.summary.profit_reconciliation_difference', 0)
+            ->assertJsonPath('data.summary.net_profit_minimum', -50)
+            ->assertJsonPath('data.summary.net_profit_maximum', 450)
+            ->assertJsonPath('data.summary.profit_range', 500)
+            ->assertJsonPath('data.summary.minimum_profit_reconciliation_difference', 0)
+            ->assertJsonPath('data.summary.maximum_profit_reconciliation_difference', 0)
             ->assertJsonPath('data.summary.sales_quantity', 15)
             ->assertJsonPath('data.summary.invoice_count', 2)
             ->assertJsonPath('data.summary.expense_count', 4)
@@ -149,8 +155,14 @@ class ProfitLossReportTest extends TestCase
         $this->assertSame(400.0, $summary['unclassified_expenses']);
         $this->assertSame(500.0, $summary['recorded_expenses']);
         $this->assertSame(100.0, $summary['recognized_expenses']);
-        $this->assertSame(300.0, $summary['net_profit']);
+        $this->assertSame(-100.0, $summary['net_profit_minimum']);
+        $this->assertSame(300.0, $summary['net_profit_maximum']);
+        $this->assertSame(400.0, $summary['profit_range']);
+        $this->assertSame(0.0, $summary['minimum_profit_reconciliation_difference']);
+        $this->assertSame(0.0, $summary['maximum_profit_reconciliation_difference']);
         $this->assertTrue($report['accounting_policy']['profit_is_provisional']);
+        $this->assertStringContainsString('dikurangkan', $report['accounting_policy']['minimum_profit_basis']);
+        $this->assertStringContainsString('mungkin sudah termasuk HPP', $report['accounting_policy']['maximum_profit_basis']);
         $this->assertStringContainsString('Owner perlu menentukan', $report['accounting_policy']['decision_required']);
     }
 
@@ -211,7 +223,8 @@ class ProfitLossReportTest extends TestCase
         $this->getJson(route('api.reports.profit-loss.show', $filters))
             ->assertOk()
             ->assertJsonPath('data.summary.sales_revenue', 125000)
-            ->assertJsonPath('data.summary.net_profit', 45000);
+            ->assertJsonPath('data.summary.net_profit_minimum', 35000)
+            ->assertJsonPath('data.summary.net_profit_maximum', 45000);
         $pdf = $this->get(route('api.reports.profit-loss.pdf', $filters));
         $excel = $this->get(route('api.reports.profit-loss.excel', $filters));
 
@@ -235,12 +248,43 @@ class ProfitLossReportTest extends TestCase
             $this->assertStringContainsString('Omzet Penjualan', $worksheet);
             $this->assertStringContainsString('Pajak dipungut (bukan omzet)', $worksheet);
             $this->assertStringContainsString('Pengeluaran belum diklasifikasikan terhadap HPP', $worksheet);
-            $this->assertStringContainsString('<c r="B23" s="5"><v>45000</v></c>', $worksheet);
+            $this->assertStringContainsString('<c r="B23" s="5"><v>35000</v></c>', $worksheet);
+            $this->assertStringContainsString('<c r="B24" s="5"><v>45000</v></c>', $worksheet);
             $this->assertStringContainsString('<v>20</v>', $worksheet);
         } finally {
             $archive->close();
-            @unlink($temporaryPath);
+            $this->assertTrue(unlink($temporaryPath));
         }
+    }
+
+    public function test_spreadsheet_cleanup_failure_is_logged_without_breaking_export(): void
+    {
+        Log::spy();
+        $cleanup = new class extends TemporaryReportFileCleanup
+        {
+            /** @var list<string> */
+            public array $paths = [];
+
+            protected function removeFile(string $path): bool
+            {
+                $this->paths[] = $path;
+
+                return false;
+            }
+        };
+        $file = (new GenerateProfitLossSpreadsheet($cleanup))
+            ->generate(app(ProfitLossReport::class)->build('daily'));
+
+        $this->assertStringStartsWith('PK', $file->contents);
+        $this->assertCount(1, $cleanup->paths);
+        $this->assertFileExists($cleanup->paths[0]);
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->with('Temporary report file cleanup failed.', Mockery::on(
+                fn (array $context): bool => isset($context['path_hash'], $context['error_type'])
+                    && ! isset($context['path'], $context['contents']),
+            ));
+        $this->assertTrue(unlink($cleanup->paths[0]));
     }
 
     public function test_report_page_and_endpoints_enforce_view_and_export_permissions_separately(): void

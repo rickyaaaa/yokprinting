@@ -66,8 +66,8 @@
                 <div class="value">{{ $money($summary['gross_profit']) }}</div>
             </div>
             <div class="summary-cell">
-                <div class="label">{{ $report['accounting_policy']['profit_is_provisional'] ? 'Laba Bersih Sementara' : 'Laba Bersih' }}</div>
-                <div class="value {{ $summary['net_profit'] < 0 ? 'negative' : '' }}">{{ $money($summary['net_profit']) }}</div>
+                <div class="label">Rentang Laba Bersih</div>
+                <div class="value {{ $summary['net_profit_minimum'] < 0 ? 'negative' : '' }}">{{ $money($summary['net_profit_minimum']) }} – {{ $money($summary['net_profit_maximum']) }}</div>
             </div>
         </div>
 
@@ -93,7 +93,8 @@
                 <tr><td>Total Belanjaan</td><td class="amount">{{ $money($summary['shopping_expenses']) }}</td></tr>
                 <tr class="total"><td>Total Pengeluaran Tercatat</td><td class="amount">{{ $money($summary['recorded_expenses']) }}</td></tr>
                 <tr class="total"><td>Pengeluaran Diakui di Laba Rugi</td><td class="amount">({{ $money($summary['recognized_expenses']) }})</td></tr>
-                <tr class="net"><td>{{ $report['accounting_policy']['profit_is_provisional'] ? 'Laba Bersih Sementara' : 'Laba Bersih' }}</td><td class="amount {{ $summary['net_profit'] < 0 ? 'negative' : '' }}">{{ $money($summary['net_profit']) }}</td></tr>
+                <tr class="net"><td>Laba Bersih Minimum</td><td class="amount {{ $summary['net_profit_minimum'] < 0 ? 'negative' : '' }}">{{ $money($summary['net_profit_minimum']) }}</td></tr>
+                <tr class="net"><td>Laba Bersih Maksimum</td><td class="amount {{ $summary['net_profit_maximum'] < 0 ? 'negative' : '' }}">{{ $money($summary['net_profit_maximum']) }}</td></tr>
                 <tr class="section"><td colspan="2">Volume</td></tr>
                 <tr><td>Qty Penjualan</td><td class="amount">{{ $number($summary['sales_quantity']) }}</td></tr>
                 <tr><td>Jumlah Invoice</td><td class="amount">{{ $summary['invoice_count'] }}</td></tr>
@@ -103,6 +104,8 @@
 
         <div class="note">
             Basis data: hanya invoice final berstatus terkirim. Draft dan invoice dibatalkan tidak dihitung. Pajak dan ongkir pelanggan bukan omzet.
+            <br>{{ $report['accounting_policy']['minimum_profit_basis'] }}
+            <br>{{ $report['accounting_policy']['maximum_profit_basis'] }}
             @if ($report['accounting_policy']['profit_is_provisional'])
                 <br><strong>Keputusan bisnis diperlukan:</strong> {{ $report['accounting_policy']['decision_required'] }}
             @endif

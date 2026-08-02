@@ -6,6 +6,7 @@ use App\Models\Permission;
 use App\Models\Role;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ExpensePermissionProvisioningTest extends TestCase
@@ -30,6 +31,42 @@ class ExpensePermissionProvisioningTest extends TestCase
         $this->assertSame(
             $expected,
             $financeRole->refresh()->permissions()->where('module', Permission::MODULE_EXPENSE)->pluck('code')->sort()->values()->all(),
+        );
+    }
+
+    public function test_migration_up_and_down_preserve_preexisting_permission_and_role_metadata(): void
+    {
+        $permission = Permission::query()->where('code', 'expense.view')->firstOrFail();
+        $role = Role::factory()->create(['code' => Role::CODE_FINANCE_ADMIN]);
+        $createdAt = now()->subYear()->startOfSecond();
+        $constraints = json_encode(['scope' => 'preexisting'], JSON_THROW_ON_ERROR);
+
+        $permission->forceFill([
+            'name' => 'Permission Pengeluaran Lama',
+            'created_at' => $createdAt,
+        ])->save();
+        DB::table('permission_role')
+            ->where('role_id', $role->getKey())
+            ->where('permission_id', $permission->getKey())
+            ->update(['constraints' => $constraints, 'created_at' => $createdAt]);
+
+        $migration = require database_path('migrations/2026_08_02_010000_provision_expense_permissions.php');
+        $migration->up();
+        $migration->down();
+
+        $this->assertDatabaseHas('permissions', [
+            'id' => $permission->getKey(),
+            'code' => 'expense.view',
+            'name' => 'Permission Pengeluaran Lama',
+        ]);
+        $this->assertDatabaseHas('permission_role', [
+            'role_id' => $role->getKey(),
+            'permission_id' => $permission->getKey(),
+            'constraints' => $constraints,
+        ]);
+        $this->assertSame(
+            $createdAt->toDateTimeString(),
+            Permission::query()->findOrFail($permission->getKey())->created_at->toDateTimeString(),
         );
     }
 }

@@ -43,7 +43,10 @@ class ExpenseProofCleanup
                 throw new RuntimeException('Storage driver returned false while deleting an expense proof.');
             }
 
-            $this->recordEvent($task, 'proof_cleanup_succeeded', 'Expense proof cleanup succeeded');
+            if (! $this->recordEvent($task, 'proof_cleanup_succeeded', 'Expense proof cleanup succeeded')) {
+                throw new RuntimeException('Expense proof was deleted but its success audit could not be persisted.');
+            }
+
             $task->delete();
 
             return true;
@@ -75,7 +78,7 @@ class ExpenseProofCleanup
         string $action,
         string $event,
         ?string $error = null,
-    ): void {
+    ): bool {
         try {
             $expense = $task->expense_id
                 ? Expense::withTrashed()->find($task->expense_id)
@@ -91,18 +94,23 @@ class ExpenseProofCleanup
                 subject: $expense,
                 metadata: [
                     'cleanup_task_id' => $task->getKey(),
+                    'expense_id' => $task->expense_id,
                     'reason' => $task->reason,
                     'attempts' => $task->attempts,
                     'error' => $error === null ? null : mb_substr($error, 0, 500),
                 ],
                 riskLevel: $error === null ? ActivityLog::RISK_MEDIUM : ActivityLog::RISK_HIGH,
             );
+
+            return true;
         } catch (Throwable $auditException) {
             Log::error('Failed to record expense proof cleanup audit event.', [
                 'cleanup_task_id' => $task->getKey(),
                 'action' => $action,
                 'exception' => $auditException,
             ]);
+
+            return false;
         }
     }
 }

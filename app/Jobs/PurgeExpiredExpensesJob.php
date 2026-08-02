@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\ActivityLog;
 use App\Models\Expense;
+use App\Models\ExpenseProofCleanupTask;
 use App\Services\Expenses\ExpenseProofCleanup;
 use App\Services\Security\ActivityLogger;
 use Illuminate\Bus\Queueable;
@@ -28,42 +29,35 @@ class PurgeExpiredExpensesJob implements ShouldQueue
             ->orderBy('id')
             ->chunkById(100, function ($expenses) use ($cleanup, $activityLogger, $cutoff, &$purged): void {
                 foreach ($expenses as $expense) {
-                    $didPurge = DB::transaction(function () use ($expense, $cleanup, $activityLogger, $cutoff): bool {
+                    $cleanupTask = DB::transaction(function () use ($expense, $cleanup, $activityLogger, $cutoff): ?ExpenseProofCleanupTask {
                         $locked = Expense::withTrashed()->lockForUpdate()->find($expense->getKey());
 
                         if (! $locked?->trashed() || $locked->deleted_at->isAfter($cutoff)) {
-                            return false;
+                            return null;
                         }
 
-                        if (! $cleanup->cleanup($locked->proof_path, 'retention_purge', $locked->getKey())) {
-                            $activityLogger->record(
-                                module: 'expense',
-                                action: 'purge_deferred',
-                                event: 'Expense purge deferred',
-                                description: 'Purge pengeluaran ditunda karena bukti belum berhasil dihapus.',
-                                subject: $locked,
-                                riskLevel: ActivityLog::RISK_HIGH,
-                            );
-
-                            return false;
-                        }
+                        $task = $cleanup->queue($locked->proof_path, 'retention_purge', $locked->getKey());
 
                         $activityLogger->record(
                             module: 'expense',
-                            action: 'purge',
-                            event: 'Expense permanently purged',
-                            description: 'Pengeluaran melewati masa retensi dan dihapus permanen.',
+                            action: 'purge_queued',
+                            event: 'Expense purge committed',
+                            description: 'Record pengeluaran dihapus permanen dan cleanup bukti dijadwalkan.',
                             subject: $locked,
-                            metadata: ['deleted_at' => $locked->deleted_at->toISOString()],
+                            metadata: [
+                                'deleted_at' => $locked->deleted_at->toISOString(),
+                                'cleanup_task_id' => $task->getKey(),
+                            ],
                             riskLevel: ActivityLog::RISK_HIGH,
                         );
                         $locked->forceDelete();
 
-                        return true;
+                        return $task;
                     });
 
-                    if ($didPurge) {
+                    if ($cleanupTask instanceof ExpenseProofCleanupTask) {
                         $purged++;
+                        $cleanup->attempt($cleanupTask);
                     }
                 }
             });
