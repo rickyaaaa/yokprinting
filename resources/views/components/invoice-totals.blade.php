@@ -50,6 +50,17 @@
         },
     }"
     @invoice-subtotal-changed.window="subtotal = Math.max(0, Number($event.detail.subtotal) || 0); normalizeDiscount()"
+    @invoice-draft-restore.window="
+        discountType = $event.detail.discount?.type ?? discountType;
+        discountValue = Number($event.detail.discount?.value ?? discountValue) || 0;
+        taxEnabled = Boolean($event.detail.tax?.enabled);
+        taxRate = Number($event.detail.tax?.rate ?? taxRate) || 0;
+        shippingCost = Number($event.detail.shipping_cost ?? shippingCost) || 0;
+        isFreeShipping = Boolean($event.detail.is_free_shipping);
+        normalizeDiscount();
+        normalizeTax();
+        normalizeShipping();
+    "
     class="overflow-hidden rounded-xl bg-white border border-line"
 >
     <div class="border-b border-line px-5 py-4">
@@ -209,12 +220,16 @@
             </svg>
             <span x-text="savingDraft ? 'Menyimpan draft…' : (draftSaved ? 'Draft tersimpan' : 'Simpan sebagai draft')"></span>
         </button>
-        <a href="{{ route('invoices.preview') }}" class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-brand-300 bg-white px-4 py-3 text-sm font-semibold text-brand-800 hover:bg-brand-50">
+        <button
+            type="button"
+            class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-brand-300 bg-white px-4 py-3 text-sm font-semibold text-brand-800 hover:bg-brand-50"
+            @click="$dispatch('invoice-preview-requested', { url: '{{ route('invoices.preview') }}' })"
+        >
             <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                 <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" stroke-linejoin="round"/>
                 <circle cx="12" cy="12" r="2.5"/>
             </svg>
             Pratinjau invoice
-        </a>
+        </button>
     </div>
 </section>

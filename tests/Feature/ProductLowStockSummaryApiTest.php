@@ -80,4 +80,47 @@ class ProductLowStockSummaryApiTest extends TestCase
             ->assertJsonPath('data.summary.needs_attention', false)
             ->assertJsonCount(0, 'data.products');
     }
+
+    public function test_zero_minimum_stock_is_used_by_the_low_stock_indicator(): void
+    {
+        Product::query()->create([
+            'sku' => 'ZERO-LIMIT-01',
+            'name' => 'Produk ambang nol tanpa stok',
+            'stock' => 0,
+            'minimum_stock' => 0,
+            'track_stock' => true,
+        ]);
+        Product::query()->create([
+            'sku' => 'ZERO-LIMIT-02',
+            'name' => 'Produk ambang nol dengan stok',
+            'stock' => 500,
+            'minimum_stock' => 0,
+            'track_stock' => true,
+        ]);
+
+        $this->getJson(route('api.products.low-stock-summary'))
+            ->assertOk()
+            ->assertJsonPath('data.summary.low_stock_count', 1)
+            ->assertJsonPath('data.products.0.sku', 'ZERO-LIMIT-01')
+            ->assertJsonPath('data.products.0.minimum_stock', 0)
+            ->assertJsonMissing(['sku' => 'ZERO-LIMIT-02']);
+    }
+
+    public function test_null_minimum_stock_uses_the_default_for_stock_indicators(): void
+    {
+        Product::query()->create([
+            'sku' => 'NULL-LIMIT-01',
+            'name' => 'Produk memakai ambang default',
+            'stock' => 100,
+            'minimum_stock' => null,
+            'track_stock' => true,
+        ]);
+
+        $this->getJson(route('api.products.low-stock-summary'))
+            ->assertOk()
+            ->assertJsonPath('data.summary.low_stock_count', 1)
+            ->assertJsonPath('data.products.0.sku', 'NULL-LIMIT-01')
+            ->assertJsonPath('data.products.0.minimum_stock', Product::DEFAULT_MINIMUM_STOCK)
+            ->assertJsonPath('data.products.0.shortage', 400);
+    }
 }

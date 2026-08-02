@@ -143,6 +143,10 @@ class ProductController extends Controller
             $payload['category'] = ProductCategory::query()->find($payload['category_id'])?->name;
         }
 
+        if (array_key_exists('minimum_stock', $payload) && $payload['minimum_stock'] === null) {
+            $payload['minimum_stock'] = Product::DEFAULT_MINIMUM_STOCK;
+        }
+
         return $payload;
     }
 
@@ -177,7 +181,7 @@ class ProductController extends Controller
             'unit' => $product->unit,
             'purchase_price' => (float) $product->purchase_price,
             'stock' => $product->stock === null ? null : (float) $product->stock,
-            'minimum_stock' => $product->minimum_stock === null ? null : (float) $product->minimum_stock,
+            'minimum_stock' => $product->minimumStockValue(),
             'minimum_order_qty' => $product->minimum_order_qty,
             'package_conversion' => $product->package_conversion,
             'length_cm' => $product->length_cm === null ? null : (float) $product->length_cm,

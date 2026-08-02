@@ -138,4 +138,51 @@ class ProductCrudApiTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['status', 'sort', 'direction', 'limit']);
     }
+
+    public function test_minimum_stock_preserves_zero_and_normalizes_missing_values(): void
+    {
+        $response = $this->postJson(route('api.products.store'), [
+            'name' => 'Produk tanpa batas minimum',
+            'minimum_stock' => 0,
+            'track_stock' => true,
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.minimum_stock', 0);
+
+        $productId = $response->json('data.id');
+
+        $this->getJson(route('api.products.show', $productId))
+            ->assertOk()
+            ->assertJsonPath('data.minimum_stock', 0);
+
+        $this->patchJson(route('api.products.update', $productId), [
+            'name' => 'Produk tanpa batas minimum diperbarui',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.minimum_stock', 0);
+
+        $this->assertDatabaseHas('products', [
+            'id' => $productId,
+            'minimum_stock' => 0,
+        ]);
+
+        $this->patchJson(route('api.products.update', $productId), [
+            'minimum_stock' => null,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.minimum_stock', Product::DEFAULT_MINIMUM_STOCK);
+
+        $this->patchJson(route('api.products.update', $productId), [
+            'minimum_stock' => 1500,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.minimum_stock', 1500);
+
+        $this->postJson(route('api.products.store'), [
+            'name' => 'Produk memakai nilai default',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.minimum_stock', Product::DEFAULT_MINIMUM_STOCK);
+
+    }
 }

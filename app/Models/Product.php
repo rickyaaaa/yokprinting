@@ -27,6 +27,8 @@ class Product extends Model
 
     public const STATUS_INACTIVE = 'inactive';
 
+    public const DEFAULT_MINIMUM_STOCK = 500;
+
     /**
      * The model's default values for attributes.
      *
@@ -37,7 +39,7 @@ class Product extends Model
         'purchase_price' => 0,
         'minimum_order_qty' => 500,
         'package_conversion' => 500,
-        'minimum_stock' => 0,
+        'minimum_stock' => self::DEFAULT_MINIMUM_STOCK,
         'moq_quantity' => 500,
         'order_increment' => 500,
         'packaging_unit' => 'pcs',
@@ -180,8 +182,15 @@ class Product extends Model
             ->where('status', self::STATUS_ACTIVE)
             ->where('track_stock', true)
             ->whereNotNull('stock')
-            ->whereNotNull('minimum_stock')
-            ->whereColumn('stock', '<=', 'minimum_stock');
+            ->whereRaw('stock <= COALESCE(minimum_stock, ?)', [self::DEFAULT_MINIMUM_STOCK]);
+    }
+
+    /**
+     * Resolve the effective minimum stock without treating zero as absent.
+     */
+    public function minimumStockValue(): float
+    {
+        return (float) ($this->minimum_stock ?? self::DEFAULT_MINIMUM_STOCK);
     }
 
     /**

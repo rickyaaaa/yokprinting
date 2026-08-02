@@ -24,7 +24,7 @@ class SalesReportRevenueChartRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'period' => ['sometimes', 'string', Rule::in(['monthly', 'quarterly', 'yearly'])],
+            'period' => ['sometimes', 'string', Rule::in(['weekly', 'monthly', 'yearly'])],
         ];
     }
 }

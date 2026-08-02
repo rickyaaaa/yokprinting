@@ -16,9 +16,10 @@ import {
 } from 'chart.js';
 import { createCustomer, listCustomers } from './services/customer-api';
 import { sendInvoiceEmail } from './services/invoice-delivery-api';
-import { saveInvoiceDraft } from './services/invoice-api';
-import { downloadInvoicePdf } from './services/invoice-pdf-api';
+import { persistInvoiceDraft, saveInvoiceDraft } from './services/invoice-api';
+import { downloadInvoicePdf, downloadInvoicePreviewPdf } from './services/invoice-pdf-api';
 import {
+    bulkUpdateProductStock,
     createProduct,
     deleteProduct,
     getProduct,
@@ -26,8 +27,17 @@ import {
     listProducts,
     updateProduct as updateCatalogProduct,
 } from './services/product-api';
+import {
+    isProductLowStock,
+    minimumStockForForm,
+    minimumStockForPayload,
+    normalizeMinimumStock,
+} from './support/minimum-stock';
+import { registerExpenseComponents } from './expenses';
 
 window.Alpine = Alpine;
+
+registerExpenseComponents(Alpine);
 
 Chart.register(BarController, BarElement, CategoryScale, Filler, LinearScale, LineController, LineElement, PointElement, Legend, Tooltip);
 
@@ -73,6 +83,48 @@ const dashboardRevenueDatasets = {
 };
 
 const minutesAgo = (minutes) => new Date(Date.now() - minutes * 60 * 1000).toISOString();
+const invoicePreviewStorageKey = 'yokprinting.invoice.previewDraft';
+const invoiceDraftStorageKey = 'yokprinting.invoice.editorDraft';
+const persistedInvoiceDraftStorageKey = 'yokprinting.invoice.persistedDraft';
+const shouldRestoreInvoiceEditorDraft = () => {
+    if (!window.sessionStorage.getItem(invoiceDraftStorageKey)) {
+        return false;
+    }
+
+    if (window.location.hash === '#restore-draft') {
+        return true;
+    }
+
+    try {
+        return new URL(document.referrer).pathname.endsWith('/invoices/preview');
+    } catch {
+        return false;
+    }
+};
+
+const formatNumber = (value) => new Intl.NumberFormat('id-ID', {
+    maximumFractionDigits: 0,
+}).format(Math.round(Number(value) || 0));
+
+const clampNumber = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, Number(value) || 0));
+
+const formatLongDate = (value) => {
+    if (!value) {
+        return '-';
+    }
+
+    const date = new Date(`${value}T00:00:00`);
+
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return new Intl.DateTimeFormat('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+    }).format(date);
+};
 
 const buildInvoiceDraftPayload = (form) => {
     const explicitProductFields = [...form.querySelectorAll('[data-product-id-field]')];
@@ -82,6 +134,10 @@ const buildInvoiceDraftPayload = (form) => {
 
     return {
         customer_id: Number(form.querySelector('[name="customer_id"]')?.value) || null,
+        customer_name: form.querySelector('[name="customer_name"]')?.value ?? '',
+        customer_email: form.querySelector('[name="customer_email"]')?.value ?? '',
+        customer_phone: form.querySelector('[name="customer_phone"]')?.value ?? '',
+        customer_address: form.querySelector('[name="customer_address"]')?.value ?? '',
         invoice_number: form.querySelector('[name="invoice_number"]')?.value ?? '',
         issue_date: form.querySelector('[name="issue_date"]')?.value ?? '',
         due_date: form.querySelector('[name="due_date"]')?.value ?? '',
@@ -93,7 +149,7 @@ const buildInvoiceDraftPayload = (form) => {
             cup_model: form.querySelector(`[name="items[${index}][cup_model]"]`)?.value ?? '',
             grammage: form.querySelector(`[name="items[${index}][grammage]"]`)?.value ?? '',
             screen_printing_color: form.querySelector(`[name="items[${index}][screen_printing_color]"]`)?.value ?? '',
-            jenis_cetak: form.querySelector(`[name="items[${index}][jenis_cetak]"]`)?.value ?? '1 warna',
+            jenis_cetak: form.querySelector(`[name="items[${index}][jenis_cetak]"]`)?.value ?? '',
             moq_quantity: Number(form.querySelector(`[name="items[${index}][moq_quantity]"]`)?.value) || null,
             order_increment: Number(form.querySelector(`[name="items[${index}][order_increment]"]`)?.value) || null,
             packaging_unit: form.querySelector(`[name="items[${index}][packaging_unit]"]`)?.value ?? 'pcs',
@@ -118,6 +174,73 @@ const buildInvoiceDraftPayload = (form) => {
         design_notes: form.querySelector('[name="design_notes"]')?.value ?? '',
         mockup_url: form.querySelector('[name="mockup_url"]')?.value ?? '',
         dp_required_percent: Number(form.querySelector('[name="dp_required_percent"]')?.value) || 50,
+    };
+};
+
+const buildInvoicePreviewSnapshot = (payload) => {
+    const subtotal = payload.items.reduce((total, item) => (
+        total + (Math.max(0, Number(item.quantity) || 0) * Math.max(0, Number(item.price) || 0))
+    ), 0);
+    const discountType = payload.discount?.type ?? 'percentage';
+    const discountValue = Number(payload.discount?.value) || 0;
+    const discountAmount = discountType === 'fixed'
+        ? Math.min(subtotal, Math.max(0, discountValue))
+        : subtotal * clampNumber(discountValue, 0, 100) / 100;
+    const taxableBase = Math.max(0, subtotal - discountAmount);
+    const taxEnabled = Boolean(payload.tax?.enabled);
+    const taxRate = clampNumber(payload.tax?.rate, 0, 100);
+    const taxAmount = taxEnabled ? taxableBase * taxRate / 100 : 0;
+    const shippingCost = Math.max(0, Number(payload.shipping_cost) || 0);
+    const totalAmount = taxableBase + taxAmount + (payload.is_free_shipping ? 0 : shippingCost);
+    const dpPercent = clampNumber(payload.dp_required_percent, 0, 100);
+
+    return {
+        invoice_number: payload.invoice_number || 'INV-2026-0079',
+        issue_date: payload.issue_date,
+        issue_date_label: formatLongDate(payload.issue_date),
+        currency: 'IDR',
+        customer: {
+            name: payload.customer_name || 'Pelanggan',
+            email: payload.customer_email || '',
+            phone: payload.customer_phone || '',
+            address: payload.customer_address || '',
+        },
+        items: payload.items.map((item, index) => {
+            const quantity = Math.max(0, Number(item.quantity) || 0);
+            const price = Math.max(0, Number(item.price) || 0);
+            const unit = item.packaging_unit || 'Pcs';
+            const orderIncrement = Number(item.order_increment) || null;
+            const sku = item.sku || '';
+            const note = [
+                sku ? `SKU: ${sku}` : '',
+                orderIncrement ? `Kelipatan jumlah ${formatNumber(orderIncrement)} ${unit}` : '',
+            ].filter(Boolean).join(' · ');
+
+            return {
+                key: `${item.product_id || 'item'}-${index}`,
+                name: item.description || item.product_name || `Item ${index + 1}`,
+                note,
+                quantity,
+                unit,
+                quantity_label: `${formatNumber(quantity)} ${unit}`,
+                unit_price: price,
+                line_total: quantity * price,
+            };
+        }),
+        subtotal,
+        discount_type: discountType,
+        discount_value: discountValue,
+        discount_amount: discountAmount,
+        tax_enabled: taxEnabled,
+        tax_rate: taxRate,
+        tax_amount: taxAmount,
+        shipping_cost: shippingCost,
+        is_free_shipping: Boolean(payload.is_free_shipping),
+        total_amount: totalAmount,
+        dp_required_percent: dpPercent,
+        dp_amount: totalAmount * dpPercent / 100,
+        notes: payload.notes || 'Produksi berjalan setelah DP minimal diterima dan mockup/desain sudah di-ACC. Pelunasan dilakukan sebelum barang dikirim atau diambil.',
+        terms: payload.terms || 'Minimal DP sebelum produksi. Pelunasan dilakukan sebelum barang dikirim atau diambil.',
     };
 };
 
@@ -182,6 +305,10 @@ Alpine.data('invoiceDraftForm', () => ({
     errorTitle: '',
     fieldErrors: {},
 
+    init() {
+        this.restoreSavedEditorDraft();
+    },
+
     get validationMessages() {
         return [...new Set(Object.values(this.fieldErrors))];
     },
@@ -238,6 +365,15 @@ Alpine.data('invoiceDraftForm', () => ({
                 minute: '2-digit',
             }).format(new Date(response.data.saved_at));
             this.draftSaved = true;
+            window.sessionStorage.setItem(invoiceDraftStorageKey, JSON.stringify(payload));
+
+            if (response.persisted) {
+                window.sessionStorage.setItem(persistedInvoiceDraftStorageKey, JSON.stringify({
+                    id: response.data.id,
+                    invoice_number: response.data.invoice_number,
+                    payload,
+                }));
+            }
         } catch (error) {
             this.errorTitle = 'Draft gagal disimpan';
             this.errorMessage = error?.message ?? 'Draft belum dapat disimpan. Coba lagi.';
@@ -251,6 +387,92 @@ Alpine.data('invoiceDraftForm', () => ({
         this.draftSaved = false;
         this.errorMessage = '';
         this.errorTitle = '';
+    },
+
+    restoreSavedEditorDraft() {
+        if (!shouldRestoreInvoiceEditorDraft()) {
+            return;
+        }
+
+        const rawDraft = window.sessionStorage.getItem(invoiceDraftStorageKey);
+
+        if (!rawDraft) {
+            return;
+        }
+
+        let payload;
+
+        try {
+            payload = JSON.parse(rawDraft);
+        } catch {
+            window.sessionStorage.removeItem(invoiceDraftStorageKey);
+            return;
+        }
+
+        this.$nextTick(() => {
+            const form = this.$root;
+            const fields = {
+                invoice_number: payload.invoice_number,
+                issue_date: payload.issue_date,
+                due_date: payload.due_date,
+                production_status: payload.production_status,
+                dp_required_percent: payload.dp_required_percent,
+                mockup_url: payload.mockup_url,
+                notes: payload.notes,
+                terms: payload.terms,
+                design_notes: payload.design_notes,
+            };
+
+            Object.entries(fields).forEach(([name, value]) => {
+                if (value === undefined || value === null) {
+                    return;
+                }
+
+                const field = form.querySelector(`[name="${name}"]`);
+
+                if (field) {
+                    field.value = value;
+                    field.dispatchEvent(new Event('input', { bubbles: true }));
+                    field.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
+
+            window.dispatchEvent(new CustomEvent('invoice-draft-restore', {
+                detail: payload,
+            }));
+
+        });
+    },
+
+    previewDraft(url, event = null) {
+        const form = event?.currentTarget?.matches?.('form')
+            ? event.currentTarget
+            : event?.target?.closest?.('form');
+
+        if (!form) {
+            window.location.assign(url);
+            return;
+        }
+
+        const payload = buildInvoiceDraftPayload(form);
+        const snapshot = buildInvoicePreviewSnapshot(payload);
+        const rawPersistedDraft = window.sessionStorage.getItem(persistedInvoiceDraftStorageKey);
+
+        if (rawPersistedDraft) {
+            try {
+                const persistedDraft = JSON.parse(rawPersistedDraft);
+
+                if (JSON.stringify(persistedDraft.payload) !== JSON.stringify(payload)) {
+                    window.sessionStorage.removeItem(persistedInvoiceDraftStorageKey);
+                }
+            } catch {
+                window.sessionStorage.removeItem(persistedInvoiceDraftStorageKey);
+            }
+        }
+
+        window.sessionStorage.setItem(invoiceDraftStorageKey, JSON.stringify(payload));
+        window.sessionStorage.setItem(invoicePreviewStorageKey, JSON.stringify(snapshot));
+        window.location.assign(url);
     },
 }));
 
@@ -799,11 +1021,41 @@ Alpine.data('customerPicker', () => ({
             const response = await listCustomers();
 
             this.customers = response.data;
+            this.restoreSelectedCustomer();
             this.selected = this.selected ?? this.customers[0] ?? null;
         } catch (error) {
             this.errorMessage = error?.message ?? 'Data pelanggan belum dapat dimuat.';
         } finally {
             this.loading = false;
+        }
+    },
+
+    restoreSelectedCustomer(payload = null) {
+        if (!payload && !shouldRestoreInvoiceEditorDraft()) {
+            return;
+        }
+
+        let draft = payload;
+
+        if (!draft) {
+            try {
+                draft = JSON.parse(window.sessionStorage.getItem(invoiceDraftStorageKey) || 'null');
+            } catch {
+                window.sessionStorage.removeItem(invoiceDraftStorageKey);
+                draft = null;
+            }
+        }
+
+        const customerId = Number(draft?.customer_id) || null;
+
+        if (!customerId) {
+            return;
+        }
+
+        const selected = this.customers.find((customer) => Number(customer.id) === customerId);
+
+        if (selected) {
+            this.selected = selected;
         }
     },
 
@@ -848,6 +1100,7 @@ Alpine.data('invoiceItems', () => ({
             const response = await listProducts();
 
             this.products = response.data;
+            this.restoreItemsFromSavedDraft();
             this.seedItems();
         } catch (error) {
             this.products = [];
@@ -855,6 +1108,24 @@ Alpine.data('invoiceItems', () => ({
             this.productError = error?.message ?? 'Data produk belum dapat dimuat.';
         } finally {
             this.loadingProducts = false;
+        }
+    },
+
+    restoreItemsFromSavedDraft() {
+        if (!shouldRestoreInvoiceEditorDraft()) {
+            return;
+        }
+
+        const rawDraft = window.sessionStorage.getItem(invoiceDraftStorageKey);
+
+        if (!rawDraft) {
+            return;
+        }
+
+        try {
+            this.restoreItems(JSON.parse(rawDraft)?.items ?? []);
+        } catch {
+            window.sessionStorage.removeItem(invoiceDraftStorageKey);
         }
     },
 
@@ -868,24 +1139,56 @@ Alpine.data('invoiceItems', () => ({
         this.items = defaults.map((product) => this.createItem(product));
     },
 
-    createItem(product) {
+    restoreItems(savedItems = []) {
+        if (this.products.length === 0 || savedItems.length === 0) {
+            return;
+        }
+
+        this.items = savedItems.map((savedItem) => {
+            const product = this.products.find((item) => (
+                Number(item.id) === Number(savedItem.product_id) ||
+                item.sku === savedItem.sku ||
+                item.code === savedItem.sku
+            ));
+            const restored = this.createItem(product);
+
+            restored.productId = product?.id ?? Number(savedItem.product_id) ?? null;
+            restored.productName = savedItem.product_name || product?.name || '';
+            restored.sku = savedItem.sku || product?.sku || product?.code || '';
+            restored.productSearch = product ? this.productLabel(product) : [restored.sku, restored.productName].filter(Boolean).join(' — ');
+            restored.cupSize = savedItem.cup_size || product?.cup_size || restored.cupSize;
+            restored.cupModel = savedItem.cup_model || product?.cup_model || restored.cupModel;
+            restored.grammage = savedItem.grammage || product?.grammage || restored.grammage;
+            restored.screenPrintingColor = savedItem.screen_printing_color || product?.screen_printing_color || restored.screenPrintingColor;
+            restored.jenisCetak = savedItem.jenis_cetak || (product?.sides ? `${product.sides} warna` : restored.jenisCetak);
+            restored.moqQuantity = Number(savedItem.moq_quantity || product?.minimum_order_qty || product?.moq_quantity) || 500;
+            restored.orderIncrement = Number(savedItem.order_increment || product?.package_conversion || product?.order_increment) || 500;
+            restored.packagingUnit = savedItem.packaging_unit || product?.unit || product?.packaging_unit || 'Pcs';
+            restored.quantity = Number(savedItem.quantity) || restored.orderIncrement;
+            restored.price = Number(savedItem.price) || 0;
+
+            return restored;
+        });
+    },
+
+    createItem(product = null) {
         return {
             key: this.nextKey++,
-            productId: product.id,
-            productName: product.name,
-            sku: product.sku ?? '',
-            productSearch: this.productLabel(product),
+            productId: product?.id ?? null,
+            productName: product?.name ?? '',
+            sku: product?.sku ?? product?.code ?? '',
+            productSearch: product ? this.productLabel(product) : '',
             pickerOpen: false,
             cupSize: '12 Oz',
-            cupModel: product.cup_model ?? 'Oval',
-            grammage: product.grammage ?? '8gr',
-            screenPrintingColor: product.screen_printing_color ?? 'Hitam',
-            jenisCetak: product.sides ? `${product.sides} warna` : '1 warna',
-            moqQuantity: Number(product.package_conversion || product.order_increment || product.minimum_order_qty || product.moq_quantity) || 500,
-            orderIncrement: Number(product.package_conversion || product.order_increment || product.minimum_order_qty || product.moq_quantity) || 500,
-            packagingUnit: product.unit ?? product.packaging_unit ?? 'Pcs',
-            quantity: Number(product.package_conversion || product.order_increment || product.minimum_order_qty || product.moq_quantity) || 500,
-            price: product.price ?? 0,
+            cupModel: product?.cup_model ?? 'Oval',
+            grammage: product?.grammage ?? '8gr',
+            screenPrintingColor: product?.screen_printing_color ?? 'Hitam',
+            jenisCetak: product?.sides ? `${product.sides} warna` : '1 warna',
+            moqQuantity: Number(product?.package_conversion || product?.order_increment || product?.minimum_order_qty || product?.moq_quantity) || 500,
+            orderIncrement: Number(product?.package_conversion || product?.order_increment || product?.minimum_order_qty || product?.moq_quantity) || 500,
+            packagingUnit: product?.unit ?? product?.packaging_unit ?? 'Pcs',
+            quantity: Number(product?.package_conversion || product?.order_increment || product?.minimum_order_qty || product?.moq_quantity) || 500,
+            price: product?.price ?? 0,
         };
     },
 
@@ -973,6 +1276,8 @@ Alpine.data('invoiceItems', () => ({
         const product = this.productFor(item.productId);
 
         if (product) {
+            const currentPrice = Number(item.price) || 0;
+
             item.productName = product.name;
             item.sku = product.sku ?? '';
             item.productSearch = this.productLabel(product);
@@ -985,7 +1290,7 @@ Alpine.data('invoiceItems', () => ({
             item.moqQuantity = item.orderIncrement;
             item.packagingUnit = product.unit ?? product.packaging_unit ?? item.packagingUnit;
             item.quantity = Math.max(Number(item.quantity) || 0, item.orderIncrement || 1);
-            item.price = product.price ?? 0;
+            item.price = currentPrice > 0 ? currentPrice : (product.price ?? 0);
             this.normalizeQuantity(item);
         }
     },
@@ -1046,33 +1351,179 @@ Alpine.data('invoiceItems', () => ({
 }));
 
 Alpine.data('invoicePreviewActions', () => ({
-    invoiceId: 'INV-2026-0079',
-    recipient: 'finance@sinarnusantara.co.id',
+    preview: {
+        invoice_number: 'INV-2026-0079',
+        issue_date_label: '23 Juli 2026',
+        currency: 'IDR',
+        customer: {
+            name: 'PT Sinar Nusantara',
+            email: 'finance@sinarnusantara.co.id',
+            phone: '+62 21 555 0198',
+            address: 'Jl. Jenderal Sudirman No. 88, Jakarta Selatan 12190',
+        },
+        items: [
+            {
+                key: 'sample-1',
+                name: 'Cup Injection 12Oz Datar (360ml) Natural',
+                note: 'SKU: H-001 · Kelipatan jumlah 500 Pcs',
+                quantity: 500,
+                unit: 'Pcs',
+                quantity_label: '500 Pcs',
+                unit_price: 300,
+                line_total: 150000,
+            },
+        ],
+        subtotal: 150000,
+        discount_type: 'percentage',
+        discount_value: 5,
+        discount_amount: 7500,
+        tax_enabled: true,
+        tax_rate: 11,
+        tax_amount: 15675,
+        shipping_cost: 0,
+        is_free_shipping: false,
+        total_amount: 158175,
+        dp_required_percent: 50,
+        dp_amount: 79087.5,
+        notes: 'Produksi berjalan setelah DP minimal 50% diterima dan mockup/desain sudah di-ACC. Pelunasan dilakukan sebelum barang dikirim atau diambil.',
+        terms: 'Minimal DP 50% sebelum produksi. Pelunasan dilakukan sebelum barang dikirim atau diambil.',
+    },
     savingDraft: false,
     draftSaved: false,
     sendingEmail: false,
     downloadingPdf: false,
     pdfDownloaded: false,
     invoiceStatus: 'Draft',
+    persistedInvoiceId: null,
     notice: null,
 
-    saveDraft() {
+    init() {
+        const rawPreview = window.sessionStorage.getItem(invoicePreviewStorageKey);
+
+        if (rawPreview) {
+            try {
+                this.preview = {
+                    ...this.preview,
+                    ...JSON.parse(rawPreview),
+                };
+            } catch {
+                window.sessionStorage.removeItem(invoicePreviewStorageKey);
+            }
+        }
+
+        const rawDraft = window.sessionStorage.getItem(invoiceDraftStorageKey);
+        const rawPersistedDraft = window.sessionStorage.getItem(persistedInvoiceDraftStorageKey);
+
+        if (rawDraft && rawPersistedDraft) {
+            try {
+                const draft = JSON.parse(rawDraft);
+                const persistedDraft = JSON.parse(rawPersistedDraft);
+
+                const persistedId = Number(persistedDraft.id);
+
+                if (
+                    Number.isInteger(persistedId)
+                    && persistedId > 0
+                    && JSON.stringify(persistedDraft.payload) === JSON.stringify(draft)
+                ) {
+                    this.persistedInvoiceId = persistedId;
+                    this.preview.invoice_number = persistedDraft.invoice_number;
+                    this.draftSaved = true;
+                } else {
+                    window.sessionStorage.removeItem(persistedInvoiceDraftStorageKey);
+                }
+            } catch {
+                window.sessionStorage.removeItem(persistedInvoiceDraftStorageKey);
+            }
+        }
+    },
+
+    get invoiceId() {
+        return this.persistedInvoiceId;
+    },
+
+    get invoiceNumber() {
+        return this.preview.invoice_number;
+    },
+
+    get canSendEmail() {
+        return this.persistedInvoiceId !== null;
+    },
+
+    get customerContactLine() {
+        return [
+            this.preview.customer?.email,
+            this.preview.customer?.phone,
+        ].filter(Boolean).join(' · ');
+    },
+
+    get discountLabel() {
+        return this.preview.discount_type === 'percentage'
+            ? `Diskon (${formatNumber(this.preview.discount_value)}%)`
+            : 'Diskon';
+    },
+
+    get taxLabel() {
+        return this.preview.tax_enabled
+            ? `PPN (${formatNumber(this.preview.tax_rate)}%)`
+            : 'PPN';
+    },
+
+    formatCurrency(value) {
+        return formatRupiah(Math.round(Number(value) || 0));
+    },
+
+    async saveDraft() {
         if (this.savingDraft) {
+            return;
+        }
+
+        if (this.canSendEmail) {
+            this.notice = {
+                type: 'success',
+                title: 'Draft sudah tersimpan',
+                description: `Invoice ${this.invoiceNumber} siap dikirim dari data database.`,
+            };
             return;
         }
 
         this.savingDraft = true;
         this.draftSaved = false;
 
-        window.setTimeout(() => {
-            this.savingDraft = false;
+        try {
+            const rawDraft = window.sessionStorage.getItem(invoiceDraftStorageKey);
+
+            if (!rawDraft) {
+                throw new Error('Data editor tidak ditemukan. Kembali ke editor lalu buka pratinjau lagi.');
+            }
+
+            const payload = JSON.parse(rawDraft);
+            const response = await persistInvoiceDraft(payload);
+
+            this.persistedInvoiceId = response.data.id;
+            this.preview.invoice_number = response.data.invoice_number;
+            this.invoiceStatus = response.data.status === 'sent' ? 'Terkirim' : 'Draft';
+            window.sessionStorage.setItem(persistedInvoiceDraftStorageKey, JSON.stringify({
+                id: response.data.id,
+                invoice_number: response.data.invoice_number,
+                payload,
+            }));
             this.draftSaved = true;
             this.notice = {
                 type: 'success',
                 title: 'Draft berhasil disimpan',
-                description: 'Status ini tersimpan untuk validasi alur pembayaran.',
+                description: `Invoice ${response.data.invoice_number} tersimpan dan siap dikirim.`,
             };
-        }, 450);
+        } catch (error) {
+            window.sessionStorage.removeItem(persistedInvoiceDraftStorageKey);
+            this.notice = {
+                type: 'error',
+                title: 'Draft gagal disimpan',
+                description: error?.message ?? 'Draft belum dapat disimpan. Coba lagi.',
+            };
+        } finally {
+            this.savingDraft = false;
+        }
     },
 
     async sendEmail() {
@@ -1080,11 +1531,20 @@ Alpine.data('invoicePreviewActions', () => ({
             return;
         }
 
+        if (!this.canSendEmail) {
+            this.notice = {
+                type: 'error',
+                title: 'Simpan draft terlebih dahulu',
+                description: 'Email hanya dapat dikirim dari invoice yang sudah tersimpan di database.',
+            };
+            return;
+        }
+
         if (this.invoiceStatus === 'Terkirim') {
             this.notice = {
                 type: 'success',
                 title: 'Invoice sudah berstatus terkirim',
-                description: `API telah mengirim invoice ini ke ${this.recipient}.`,
+                description: 'Invoice tersimpan ini sudah dikirim menggunakan data database.',
             };
             return;
         }
@@ -1095,7 +1555,6 @@ Alpine.data('invoicePreviewActions', () => ({
         try {
             const response = await sendInvoiceEmail({
                 invoiceId: this.invoiceId,
-                recipient: this.recipient,
             });
 
             this.invoiceStatus = response.data.status === 'sent' ? 'Terkirim' : 'Draft';
@@ -1125,7 +1584,9 @@ Alpine.data('invoicePreviewActions', () => ({
         this.notice = null;
 
         try {
-            const response = await downloadInvoicePdf(this.invoiceId);
+            const response = this.canSendEmail
+                ? await downloadInvoicePdf(this.invoiceId)
+                : await downloadInvoicePreviewPdf(this.preview);
             const downloadUrl = URL.createObjectURL(response.blob);
             const anchor = document.createElement('a');
 
@@ -1154,16 +1615,20 @@ Alpine.data('invoicePreviewActions', () => ({
     },
 }));
 
-Alpine.data('salesReportTable', (initialSales = []) => ({
+Alpine.data('salesReportTable', (periodPresets = {}) => ({
     query: '',
     statusFilter: 'all',
     categoryFilter: 'all',
-    periodPreset: '2026-07',
-    startDate: '2026-07-01',
-    endDate: '2026-07-31',
+    periodPreset: 'monthly',
+    startDate: periodPresets.monthly?.date_from ?? '',
+    endDate: periodPresets.monthly?.date_to ?? '',
+    periodPresets,
     showCustomDate: false,
+    loading: false,
+    loadError: '',
     exporting: false,
     exportSuccess: false,
+    summaryCards: [],
 
     statusOptions: [
         { key: 'all', label: 'Semua Status' },
@@ -1173,46 +1638,108 @@ Alpine.data('salesReportTable', (initialSales = []) => ({
         { key: 'Overdue', label: 'Overdue' },
     ],
 
-    categoryOptions: [
-        { key: 'all', label: 'Semua Kategori' },
-        { key: 'Jasa desain', label: 'Jasa desain' },
-        { key: 'Cetak premium', label: 'Cetak premium' },
-        { key: 'Materi promosi', label: 'Materi promosi' },
-    ],
-
     periodOptions: [
-        { key: '2026-07', label: 'Juli 2026' },
-        { key: '2026-06', label: 'Juni 2026' },
-        { key: 'Q2-2026', label: 'Kuartal 2 (Q2 2026)' },
-        { key: '2026-YTD', label: 'Tahun 2026 (YTD)' },
+        { key: 'weekly', label: 'Mingguan' },
+        { key: 'monthly', label: 'Bulanan' },
+        { key: 'yearly', label: 'Tahunan' },
         { key: 'custom', label: 'Rentang Kustom...' },
     ],
 
-    sales: initialSales,
+    sales: [],
 
-    get isFiltered() {
-        return this.query.trim() !== '' || this.statusFilter !== 'all' || this.categoryFilter !== 'all' || this.periodPreset !== '2026-07';
+    init() {
+        this.loadReport();
     },
 
-    selectPeriod(preset) {
+    get categoryOptions() {
+        const categories = [...new Set(this.sales.flatMap((row) => row.categories ?? [row.category]))]
+            .filter(Boolean)
+            .sort((left, right) => left.localeCompare(right, 'id'));
+
+        return [
+            { key: 'all', label: 'Semua Kategori' },
+            ...categories.map((category) => ({ key: category, label: category })),
+        ];
+    },
+
+    get isFiltered() {
+        return this.query.trim() !== '' || this.statusFilter !== 'all' || this.categoryFilter !== 'all' || this.periodPreset !== 'monthly';
+    },
+
+    async selectPeriod(preset) {
         this.periodPreset = preset;
+
         if (preset === 'custom') {
             this.showCustomDate = true;
             return;
         }
+
         this.showCustomDate = false;
-        if (preset === '2026-07') {
-            this.startDate = '2026-07-01';
-            this.endDate = '2026-07-31';
-        } else if (preset === '2026-06') {
-            this.startDate = '2026-06-01';
-            this.endDate = '2026-06-30';
-        } else if (preset === 'Q2-2026') {
-            this.startDate = '2026-04-01';
-            this.endDate = '2026-06-30';
-        } else if (preset === '2026-YTD') {
-            this.startDate = '2026-01-01';
-            this.endDate = '2026-12-31';
+
+        const period = this.periodPresets[preset];
+
+        if (period) {
+            this.startDate = period.date_from;
+            this.endDate = period.date_to;
+            await this.loadReport();
+        }
+    },
+
+    reportParams() {
+        return new URLSearchParams({
+            date_from: this.startDate,
+            date_to: this.endDate,
+        });
+    },
+
+    async loadReport() {
+        if (!this.startDate || !this.endDate) return;
+
+        this.loading = true;
+        this.loadError = '';
+
+        try {
+            const params = this.reportParams().toString();
+            const [invoiceResponse, summaryResponse] = await Promise.all([
+                fetch(`/api/reports/sales/invoices?${params}`, {
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json' },
+                }),
+                fetch(`/api/reports/sales/summary?${params}`, {
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json' },
+                }),
+            ]);
+
+            if (!invoiceResponse.ok || !summaryResponse.ok) {
+                throw new Error('Data laporan belum berhasil dimuat.');
+            }
+
+            const [invoicePayload, summaryPayload] = await Promise.all([
+                invoiceResponse.json(),
+                summaryResponse.json(),
+            ]);
+
+            this.sales = (invoicePayload.data ?? []).map((row) => ({
+                customer: row.customer?.name ?? '-',
+                product: row.product,
+                category: row.category,
+                categories: row.categories ?? [],
+                invoice: row.invoice_number,
+                date: row.issue_date_formatted,
+                rawDate: row.issue_date,
+                amount: row.total_amount_formatted,
+                rawAmount: Number(row.total_amount),
+                margin: row.margin_label,
+                status: row.status_label,
+            }));
+            this.summaryCards = summaryPayload.data?.cards ?? [];
+        } catch (error) {
+            this.sales = [];
+            this.summaryCards = [];
+            this.loadError = error?.message ?? 'Data laporan belum berhasil dimuat.';
+        } finally {
+            this.loading = false;
         }
     },
 
@@ -1221,7 +1748,8 @@ Alpine.data('salesReportTable', (initialSales = []) => ({
 
         return this.sales.filter((row) => {
             const matchesStatus = this.statusFilter === 'all' || row.status === this.statusFilter;
-            const matchesCategory = this.categoryFilter === 'all' || row.category === this.categoryFilter;
+            const matchesCategory = this.categoryFilter === 'all' ||
+                (row.categories ?? [row.category]).includes(this.categoryFilter);
             const matchesKeyword = !keyword ||
                 `${row.customer} ${row.product} ${row.invoice} ${row.category} ${row.status}`
                     .toLocaleLowerCase('id')
@@ -1246,6 +1774,23 @@ Alpine.data('salesReportTable', (initialSales = []) => ({
         return this.filteredSales.length;
     },
 
+    get productMix() {
+        const totals = this.filteredSales.reduce((result, row) => {
+            result[row.category] = (result[row.category] ?? 0) + (row.rawAmount || 0);
+            return result;
+        }, {});
+        const grandTotal = Object.values(totals).reduce((sum, amount) => sum + amount, 0);
+        const tones = ['bg-brand-600', 'bg-accent', 'bg-yellow-500', 'bg-green-600'];
+
+        return Object.entries(totals)
+            .sort(([, left], [, right]) => right - left)
+            .map(([label, amount], index) => ({
+                label,
+                value: grandTotal > 0 ? `${Math.round((amount / grandTotal) * 100)}%` : '0%',
+                class: tones[index % tones.length],
+            }));
+    },
+
     setStatusFilter(key) {
         this.statusFilter = key;
     },
@@ -1254,43 +1799,61 @@ Alpine.data('salesReportTable', (initialSales = []) => ({
         this.query = '';
         this.statusFilter = 'all';
         this.categoryFilter = 'all';
-        this.selectPeriod('2026-07');
+        this.selectPeriod('monthly');
     },
 
-    exportExcel() {
+    async exportExcel() {
         if (this.exporting) return;
+
         this.exporting = true;
         this.exportSuccess = false;
 
-        const headers = ['Pelanggan', 'Produk', 'Kategori', 'Invoice', 'Tanggal', 'Penjualan', 'Margin', 'Status'];
-        const rows = this.filteredSales.map((r) => [
-            `"${r.customer}"`,
-            `"${r.product}"`,
-            `"${r.category}"`,
-            `"${r.invoice}"`,
-            `"${r.date}"`,
-            `"${r.amount}"`,
-            `"${r.margin}"`,
-            `"${r.status}"`,
-        ]);
+        const statusMap = {
+            Lunas: 'paid',
+            Parsial: 'partial',
+            Menunggu: 'unpaid',
+            Overdue: 'overdue',
+        };
+        const params = new URLSearchParams({
+            ...Object.fromEntries(this.reportParams()),
+            status: statusMap[this.statusFilter] ?? 'all',
+            category: this.categoryFilter === 'all' ? '' : this.categoryFilter,
+            q: this.query.trim(),
+        });
 
-        const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
+        try {
+            const response = await fetch(`/api/reports/sales/export?${params.toString()}`, {
+                credentials: 'same-origin',
+                headers: { Accept: 'text/csv' },
+            });
 
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `laporan-penjualan-${new Date().toISOString().slice(0, 10)}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+            if (!response.ok) {
+                throw new Error('Export laporan belum berhasil.');
+            }
 
-        this.exporting = false;
-        this.exportSuccess = true;
-        window.setTimeout(() => {
-            this.exportSuccess = false;
-        }, 3000);
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const disposition = response.headers.get('Content-Disposition') ?? '';
+            const filename = disposition.match(/filename="([^"]+)"/)?.[1]
+                ?? `laporan-penjualan-${this.periodPreset}-${this.endDate}.csv`;
+            const link = document.createElement('a');
+
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+            this.exportSuccess = true;
+            window.setTimeout(() => {
+                this.exportSuccess = false;
+            }, 3000);
+        } catch (error) {
+            window.alert(error?.message ?? 'Export laporan belum berhasil.');
+        } finally {
+            this.exporting = false;
+        }
     },
 
     statusClass(status) {
@@ -1300,6 +1863,13 @@ Alpine.data('salesReportTable', (initialSales = []) => ({
             Parsial: 'bg-brand-100 text-brand-800',
             Menunggu: 'bg-yellow-100 text-yellow-900',
         }[status] ?? 'bg-canvas text-muted';
+    },
+
+    summaryToneClass(tone) {
+        return {
+            success: 'bg-green-100 text-green-800',
+            warning: 'bg-yellow-100 text-yellow-900',
+        }[tone] ?? 'bg-brand-100 text-brand-800';
     },
 }));
 
@@ -1592,6 +2162,12 @@ Alpine.data('productIndexTable', (initialProducts = []) => ({
     products: initialProducts,
     loading: false,
     error: '',
+    bulkEditorOpen: false,
+    bulkStockMode: 'stock',
+    bulkStockValue: 500,
+    bulkSaving: false,
+    bulkStockError: '',
+    bulkStockSuccess: '',
 
     statusOptions: [
         { key: 'all', label: 'Semua Status' },
@@ -1631,10 +2207,16 @@ Alpine.data('productIndexTable', (initialProducts = []) => ({
 
     normalizeProduct(product) {
         const stockValue = product.stock === null ? 0 : Number(product.stock) || 0;
-        const minimumStock = Number(product.minimum_stock) || 0;
+        const minimumStock = normalizeMinimumStock(product.minimum_stock);
+        const trackStock = product.track_stock ?? true;
         const status = product.status === 'inactive'
             ? 'Nonaktif'
-            : minimumStock > 0 && stockValue <= minimumStock
+            : isProductLowStock({
+                status: product.status,
+                trackStock,
+                stock: stockValue,
+                minimumStock,
+            })
                 ? 'Stok menipis'
                 : 'Aktif';
 
@@ -1649,11 +2231,13 @@ Alpine.data('productIndexTable', (initialProducts = []) => ({
             purchasePriceValue: Number(product.purchase_price) || 0,
             stock: product.track_stock === false ? 'Tidak dilacak' : `${stockValue} ${product.unit ?? 'Pcs'}`,
             stockValue: product.track_stock === false ? 999999 : stockValue,
+            currentStock: stockValue,
             minimumStock,
             sales: product.sales ?? 0,
             status,
             rawStatus: product.status,
-            trackStock: product.track_stock,
+            trackStock,
+            updatedAt: product.updated_at,
         };
     },
 
@@ -1729,15 +2313,120 @@ Alpine.data('productIndexTable', (initialProducts = []) => ({
     },
 
     isLowStock(product) {
-        return product.status !== 'Nonaktif' &&
-            product.minimumStock > 0 &&
-            product.stockValue <= product.minimumStock;
+        return isProductLowStock({
+            status: product.rawStatus,
+            trackStock: product.trackStock,
+            stock: product.stockValue,
+            minimumStock: product.minimumStock,
+        });
+    },
+
+    applyBulkUpdates(updates = []) {
+        const updatesById = new Map(updates.map((update) => [Number(update.id), update]));
+
+        this.products = this.products.map((product) => {
+            const update = updatesById.get(Number(product.id));
+
+            if (!update) {
+                return product;
+            }
+
+            const stockValue = update.stock === null ? 0 : Number(update.stock) || 0;
+            const minimumStock = normalizeMinimumStock(update.minimum_stock);
+            const status = product.rawStatus === 'inactive'
+                ? 'Nonaktif'
+                : isProductLowStock({
+                    status: product.rawStatus,
+                    trackStock: product.trackStock,
+                    stock: stockValue,
+                    minimumStock,
+                })
+                    ? 'Stok menipis'
+                    : 'Aktif';
+
+            return {
+                ...product,
+                stock: product.trackStock === false ? 'Tidak dilacak' : `${stockValue} ${product.unit}`,
+                stockValue: product.trackStock === false ? 999999 : stockValue,
+                currentStock: stockValue,
+                minimumStock,
+                status,
+                updatedAt: update.updated_at,
+            };
+        });
     },
 
     resetFilters() {
         this.query = '';
         this.statusFilter = 'all';
         this.categoryFilter = 'all';
+    },
+
+    openBulkStockEditor() {
+        this.bulkEditorOpen = true;
+        this.bulkStockMode = 'stock';
+        this.bulkStockValue = 500;
+        this.bulkStockError = '';
+        this.bulkStockSuccess = '';
+    },
+
+    closeBulkStockEditor() {
+        if (this.bulkSaving) {
+            return;
+        }
+
+        this.bulkEditorOpen = false;
+        this.bulkStockError = '';
+    },
+
+    async applyBulkStock() {
+        const value = Number(this.bulkStockValue);
+
+        this.bulkStockError = '';
+        this.bulkStockSuccess = '';
+
+        if (!Number.isFinite(value) || value < 0) {
+            this.bulkStockError = 'Nilai stok harus angka 0 atau lebih.';
+            return;
+        }
+
+        const productsToUpdate = [...this.filteredProducts];
+
+        if (productsToUpdate.length === 0) {
+            this.bulkStockError = 'Tidak ada produk yang cocok dengan filter saat ini.';
+            return;
+        }
+
+        this.bulkSaving = true;
+
+        try {
+            const response = await bulkUpdateProductStock(productsToUpdate.map((product) => ({
+                id: product.id,
+                field: this.bulkStockMode,
+                value,
+                expected_value: this.bulkStockMode === 'minimum_stock'
+                    ? product.minimumStock
+                    : product.currentStock,
+                expected_updated_at: product.updatedAt,
+            })));
+
+            this.applyBulkUpdates(response.data);
+            this.bulkStockSuccess = `${response.meta.updated_count} produk berhasil diperbarui.`;
+
+            window.setTimeout(() => {
+                this.bulkEditorOpen = false;
+                this.bulkStockSuccess = '';
+            }, 900);
+        } catch (error) {
+            const [errorField, messages] = Object.entries(error?.errors ?? {})[0] ?? [];
+            const itemMessage = Array.isArray(messages) ? messages[0] : messages;
+
+            this.bulkStockError = itemMessage
+                ? `${errorField}: ${itemMessage}`
+                : error?.message ?? 'Bulk edit stok belum berhasil disimpan.';
+        } finally {
+            this.bulkSaving = false;
+        }
     },
 
     async deleteProduct(product) {
@@ -1774,7 +2463,7 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
         unit: initialForm.unit ?? 'Pcs',
         purchasePrice: initialForm.purchasePrice ?? initialForm.purchase_price ?? 0,
         stock: initialForm.stock ?? 10,
-        minimumStock: initialForm.minimumStock ?? 5,
+        minimumStock: minimumStockForForm(initialForm),
         minimumOrderQty: initialForm.minimumOrderQty ?? initialForm.minimum_order_qty ?? 500,
         packageConversion: initialForm.packageConversion ?? initialForm.package_conversion ?? 500,
         shortDescription: initialForm.shortDescription ?? initialForm.short_description ?? '',
@@ -1814,7 +2503,7 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
             unit: product.unit ?? 'Pcs',
             purchasePrice: Number(product.purchase_price) || 0,
             stock: Number(product.stock) || 0,
-            minimumStock: Number(product.minimum_stock) || 0,
+            minimumStock: minimumStockForForm(product),
             minimumOrderQty: Number(product.minimum_order_qty) || 500,
             packageConversion: Number(product.package_conversion) || 500,
             shortDescription: product.short_description ?? '',
@@ -1891,7 +2580,7 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
             unit: 'Pcs',
             purchase_price: Number(this.form.purchasePrice) || 0,
             stock: this.form.trackStock ? Number(this.form.stock) || 0 : null,
-            minimum_stock: this.form.trackStock ? Number(this.form.minimumStock) || 0 : 0,
+            minimum_stock: minimumStockForPayload(this.form.minimumStock, this.form.trackStock),
             minimum_order_qty: Number(this.form.minimumOrderQty) || 500,
             package_conversion: Number(this.form.packageConversion) || 500,
             short_description: this.form.shortDescription || null,
@@ -2480,59 +3169,67 @@ Alpine.data('companyProfileSettings', (initialForm = {}) => ({
     },
 }));
 
-const salesReportDatasets = {
-    monthly: {
-        label: '6 bulan terakhir',
-        labels: ['Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul'],
-        revenue: [46000000, 58000000, 52000000, 71000000, 64000000, 86400000],
-        target: [40000000, 50000000, 50000000, 65000000, 65000000, 80000000],
-    },
-    quarterly: {
-        label: '4 kuartal terakhir',
-        labels: ['Q4 2025', 'Q1 2026', 'Q2 2026', 'Q3 2026'],
-        revenue: [142000000, 168000000, 187000000, 221400000],
-        target: [130000000, 150000000, 175000000, 200000000],
-    },
-    yearly: {
-        label: '3 tahun terakhir',
-        labels: ['2024', '2025', '2026'],
-        revenue: [720000000, 940000000, 1180000000],
-        target: [650000000, 850000000, 1000000000],
-    },
-};
-
 Alpine.data('salesReportChart', () => ({
     chart: null,
     selectedPeriod: 'monthly',
+    dataset: {
+        labels: [],
+        revenue: [],
+        target: [],
+    },
+    loading: false,
+    loadError: '',
     periods: [
+        { key: 'weekly', label: 'Mingguan' },
         { key: 'monthly', label: 'Bulanan' },
-        { key: 'quarterly', label: 'Kuartal' },
         { key: 'yearly', label: 'Tahunan' },
     ],
 
-    get currentDataset() {
-        return salesReportDatasets[this.selectedPeriod];
-    },
-
     init() {
-        this.$nextTick(() => this.renderChart());
+        this.loadChart();
     },
 
-    selectPeriod(period) {
-        if (this.selectedPeriod === period || !salesReportDatasets[period]) {
+    async selectPeriod(period) {
+        if (this.selectedPeriod === period || !this.periods.some((option) => option.key === period)) {
             return;
         }
 
         this.selectedPeriod = period;
+        await this.loadChart();
+    },
 
-        if (!this.chart) {
-            this.renderChart();
-            return;
+    async loadChart() {
+        this.loading = true;
+        this.loadError = '';
+
+        try {
+            const response = await fetch(`/api/reports/sales/revenue-chart?period=${encodeURIComponent(this.selectedPeriod)}`, {
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json' },
+            });
+
+            if (!response.ok) {
+                throw new Error('Grafik laporan belum berhasil dimuat.');
+            }
+
+            const payload = await response.json();
+            this.dataset = {
+                labels: payload.data?.labels ?? [],
+                revenue: payload.data?.revenue ?? [],
+                target: payload.data?.target ?? [],
+            };
+
+            if (this.chart) {
+                this.chart.destroy();
+                this.chart = null;
+            }
+
+            this.$nextTick(() => this.renderChart());
+        } catch (error) {
+            this.loadError = error?.message ?? 'Grafik laporan belum berhasil dimuat.';
+        } finally {
+            this.loading = false;
         }
-
-        this.chart.data = this.buildChartData();
-        this.chart.options.scales.y.suggestedMax = this.suggestedMax();
-        this.chart.update();
     },
 
     renderChart() {
@@ -2618,21 +3315,19 @@ Alpine.data('salesReportChart', () => ({
     },
 
     buildChartData() {
-        const dataset = this.currentDataset;
-
         return {
-            labels: dataset.labels,
+            labels: this.dataset.labels,
             datasets: [
                 {
                     label: 'Pendapatan',
-                    data: dataset.revenue,
+                    data: this.dataset.revenue,
                     backgroundColor: '#52772c',
                     borderRadius: 8,
                     maxBarThickness: 42,
                 },
                 {
                     label: 'Target',
-                    data: dataset.target,
+                    data: this.dataset.target,
                     backgroundColor: '#234c8c',
                     borderRadius: 8,
                     maxBarThickness: 42,
@@ -2642,7 +3337,7 @@ Alpine.data('salesReportChart', () => ({
     },
 
     suggestedMax() {
-        return Math.max(...this.currentDataset.revenue) * 1.2;
+        return Math.max(1, ...this.dataset.revenue) * 1.2;
     },
 }));
 

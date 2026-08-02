@@ -20,6 +20,7 @@ class RolePermissionSeeder extends Seeder
             Permission::MODULE_PRODUCT => 'Produk',
             Permission::MODULE_PAYMENT => 'Pembayaran',
             Permission::MODULE_REPORT => 'Laporan',
+            Permission::MODULE_EXPENSE => 'Pengeluaran',
             Permission::MODULE_SETTING => 'Pengaturan',
             Permission::MODULE_ROLE => 'Role',
         ];
@@ -35,7 +36,12 @@ class RolePermissionSeeder extends Seeder
         $sort = 10;
 
         foreach ($modules as $module => $moduleLabel) {
-            foreach ($actions as $action => $meta) {
+            $moduleActions = $module === Permission::MODULE_EXPENSE
+                ? ['view', 'create', 'update', 'delete']
+                : array_keys($actions);
+
+            foreach ($moduleActions as $action) {
+                $meta = $actions[$action];
                 Permission::query()->updateOrCreate(
                     ['code' => "{$module}.{$action}"],
                     [
@@ -61,7 +67,7 @@ class RolePermissionSeeder extends Seeder
             ],
             Role::CODE_FINANCE_ADMIN => [
                 'name' => 'Admin Finance',
-                'description' => 'Mengelola invoice, pembayaran, dan laporan finance.',
+                'description' => 'Mengelola invoice, pengeluaran, pembayaran, dan laporan finance.',
                 'is_system' => true,
                 'sort_order' => 20,
                 'permissions' => [
@@ -80,6 +86,10 @@ class RolePermissionSeeder extends Seeder
                     'payment.export',
                     'report.view',
                     'report.export',
+                    'expense.view',
+                    'expense.create',
+                    'expense.update',
+                    'expense.delete',
                 ],
             ],
             Role::CODE_OPERATIONS => [

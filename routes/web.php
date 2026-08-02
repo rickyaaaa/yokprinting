@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Models\Expense;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -62,6 +63,25 @@ Route::middleware('auth')->group(function () {
     Route::view('/payments/receivables', 'payments.receivables')->name('payments.receivables.index');
     Route::view('/payments/history', 'payments.history')->name('payments.history.index');
     Route::view('/payments/invoices/{invoice}', 'payments.invoice-detail')->name('payments.invoices.show');
+    Route::view('/expenses', 'expenses.index')
+        ->middleware('permission:expense.view')
+        ->name('expenses.index');
+    Route::get('/expenses/create', function () {
+        return view('expenses.form', [
+            'expenseId' => null,
+            'defaultExpenseDate' => now()->toDateString(),
+            'categoryOptions' => Expense::categoryOptions(),
+            'employeeSubcategoryOptions' => Expense::employeeSubcategoryOptions(),
+        ]);
+    })->middleware('permission:expense.create')->name('expenses.create');
+    Route::get('/expenses/{expense}/edit', function (Expense $expense) {
+        return view('expenses.form', [
+            'expenseId' => $expense->getKey(),
+            'defaultExpenseDate' => now()->toDateString(),
+            'categoryOptions' => Expense::categoryOptions(),
+            'employeeSubcategoryOptions' => Expense::employeeSubcategoryOptions(),
+        ]);
+    })->middleware('permission:expense.update')->name('expenses.edit');
     Route::view('/reports/sales', 'reports.sales')->name('reports.sales.index');
     Route::view('/settings/company-profile', 'settings.company-profile')->name('settings.company-profile.edit');
 });

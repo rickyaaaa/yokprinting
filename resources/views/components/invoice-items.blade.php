@@ -132,11 +132,13 @@
                                 :aria-label="`Produk baris ${index + 1}`"
                                 :data-testid="`product-picker-${index + 1}`"
                                 data-validation-field="items"
+                                data-product-id-field
                                 class="hidden"
                                 :class="{ 'border-red-400 ring-2 ring-red-100': fieldErrors?.items }"
                                 :aria-invalid="Boolean(fieldErrors?.items)"
                                 @change="updateProduct(item)"
                             >
+                                <option value=""></option>
                                 <template x-for="product in filteredSelectionProducts(item)" :key="product.id">
                                     <option
                                         :value="product.id"
@@ -145,7 +147,7 @@
                                     ></option>
                                 </template>
                             </select>
-                            <p class="mt-1.5 text-xs text-muted">
+                            <p class="mt-1.5 text-xs text-muted" x-show="item.productId">
                                 <span x-text="productFor(item.productId)?.category"></span>
                                 <span aria-hidden="true"> · </span>
                                 SKU: <span x-text="productFor(item.productId)?.sku"></span>
@@ -194,7 +196,7 @@
                                 </div>
                             </div>
 
-                            <p class="mt-2 text-xs leading-5 text-muted">
+                            <p class="mt-2 text-xs leading-5 text-muted" x-show="item.productId">
                                 <span class="font-medium text-ink" x-text="cupDescription(item)"></span>
                                 <span aria-hidden="true"> · </span>
                                 Kelipatan jumlah <span x-text="`${item.orderIncrement} ${item.packagingUnit}`"></span>.

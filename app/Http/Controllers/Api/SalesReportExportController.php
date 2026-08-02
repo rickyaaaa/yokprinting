@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ListSalesReportInvoicesRequest;
 use App\Models\Invoice;
-use Carbon\CarbonImmutable;
+use App\Support\SalesReportPeriodPresets;
 use Illuminate\Http\Response;
 
 class SalesReportExportController extends Controller
@@ -18,7 +18,7 @@ class SalesReportExportController extends Controller
         $filters = $request->validated();
         $rows = $this->rows($filters);
         $csv = $this->csv($rows);
-        $filename = 'laporan-penjualan-'.CarbonImmutable::now()->format('Y-m-d').'.csv';
+        $filename = 'laporan-penjualan-'.SalesReportPeriodPresets::today()->format('Y-m-d').'.csv';
 
         return response($csv, 200, [
             'Content-Type' => 'text/csv; charset=UTF-8',
@@ -32,8 +32,9 @@ class SalesReportExportController extends Controller
      */
     private function rows(array $filters): array
     {
-        $dateFrom = $this->resolveDateFrom($filters['date_from'] ?? null);
-        $dateTo = $this->resolveDateTo($filters['date_to'] ?? null);
+        $range = SalesReportPeriodPresets::resolve($filters['date_from'] ?? null, $filters['date_to'] ?? null);
+        $dateFrom = $range['from'];
+        $dateTo = $range['to'];
         $status = $filters['status'] ?? 'all';
         $category = $filters['category'] ?? null;
         $keyword = $filters['q'] ?? null;
@@ -92,20 +93,6 @@ class SalesReportExportController extends Controller
                 $row['status_label'],
             ])
             ->all();
-    }
-
-    private function resolveDateFrom(?string $date): CarbonImmutable
-    {
-        return $date !== null
-            ? CarbonImmutable::parse($date)->startOfDay()
-            : CarbonImmutable::now()->startOfMonth();
-    }
-
-    private function resolveDateTo(?string $date): CarbonImmutable
-    {
-        return $date !== null
-            ? CarbonImmutable::parse($date)->endOfDay()
-            : CarbonImmutable::now()->endOfDay();
     }
 
     /**

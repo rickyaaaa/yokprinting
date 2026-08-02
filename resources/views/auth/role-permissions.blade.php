@@ -32,6 +32,7 @@
         'product' => ['label' => 'Produk', 'description' => 'Katalog, harga, stok, dan kategori.'],
         'payment' => ['label' => 'Pembayaran', 'description' => 'Piutang, penerimaan, dan status lunas.'],
         'report' => ['label' => 'Laporan', 'description' => 'Analitik penjualan dan export.'],
+        'expense' => ['label' => 'Pengeluaran', 'description' => 'Transaksi biaya, bukti pembayaran, dan audit.'],
         'setting' => ['label' => 'Pengaturan', 'description' => 'Profil usaha, tema, dan default invoice.'],
         'role' => ['label' => 'Role', 'description' => 'Peran, user, dan permission.'],
     ];

@@ -60,7 +60,7 @@
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Kelola katalog produk cetak, harga beli, stok, dan performa transaksi. Harga jual diatur langsung di item invoice.</p>
                         </div>
                         <div class="flex flex-wrap gap-2">
-                            <button type="button" class="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
+                            <button type="button" class="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800" @click="$dispatch('open-product-bulk-stock')">
                                 Bulk edit stok
                             </button>
                             <a href="{{ route('products.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800">
@@ -86,7 +86,12 @@
                         @endforeach
                     </section>
 
-                    <section class="mt-6 rounded-xl bg-white border border-line" aria-labelledby="products-heading" x-data='productIndexTable(@json($products))'>
+                    <section
+                        class="mt-6 rounded-xl bg-white border border-line"
+                        aria-labelledby="products-heading"
+                        x-data='productIndexTable(@json($products))'
+                        @open-product-bulk-stock.window="openBulkStockEditor()"
+                    >
                         <div class="flex flex-col gap-4 border-b border-line px-5 py-4 sm:px-6 xl:flex-row xl:items-center xl:justify-between">
                             <div>
                                 <h2 id="products-heading" class="font-semibold text-ink">Tabel produk</h2>
@@ -185,6 +190,57 @@
                         <div class="flex flex-col gap-3 border-t border-line px-5 py-4 text-sm text-muted sm:flex-row sm:items-center sm:justify-between sm:px-6">
                             <span><strong class="font-semibold text-ink" x-text="filteredProducts.length"></strong> produk tampil dari <strong class="font-semibold text-ink" x-text="products.length"></strong> data.</span>
                             <span>Nilai persediaan tampil: <strong class="font-semibold text-ink" x-text="visibleCatalogValueFormatted"></strong></span>
+                        </div>
+
+                        <div
+                            x-show="bulkEditorOpen"
+                            x-cloak
+                            class="fixed inset-0 z-50 grid place-items-center bg-ink/45 p-4"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="bulk-stock-heading"
+                            @keydown.escape.window="closeBulkStockEditor()"
+                        >
+                            <div class="w-full max-w-lg rounded-xl border border-line bg-white shadow-xl">
+                                <div class="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
+                                    <div>
+                                        <h3 id="bulk-stock-heading" class="font-semibold text-ink">Bulk edit stok produk</h3>
+                                        <p class="mt-1 text-sm text-muted">Terapkan perubahan ke produk yang sedang tampil dari filter saat ini.</p>
+                                    </div>
+                                    <button type="button" class="rounded-lg p-2 text-muted hover:bg-canvas hover:text-ink" @click="closeBulkStockEditor()" aria-label="Tutup bulk edit stok">
+                                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <path d="M6 18L18 6M6 6l12 12" stroke-linecap="round"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="space-y-4 px-5 py-5">
+                                    <label class="block">
+                                        <span class="text-sm font-medium text-ink">Field yang diubah</span>
+                                        <select class="form-control mt-1.5" x-model="bulkStockMode">
+                                            <option value="stock">Stok fisik</option>
+                                            <option value="minimum_stock">Minimum stok</option>
+                                        </select>
+                                    </label>
+                                    <label class="block">
+                                        <span class="text-sm font-medium text-ink">Nilai baru</span>
+                                        <input type="number" min="0" class="form-control mt-1.5" x-model.number="bulkStockValue">
+                                    </label>
+                                    <div class="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-900">
+                                        <p class="font-semibold" x-text="`${filteredProducts.length} produk akan diperbarui.`"></p>
+                                        <p class="mt-1 text-xs leading-5">Kalau hanya mau sebagian, filter/search tabel dulu baru jalankan bulk edit.</p>
+                                    </div>
+                                    <p x-show="bulkStockError" x-text="bulkStockError" class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"></p>
+                                    <p x-show="bulkStockSuccess" x-text="bulkStockSuccess" class="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800"></p>
+                                </div>
+                                <div class="flex flex-col-reverse gap-2 border-t border-line bg-canvas px-5 py-4 sm:flex-row sm:justify-end">
+                                    <button type="button" class="rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-ink hover:bg-brand-50" @click="closeBulkStockEditor()" :disabled="bulkSaving">
+                                        Batal
+                                    </button>
+                                    <button type="button" class="rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-wait disabled:opacity-70" @click="applyBulkStock()" :disabled="bulkSaving || filteredProducts.length === 0">
+                                        <span x-text="bulkSaving ? 'Menyimpan...' : 'Terapkan perubahan'"></span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </section>
                 </main>

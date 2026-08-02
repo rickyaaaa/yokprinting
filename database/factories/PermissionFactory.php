@@ -24,6 +24,7 @@ class PermissionFactory extends Factory
             Permission::MODULE_PRODUCT,
             Permission::MODULE_PAYMENT,
             Permission::MODULE_REPORT,
+            Permission::MODULE_EXPENSE,
             Permission::MODULE_SETTING,
             Permission::MODULE_ROLE,
         ]);

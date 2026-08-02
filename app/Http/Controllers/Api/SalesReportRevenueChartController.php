@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\SalesReportRevenueChartRequest;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Support\SalesReportPeriodPresets;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
 
@@ -18,7 +20,8 @@ class SalesReportRevenueChartController extends Controller
     public function __invoke(SalesReportRevenueChartRequest $request): JsonResponse
     {
         $period = $request->validated('period', 'monthly');
-        $buckets = $this->buckets($period);
+        $today = SalesReportPeriodPresets::today();
+        $buckets = $this->buckets($period, $today);
         $dateFrom = $buckets->first()['from'];
         $dateTo = $buckets->last()['to'];
         $invoices = Invoice::query()
@@ -27,7 +30,8 @@ class SalesReportRevenueChartController extends Controller
                     ->where('status', Payment::STATUS_VERIFIED),
             ], 'amount')
             ->where('status', '!=', Invoice::STATUS_CANCELLED)
-            ->whereBetween('issue_date', [$dateFrom->toDateString(), $dateTo->toDateString()])
+            ->where('issue_date', '>=', $dateFrom->toDateString())
+            ->where('issue_date', '<', $dateTo->addDay()->toDateString())
             ->get();
 
         $revenue = [];
@@ -52,7 +56,9 @@ class SalesReportRevenueChartController extends Controller
             'status' => 'success',
             'data' => [
                 'period' => $period,
-                'label' => $this->periodLabel($period),
+                'label' => $this->periodLabel($period, $today),
+                'date_from' => $dateFrom->toDateString(),
+                'date_to' => $dateTo->toDateString(),
                 'target_source' => 'computed_110_percent_of_revenue',
                 'labels' => $buckets->pluck('label')->all(),
                 'revenue' => $revenue,
@@ -90,23 +96,59 @@ class SalesReportRevenueChartController extends Controller
     /**
      * @return Collection<int, array{label: string, from: CarbonImmutable, to: CarbonImmutable}>
      */
-    private function buckets(string $period): Collection
+    private function buckets(string $period, CarbonImmutable $today): Collection
     {
         return match ($period) {
-            'quarterly' => $this->quarterlyBuckets(),
-            'yearly' => $this->yearlyBuckets(),
-            default => $this->monthlyBuckets(),
+            'weekly' => $this->weeklyBuckets($today),
+            'yearly' => $this->yearlyBuckets($today),
+            default => $this->monthlyBuckets($today),
         };
     }
 
     /**
      * @return Collection<int, array{label: string, from: CarbonImmutable, to: CarbonImmutable}>
      */
-    private function monthlyBuckets(): Collection
+    private function weeklyBuckets(CarbonImmutable $today): Collection
     {
-        $start = CarbonImmutable::now()->startOfMonth()->subMonths(5);
+        $start = $today->startOfWeek(CarbonInterface::MONDAY);
 
-        return collect(range(0, 5))->map(function (int $offset) use ($start): array {
+        return collect(range(0, 6))->map(function (int $offset) use ($start): array {
+            $day = $start->addDays($offset);
+
+            return [
+                'label' => $this->dayLabel($day),
+                'from' => $day->startOfDay(),
+                'to' => $day->endOfDay(),
+            ];
+        });
+    }
+
+    /**
+     * @return Collection<int, array{label: string, from: CarbonImmutable, to: CarbonImmutable}>
+     */
+    private function monthlyBuckets(CarbonImmutable $today): Collection
+    {
+        $start = $today->startOfMonth();
+
+        return collect(range(0, $today->daysInMonth - 1))->map(function (int $offset) use ($start): array {
+            $day = $start->addDays($offset);
+
+            return [
+                'label' => (string) $day->day,
+                'from' => $day->startOfDay(),
+                'to' => $day->endOfDay(),
+            ];
+        });
+    }
+
+    /**
+     * @return Collection<int, array{label: string, from: CarbonImmutable, to: CarbonImmutable}
+     */
+    private function yearlyBuckets(CarbonImmutable $today): Collection
+    {
+        $start = $today->startOfYear();
+
+        return collect(range(0, 11))->map(function (int $offset) use ($start): array {
             $month = $start->addMonths($offset);
 
             return [
@@ -117,54 +159,35 @@ class SalesReportRevenueChartController extends Controller
         });
     }
 
-    /**
-     * @return Collection<int, array{label: string, from: CarbonImmutable, to: CarbonImmutable}>
-     */
-    private function quarterlyBuckets(): Collection
-    {
-        $start = CarbonImmutable::now()->firstOfQuarter()->subQuarters(3);
-
-        return collect(range(0, 3))->map(function (int $offset) use ($start): array {
-            $quarter = $start->addQuarters($offset);
-
-            return [
-                'label' => 'Q'.$quarter->quarter.' '.$quarter->year,
-                'from' => $quarter->firstOfQuarter(),
-                'to' => $quarter->lastOfQuarter(),
-            ];
-        });
-    }
-
-    /**
-     * @return Collection<int, array{label: string, from: CarbonImmutable, to: CarbonImmutable}
-     */
-    private function yearlyBuckets(): Collection
-    {
-        $start = CarbonImmutable::now()->startOfYear()->subYears(2);
-
-        return collect(range(0, 2))->map(function (int $offset) use ($start): array {
-            $year = $start->addYears($offset);
-
-            return [
-                'label' => (string) $year->year,
-                'from' => $year->startOfYear(),
-                'to' => $year->endOfYear(),
-            ];
-        });
-    }
-
     private function invoiceBelongsToBucket(Invoice $invoice, CarbonImmutable $from, CarbonImmutable $to): bool
     {
-        return $invoice->issue_date->betweenIncluded($from, $to);
+        return CarbonImmutable::parse($invoice->issue_date)->betweenIncluded($from, $to);
     }
 
-    private function periodLabel(string $period): string
+    private function periodLabel(string $period, CarbonImmutable $today): string
     {
+        $presets = SalesReportPeriodPresets::forDate($today);
+
         return match ($period) {
-            'quarterly' => '4 kuartal terakhir',
-            'yearly' => '3 tahun terakhir',
-            default => '6 bulan terakhir',
+            'weekly' => sprintf('%s - %s', $presets['weekly']['date_from'], $presets['weekly']['date_to']),
+            'yearly' => (string) $today->year,
+            default => $this->monthLabel($today).' '.$today->year,
         };
+    }
+
+    private function dayLabel(CarbonImmutable $date): string
+    {
+        $days = [
+            0 => 'Min',
+            1 => 'Sen',
+            2 => 'Sel',
+            3 => 'Rab',
+            4 => 'Kam',
+            5 => 'Jum',
+            6 => 'Sab',
+        ];
+
+        return $days[$date->dayOfWeek];
     }
 
     private function monthLabel(CarbonImmutable $date): string

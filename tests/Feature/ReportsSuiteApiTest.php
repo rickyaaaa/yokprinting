@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\StockMovement;
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -115,6 +116,8 @@ class ReportsSuiteApiTest extends TestCase
 
     public function test_report_exports_download_excel_compatible_csv_files(): void
     {
+        $this->actingAs(User::factory()->create());
+
         $customer = Customer::query()->create(['code' => 'CUS-003', 'name' => 'PT Bumi Lestari']);
         Invoice::query()->create([
             'customer_id' => $customer->id,

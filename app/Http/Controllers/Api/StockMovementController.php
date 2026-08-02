@@ -51,7 +51,7 @@ class StockMovementController extends Controller
                     'sku' => $movement->product->sku,
                     'name' => $movement->product->name,
                     'stock' => (float) $movement->product->stock,
-                    'minimum_stock' => (float) $movement->product->minimum_stock,
+                    'minimum_stock' => $movement->product->minimumStockValue(),
                 ],
                 'warning' => $this->warning($movement->product),
             ],
@@ -64,7 +64,7 @@ class StockMovementController extends Controller
     private function warning(Product $product): ?array
     {
         $stock = (float) ($product->stock ?? 0);
-        $minimumStock = (float) ($product->minimum_stock ?? 0);
+        $minimumStock = $product->minimumStockValue();
 
         if ($stock > $minimumStock && $stock >= 0) {
             return null;

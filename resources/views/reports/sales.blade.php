@@ -1,24 +1,6 @@
 @php
-    $summaryCards = [
-        ['label' => 'Total penjualan', 'value' => 'Rp312.400.000', 'caption' => '+21% dari Juni', 'tone' => 'success'],
-        ['label' => 'Invoice terbit', 'value' => '48', 'caption' => '42 sudah dikirim', 'tone' => 'brand'],
-        ['label' => 'Rata-rata invoice', 'value' => 'Rp6.508.000', 'caption' => 'Per transaksi', 'tone' => 'brand'],
-        ['label' => 'Outstanding', 'value' => 'Rp74.850.000', 'caption' => 'Perlu follow-up', 'tone' => 'warning'],
-    ];
-
-    $salesRows = [
-        ['customer' => 'PT Sinar Nusantara', 'product' => 'Brand refresh + katalog', 'category' => 'Jasa desain', 'invoice' => 'INV-2026-0084', 'date' => '23 Jul 2026', 'rawDate' => '2026-07-23', 'amount' => 'Rp18.450.000', 'rawAmount' => 18450000, 'margin' => '34%', 'status' => 'Menunggu'],
-        ['customer' => 'CV Lautan Rasa', 'product' => 'Packaging dan materi promosi', 'category' => 'Materi promosi', 'invoice' => 'INV-2026-0082', 'date' => '20 Jul 2026', 'rawDate' => '2026-07-20', 'amount' => 'Rp12.750.000', 'rawAmount' => 12750000, 'margin' => '29%', 'status' => 'Lunas'],
-        ['customer' => 'PT Cakra Media', 'product' => 'Cetak katalog premium', 'category' => 'Cetak premium', 'invoice' => 'INV-2026-0076', 'date' => '08 Jul 2026', 'rawDate' => '2026-07-08', 'amount' => 'Rp14.800.000', 'rawAmount' => 14800000, 'margin' => '31%', 'status' => 'Parsial'],
-        ['customer' => 'PT Bumi Lestari', 'product' => 'Company profile', 'category' => 'Jasa desain', 'invoice' => 'INV-2026-0078', 'date' => '10 Jul 2026', 'rawDate' => '2026-07-10', 'amount' => 'Rp5.600.000', 'rawAmount' => 5600000, 'margin' => '24%', 'status' => 'Overdue'],
-        ['customer' => 'UD Sumber Makmur', 'product' => 'Flyer promosi bulanan', 'category' => 'Materi promosi', 'invoice' => 'INV-2026-0072', 'date' => '02 Jul 2026', 'rawDate' => '2026-07-02', 'amount' => 'Rp7.900.000', 'rawAmount' => 7900000, 'margin' => '27%', 'status' => 'Overdue'],
-    ];
-
-    $productMix = [
-        ['label' => 'Jasa desain', 'value' => '42%', 'class' => 'bg-brand-600'],
-        ['label' => 'Cetak premium', 'value' => '36%', 'class' => 'bg-accent'],
-        ['label' => 'Materi promosi', 'value' => '22%', 'class' => 'bg-yellow-500'],
-    ];
+    $periodPresets = \App\Support\SalesReportPeriodPresets::current();
+    $reportToday = \App\Support\SalesReportPeriodPresets::today();
 @endphp
 
 <!DOCTYPE html>
@@ -49,7 +31,7 @@
 
             <x-app-sidebar />
 
-            <div class="min-w-0 flex-1" x-data="salesReportTable(@json($salesRows))">
+            <div class="min-w-0 flex-1" x-data='salesReportTable(@json($periodPresets))'>
                 <header class="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
                     <button
                         type="button"
@@ -78,7 +60,7 @@
                             <span class="absolute right-1.5 top-1.5 size-2 rounded-full bg-red-500 ring-2 ring-white"></span>
                         </button>
                         <span class="hidden h-6 w-px bg-line sm:block"></span>
-                        <span class="hidden text-sm text-muted sm:inline">Kamis, 23 Juli 2026</span>
+                        <span class="hidden text-sm text-muted sm:inline">{{ $reportToday->translatedFormat('l, d F Y') }}</span>
                     </div>
                 </header>
 
@@ -94,13 +76,14 @@
                         <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                             <select
                                 class="form-control text-sm font-semibold text-ink sm:w-44"
-                                :value="periodPreset"
+                                x-model="periodPreset"
                                 @change="selectPeriod($event.target.value)"
                                 aria-label="Pilih periode laporan"
                             >
-                                <template x-for="option in periodOptions" :key="option.key">
-                                    <option :value="option.key" x-text="option.label"></option>
-                                </template>
+                                <option value="weekly">Mingguan</option>
+                                <option value="monthly">Bulanan</option>
+                                <option value="yearly">Tahunan</option>
+                                <option value="custom">Rentang kustom...</option>
                             </select>
                             <button
                                 type="button"
@@ -111,7 +94,7 @@
                                 <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                                     <path d="M4 20h16M8 16V8M12 16V4M16 16v-5" stroke-linecap="round"/>
                                 </svg>
-                                <span x-text="exporting ? 'Mengunduh...' : 'Export Excel'"></span>
+                                <span x-text="exporting ? 'Mengunduh...' : 'Export Excel'">Export Excel</span>
                             </button>
                         </div>
                     </div>
@@ -130,30 +113,25 @@
                     <div x-show="showCustomDate" x-cloak class="mb-6 flex flex-col gap-4 rounded-xl border border-line bg-white p-4 shadow-sm sm:flex-row sm:items-center">
                         <div class="flex flex-col gap-2 text-sm text-muted sm:flex-row sm:items-center">
                             <span>Dari:</span>
-                            <input type="date" class="form-control text-xs sm:w-40" x-model="startDate">
+                            <input type="date" class="form-control text-xs sm:w-40" x-model="startDate" @change="loadReport()">
                         </div>
                         <div class="flex flex-col gap-2 text-sm text-muted sm:flex-row sm:items-center">
                             <span>Sampai:</span>
-                            <input type="date" class="form-control text-xs sm:w-40" x-model="endDate">
+                            <input type="date" class="form-control text-xs sm:w-40" x-model="endDate" @change="loadReport()">
                         </div>
                     </div>
 
                     <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="Ringkasan laporan penjualan">
-                        @foreach ($summaryCards as $card)
-                            @php
-                                $toneClass = match ($card['tone']) {
-                                    'success' => 'bg-green-100 text-green-800',
-                                    'warning' => 'bg-yellow-100 text-yellow-900',
-                                    default => 'bg-brand-100 text-brand-800',
-                                };
-                            @endphp
+                        <template x-for="card in summaryCards" :key="card.key">
                             <article class="rounded-xl bg-white p-5 border border-line">
-                                <p class="text-sm font-medium text-muted">{{ $card['label'] }}</p>
-                                <p class="mt-3 text-2xl font-semibold tracking-[-0.025em] text-ink">{{ $card['value'] }}</p>
-                                <span class="mt-5 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $toneClass }}">{{ $card['caption'] }}</span>
+                                <p class="text-sm font-medium text-muted" x-text="card.label"></p>
+                                <p class="mt-3 text-2xl font-semibold tracking-[-0.025em] text-ink" x-text="card.value_formatted"></p>
+                                <span class="mt-5 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold" :class="summaryToneClass(card.tone)" x-text="card.caption"></span>
                             </article>
-                        @endforeach
+                        </template>
                     </section>
+
+                    <p x-show="loadError" x-cloak class="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" x-text="loadError"></p>
 
                     <section class="mt-6 rounded-xl bg-white p-4 border border-line sm:p-6" x-data="salesReportChart" aria-labelledby="sales-chart-heading">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -176,6 +154,7 @@
                         <div class="mt-5 h-64 w-full sm:h-72 lg:h-80">
                             <canvas x-ref="salesChart" aria-label="Grafik tren pendapatan dan target penjualan"></canvas>
                         </div>
+                        <p x-show="loadError" x-cloak class="mt-3 text-sm text-red-700" x-text="loadError"></p>
                     </section>
 
                     <div class="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
@@ -276,17 +255,17 @@
                                 <h2 id="product-mix-heading" class="font-semibold text-ink">Komposisi produk</h2>
                                 <p class="mt-1 text-sm text-muted">Kontribusi penjualan per kategori.</p>
                                 <div class="mt-5 space-y-4">
-                                    @foreach ($productMix as $segment)
+                                    <template x-for="segment in productMix" :key="segment.label">
                                         <div>
                                             <div class="flex items-center justify-between gap-3 text-sm">
-                                                <span class="font-medium text-ink">{{ $segment['label'] }}</span>
-                                                <span class="text-muted">{{ $segment['value'] }}</span>
+                                                <span class="font-medium text-ink" x-text="segment.label"></span>
+                                                <span class="text-muted" x-text="segment.value"></span>
                                             </div>
                                             <div class="mt-2 h-2 rounded-full bg-canvas">
-                                                <div class="h-2 rounded-full {{ $segment['class'] }}" style="width: {{ $segment['value'] }}"></div>
+                                                <div class="h-2 rounded-full" :class="segment.class" :style="`width: ${segment.value}`"></div>
                                             </div>
                                         </div>
-                                    @endforeach
+                                    </template>
                                 </div>
                             </section>
 

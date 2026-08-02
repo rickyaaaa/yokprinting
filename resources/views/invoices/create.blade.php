@@ -84,6 +84,7 @@
                         @input="clearFieldError($event.target.dataset.validationField || $event.target.name)"
                         @change="clearFieldError($event.target.dataset.validationField || $event.target.name)"
                         @customer-selected="clearFieldError('customer_id')"
+                        @invoice-preview-requested="previewDraft($event.detail.url, $event)"
                     >
                         <div
                             x-cloak

@@ -10,7 +10,7 @@
         'unit' => 'Pcs',
         'purchasePrice' => 0,
         'stock' => 0,
-        'minimumStock' => 0,
+        'minimumStock' => 500,
         'minimumOrderQty' => 500,
         'packageConversion' => 500,
         'shortDescription' => '1 Dus = 1.000 Pcs; kelipatan order 500 Pcs',

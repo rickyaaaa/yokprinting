@@ -16,7 +16,7 @@ class ProductLowStockSummaryController extends Controller
         $lowStockProducts = Product::query()
             ->with('categoryModel')
             ->lowStock()
-            ->orderByRaw('(minimum_stock - stock) desc')
+            ->orderByRaw('(COALESCE(minimum_stock, ?) - stock) desc', [Product::DEFAULT_MINIMUM_STOCK])
             ->orderBy('name')
             ->get();
 
@@ -46,8 +46,8 @@ class ProductLowStockSummaryController extends Controller
                     ] : null,
                     'unit' => $product->unit,
                     'stock' => (float) $product->stock,
-                    'minimum_stock' => (float) $product->minimum_stock,
-                    'shortage' => max(0, (float) $product->minimum_stock - (float) $product->stock),
+                    'minimum_stock' => $product->minimumStockValue(),
+                    'shortage' => max(0, $product->minimumStockValue() - (float) $product->stock),
                     'status' => $product->status,
                 ])->values(),
             ],

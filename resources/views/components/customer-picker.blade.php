@@ -13,6 +13,10 @@
     </div>
 
     <input name="customer_id" type="hidden" :value="selected?.id ?? ''">
+    <input name="customer_name" type="hidden" :value="selected?.name ?? ''">
+    <input name="customer_email" type="hidden" :value="selected?.email ?? ''">
+    <input name="customer_phone" type="hidden" :value="selected?.phone ?? ''">
+    <input name="customer_address" type="hidden" :value="selected?.address ?? ''">
 
     <button
         class="form-control flex min-h-16 w-full items-center justify-between gap-4 text-left"

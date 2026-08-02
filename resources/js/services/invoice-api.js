@@ -25,6 +25,7 @@ const mockSaveDraft = (payload) =>
             }
 
             resolve({
+                persisted: false,
                 data: {
                     id: 'draft-demo-0079',
                     invoice_number: payload.invoice_number,
@@ -35,11 +36,7 @@ const mockSaveDraft = (payload) =>
         }, 550);
     });
 
-export async function saveInvoiceDraft(payload) {
-    if (API_MODE !== 'live') {
-        return mockSaveDraft(payload);
-    }
-
+export async function persistInvoiceDraft(payload) {
     const response = await fetch('/api/invoices/drafts', {
         method: 'POST',
         credentials: 'same-origin',
@@ -60,5 +57,16 @@ export async function saveInvoiceDraft(payload) {
         );
     }
 
-    return body;
+    return {
+        ...body,
+        persisted: true,
+    };
+}
+
+export async function saveInvoiceDraft(payload) {
+    if (API_MODE !== 'live') {
+        return mockSaveDraft(payload);
+    }
+
+    return persistInvoiceDraft(payload);
 }

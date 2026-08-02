@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\CustomerOptionController;
 use App\Http\Controllers\Api\CustomerStatementController;
 use App\Http\Controllers\Api\CustomerTransactionHistoryController;
 use App\Http\Controllers\Api\DueInvoiceNotificationController;
+use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\FinancialSummaryController;
 use App\Http\Controllers\Api\GrossProfitReportController;
 use App\Http\Controllers\Api\InvoiceDeliveryController;
@@ -15,7 +16,9 @@ use App\Http\Controllers\Api\InvoiceDraftController;
 use App\Http\Controllers\Api\InvoicePaymentController;
 use App\Http\Controllers\Api\InvoicePaymentDetailController;
 use App\Http\Controllers\Api\InvoicePdfController;
+use App\Http\Controllers\Api\InvoicePreviewPdfController;
 use App\Http\Controllers\Api\PaymentHistoryController;
+use App\Http\Controllers\Api\ProductBulkStockController;
 use App\Http\Controllers\Api\ProductCategoryController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProductLowStockSummaryController;
@@ -108,6 +111,10 @@ Route::get('/products/low-stock-summary', ProductLowStockSummaryController::clas
 Route::get('/products/options', [ProductOptionController::class, 'index'])
     ->name('api.products.options.index');
 
+Route::patch('/products/bulk-stock', ProductBulkStockController::class)
+    ->middleware(['auth', 'permission:product.update'])
+    ->name('api.products.bulk-stock.update');
+
 Route::get('/products/{product}', [ProductController::class, 'show'])
     ->name('api.products.show');
 
@@ -155,6 +162,30 @@ Route::get('/activity-logs', [ActivityLogController::class, 'index'])
     ->middleware(['auth', 'permission:activity_log.view'])
     ->name('api.activity-logs.index');
 
+Route::get('/expenses', [ExpenseController::class, 'index'])
+    ->middleware(['auth', 'permission:expense.view'])
+    ->name('api.expenses.index');
+
+Route::post('/expenses', [ExpenseController::class, 'store'])
+    ->middleware(['auth', 'permission:expense.create'])
+    ->name('api.expenses.store');
+
+Route::get('/expenses/{expense}', [ExpenseController::class, 'show'])
+    ->middleware(['auth', 'permission:expense.view'])
+    ->name('api.expenses.show');
+
+Route::match(['put', 'patch'], '/expenses/{expense}', [ExpenseController::class, 'update'])
+    ->middleware(['auth', 'permission:expense.update'])
+    ->name('api.expenses.update');
+
+Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy'])
+    ->middleware(['auth', 'permission:expense.delete'])
+    ->name('api.expenses.destroy');
+
+Route::get('/expenses/{expense}/proof', [ExpenseController::class, 'downloadProof'])
+    ->middleware(['auth', 'permission:expense.view'])
+    ->name('api.expenses.proof.download');
+
 Route::get('/notifications/due-invoices', [DueInvoiceNotificationController::class, 'index'])
     ->middleware('auth')
     ->name('api.notifications.due-invoices.index');
@@ -166,7 +197,8 @@ Route::post('/stock-movements', [StockMovementController::class, 'store'])
     ->middleware('auth')
     ->name('api.stock-movements.store');
 
-Route::post('/invoices/{invoice:invoice_number}/send', [InvoiceDeliveryController::class, 'send'])
+Route::post('/invoices/{invoice}/send', [InvoiceDeliveryController::class, 'send'])
+    ->middleware(['auth', 'permission:invoice.update'])
     ->name('api.invoices.send');
 
 Route::post('/invoices/{invoice:invoice_number}/payments', [InvoicePaymentController::class, 'store'])
@@ -175,8 +207,13 @@ Route::post('/invoices/{invoice:invoice_number}/payments', [InvoicePaymentContro
 Route::get('/invoices/{invoice:invoice_number}/payment-detail', [InvoicePaymentDetailController::class, 'show'])
     ->name('api.invoices.payment-detail.show');
 
-Route::get('/invoices/{invoice:invoice_number}/pdf', [InvoicePdfController::class, 'download'])
+Route::get('/invoices/{invoice}/pdf', [InvoicePdfController::class, 'download'])
+    ->middleware(['auth', 'permission:invoice.export', 'throttle:invoice-pdf'])
     ->name('api.invoices.pdf.download');
+
+Route::post('/invoices/preview/pdf', InvoicePreviewPdfController::class)
+    ->middleware(['auth', 'permission:invoice.export', 'throttle:invoice-pdf'])
+    ->name('api.invoices.preview.pdf.download');
 
 Route::get('/payments/receivables', [ReceivableController::class, 'index'])
     ->name('api.payments.receivables.index');
@@ -185,15 +222,19 @@ Route::get('/payments/history', [PaymentHistoryController::class, 'index'])
     ->name('api.payments.history.index');
 
 Route::get('/reports/sales/summary', SalesReportSummaryController::class)
+    ->middleware(['auth', 'permission:report.view'])
     ->name('api.reports.sales.summary');
 
 Route::get('/reports/sales/invoices', [SalesReportInvoiceController::class, 'index'])
+    ->middleware(['auth', 'permission:report.view'])
     ->name('api.reports.sales.invoices.index');
 
 Route::get('/reports/sales/revenue-chart', SalesReportRevenueChartController::class)
+    ->middleware(['auth', 'permission:report.view'])
     ->name('api.reports.sales.revenue-chart');
 
 Route::get('/reports/sales/export', SalesReportExportController::class)
+    ->middleware(['auth', 'permission:report.export'])
     ->name('api.reports.sales.export');
 
 Route::get('/reports/gross-profit', [GrossProfitReportController::class, 'index'])

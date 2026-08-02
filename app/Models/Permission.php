@@ -33,6 +33,8 @@ class Permission extends Model
 
     public const MODULE_REPORT = 'report';
 
+    public const MODULE_EXPENSE = 'expense';
+
     public const MODULE_SETTING = 'setting';
 
     public const MODULE_ROLE = 'role';

@@ -26,6 +26,9 @@ class ProductCatalogSeeder extends Seeder
                     'status' => ProductCategory::STATUS_ACTIVE,
                 ],
             );
+            $existingMinimumStock = Product::query()
+                ->where('sku', $code)
+                ->value('minimum_stock');
 
             Product::query()->updateOrCreate(
                 ['sku' => $code],
@@ -44,7 +47,7 @@ class ProductCatalogSeeder extends Seeder
                     'unit' => Product::UNIT_PCS,
                     'purchase_price' => 0,
                     'stock' => 0,
-                    'minimum_stock' => 1000,
+                    'minimum_stock' => $existingMinimumStock ?? 500,
                     'minimum_order_qty' => 500,
                     'package_conversion' => 500,
                     'length_cm' => null,
