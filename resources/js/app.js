@@ -33,8 +33,11 @@ import {
     minimumStockForPayload,
     normalizeMinimumStock,
 } from './support/minimum-stock';
+import { registerExpenseComponents } from './expenses';
 
 window.Alpine = Alpine;
+
+registerExpenseComponents(Alpine);
 
 Chart.register(BarController, BarElement, CategoryScale, Filler, LinearScale, LineController, LineElement, PointElement, Legend, Tooltip);
 

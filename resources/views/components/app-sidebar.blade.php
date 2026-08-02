@@ -14,6 +14,16 @@
         ->map(fn (string $word) => \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($word, 0, 1)))
         ->implode('');
 
+    $currentRole = $currentUser?->role === \App\Models\User::ROLE_OWNER
+        ? null
+        : $currentUser?->roleDefinition()->with('permissions')->first();
+    $canViewExpenses = $currentUser?->isActive() && (
+        $currentUser->role === \App\Models\User::ROLE_OWNER
+        || ($currentRole
+            && $currentRole->status !== \App\Models\Role::STATUS_DISABLED
+            && $currentRole->permissions->contains('code', 'expense.view'))
+    );
+
     $navGroups = [
         [
             'label' => 'Utama',
@@ -22,6 +32,7 @@
                 ['label' => 'Buat Invoice', 'route' => 'invoices.create', 'active' => ['invoices.create'], 'icon' => 'invoice-create'],
                 ['label' => 'Daftar Invoice', 'route' => 'invoices.index', 'active' => ['invoices.index'], 'icon' => 'invoice-list', 'badge' => '24'],
                 ['label' => 'Pembayaran', 'route' => 'payments.receivables.index', 'active' => ['payments.*'], 'icon' => 'payment'],
+                ['label' => 'Pengeluaran', 'route' => 'expenses.index', 'active' => ['expenses.*'], 'icon' => 'expenses', 'visible' => $canViewExpenses],
                 ['label' => 'Peran & akses', 'route' => 'roles.index', 'active' => ['roles.*'], 'icon' => 'roles'],
                 ['label' => 'Log aktivitas', 'route' => 'activity-logs.index', 'active' => ['activity-logs.*'], 'icon' => 'logs'],
             ],
@@ -72,6 +83,7 @@
             <p @class(['px-3 pb-2 text-xs font-semibold uppercase tracking-[0.16em] text-outline', 'mt-7' => ! $loop->first])>{{ $group['label'] }}</p>
             <div class="space-y-1">
                 @foreach ($group['items'] as $item)
+                    @continue(($item['visible'] ?? true) === false)
                     @php
                         $active = $isItemActive($item);
                         $href = isset($item['route']) ? route($item['route']) : $item['url'];
@@ -102,6 +114,10 @@
 
                                 @case('payment')
                                     <path d="M4 7h16v12H4zM7 4h10v3M8 13h8M12 10v6" stroke-linecap="round" stroke-linejoin="round"/>
+                                    @break
+
+                                @case('expenses')
+                                    <path d="M4 7h16v12H4zM7 4h10v3M8 12h8M8 16h5" stroke-linecap="round" stroke-linejoin="round"/>
                                     @break
 
                                 @case('roles')
