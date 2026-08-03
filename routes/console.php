@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\CleanupTemporaryReportFilesJob;
 use App\Jobs\MarkOverdueInvoicesJob;
 use App\Jobs\PurgeExpiredExpensesJob;
 use App\Jobs\RetryExpenseProofCleanupJob;
@@ -41,6 +42,11 @@ Schedule::job(new RetryExpenseProofCleanupJob)
     ->everyFifteenMinutes()
     ->withoutOverlapping()
     ->name('retry-expense-proof-cleanup');
+
+Schedule::job(new CleanupTemporaryReportFilesJob)
+    ->hourly()
+    ->withoutOverlapping()
+    ->name('cleanup-temporary-report-files');
 
 Schedule::job(new PurgeExpiredExpensesJob)
     ->dailyAt('02:30')

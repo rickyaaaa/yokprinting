@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -24,6 +25,9 @@ return new class extends Migration
             $table->unsignedInteger('attempts')->default(0);
             $table->text('last_error')->nullable();
             $table->timestamp('next_attempt_at')->nullable()->index();
+            $table->string('status', 20)->default('pending')->index();
+            $table->uuid('claim_token')->nullable()->unique();
+            $table->timestamp('claimed_at')->nullable()->index();
             $table->timestamps();
 
             $table->unique(['disk', 'path']);
@@ -35,6 +39,14 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (Schema::hasTable('expense_proof_cleanup_tasks')
+            && DB::table('expense_proof_cleanup_tasks')->exists()) {
+            throw new RuntimeException(
+                'Rollback dibatalkan: expense_proof_cleanup_tasks masih memiliki task pending. '
+                .'Selesaikan atau tangani task secara eksplisit sebelum rollback.',
+            );
+        }
+
         Schema::dropIfExists('expense_proof_cleanup_tasks');
 
         Schema::table('expenses', function (Blueprint $table) {

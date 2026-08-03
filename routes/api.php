@@ -209,31 +209,35 @@ Route::get('/reports/sales/revenue-chart', SalesReportRevenueChartController::cl
     ->name('api.reports.sales.revenue-chart');
 
 Route::get('/reports/sales/export', SalesReportExportController::class)
-    ->middleware(['auth', 'permission:report.export'])
+    ->middleware(['auth', 'permission:report.export', 'throttle:report-export'])
     ->name('api.reports.sales.export');
 
 Route::get('/reports/gross-profit', [GrossProfitReportController::class, 'index'])
     ->name('api.reports.gross-profit.index');
 
 Route::get('/reports/gross-profit/export', [GrossProfitReportController::class, 'export'])
+    ->middleware('throttle:report-export')
     ->name('api.reports.gross-profit.export');
 
 Route::get('/reports/outstanding-payments', [ReceivableController::class, 'index'])
     ->name('api.reports.outstanding-payments.index');
 
 Route::get('/reports/outstanding-payments/export', [ReportExportController::class, 'outstandingPayments'])
+    ->middleware('throttle:report-export')
     ->name('api.reports.outstanding-payments.export');
 
 Route::get('/reports/inactive-customers', CustomerActivityAlertController::class)
     ->name('api.reports.inactive-customers.index');
 
 Route::get('/reports/inactive-customers/export', [ReportExportController::class, 'inactiveCustomers'])
+    ->middleware('throttle:report-export')
     ->name('api.reports.inactive-customers.export');
 
 Route::get('/reports/low-stock', ProductLowStockSummaryController::class)
     ->name('api.reports.low-stock.index');
 
 Route::get('/reports/low-stock/export', [ReportExportController::class, 'lowStock'])
+    ->middleware('throttle:report-export')
     ->name('api.reports.low-stock.export');
 
 Route::get('/reports/stock-movements', StockMovementReportController::class)
@@ -243,4 +247,5 @@ Route::get('/reports/stock-mutations', StockMovementReportController::class)
     ->name('api.reports.stock-mutations.index');
 
 Route::get('/reports/stock-mutations/export', [ReportExportController::class, 'stockMutations'])
+    ->middleware('throttle:report-export')
     ->name('api.reports.stock-mutations.export');

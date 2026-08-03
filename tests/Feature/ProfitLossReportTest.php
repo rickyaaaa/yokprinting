@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\CleanupTemporaryReportFilesJob;
 use App\Models\Customer;
 use App\Models\Expense;
 use App\Models\Invoice;
@@ -13,7 +14,9 @@ use App\Services\Reports\ProfitLossReport;
 use App\Services\Reports\TemporaryReportFileCleanup;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Mockery;
 use Tests\TestCase;
 use ZipArchive;
@@ -260,6 +263,11 @@ class ProfitLossReportTest extends TestCase
     public function test_spreadsheet_cleanup_failure_is_logged_without_breaking_export(): void
     {
         Log::spy();
+        $temporaryDirectory = storage_path('framework/testing/report-temporary-'.uniqid());
+        config([
+            'reports.temporary_directory' => $temporaryDirectory,
+            'reports.temporary_file_grace_minutes' => 60,
+        ]);
         $cleanup = new class extends TemporaryReportFileCleanup
         {
             /** @var list<string> */
@@ -272,19 +280,45 @@ class ProfitLossReportTest extends TestCase
                 return false;
             }
         };
-        $file = (new GenerateProfitLossSpreadsheet($cleanup))
-            ->generate(app(ProfitLossReport::class)->build('daily'));
+        try {
+            $file = (new GenerateProfitLossSpreadsheet($cleanup))
+                ->generate(app(ProfitLossReport::class)->build('daily'));
 
-        $this->assertStringStartsWith('PK', $file->contents);
-        $this->assertCount(1, $cleanup->paths);
-        $this->assertFileExists($cleanup->paths[0]);
-        Log::shouldHaveReceived('warning')
-            ->once()
-            ->with('Temporary report file cleanup failed.', Mockery::on(
-                fn (array $context): bool => isset($context['path_hash'], $context['error_type'])
-                    && ! isset($context['path'], $context['contents']),
-            ));
-        $this->assertTrue(unlink($cleanup->paths[0]));
+            $this->assertStringStartsWith('PK', $file->contents);
+            $this->assertCount(1, $cleanup->paths);
+            $this->assertFileExists($cleanup->paths[0]);
+            $this->assertStringStartsWith($temporaryDirectory, $cleanup->paths[0]);
+            Log::shouldHaveReceived('warning')
+                ->once()
+                ->with('Temporary report file cleanup failed.', Mockery::on(
+                    fn (array $context): bool => isset($context['path_hash'], $context['error_type'])
+                        && ! isset($context['path'], $context['contents']),
+                ));
+
+            touch($cleanup->paths[0], now()->subMinutes(61)->getTimestamp());
+            $this->assertSame(1, app(CleanupTemporaryReportFilesJob::class)
+                ->handle(app(TemporaryReportFileCleanup::class)));
+            $this->assertFileDoesNotExist($cleanup->paths[0]);
+        } finally {
+            File::deleteDirectory($temporaryDirectory);
+        }
+    }
+
+    public function test_report_exports_share_rate_limit_and_reset_after_window(): void
+    {
+        config(['reports.export_rate_limit_per_minute' => 2]);
+        $this->actingAs($this->owner);
+        $key = 'report-export:user:'.$this->owner->getAuthIdentifier();
+        RateLimiter::clear($key);
+
+        $this->get(route('api.reports.profit-loss.excel'))->assertOk();
+        $this->get(route('api.reports.profit-loss.pdf'))->assertOk();
+        $this->getJson(route('api.reports.sales.export'))
+            ->assertTooManyRequests()
+            ->assertJsonPath('message', 'Terlalu banyak permintaan export laporan. Silakan coba lagi nanti.');
+
+        CarbonImmutable::setTestNow(now()->addMinute()->addSecond());
+        $this->get(route('api.reports.profit-loss.excel'))->assertOk();
     }
 
     public function test_report_page_and_endpoints_enforce_view_and_export_permissions_separately(): void

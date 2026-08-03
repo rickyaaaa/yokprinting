@@ -13,6 +13,7 @@ use App\Services\Security\ActivityLogger;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
 use RuntimeException;
@@ -215,5 +216,68 @@ class ExpenseLifecycleTest extends TestCase
 
         $this->assertDatabaseCount('expense_proof_cleanup_tasks', 0);
         $this->assertDatabaseHas('activity_logs', ['action' => 'proof_cleanup_succeeded']);
+    }
+
+    public function test_cleanup_task_cannot_be_claimed_by_a_second_worker_until_lease_expires(): void
+    {
+        Storage::fake('expense_proofs');
+        Carbon::setTestNow('2026-08-02 10:00:00');
+        config(['expenses.cleanup_claim_timeout_minutes' => 30]);
+        $task = ExpenseProofCleanupTask::query()->create([
+            'disk' => 'expense_proofs',
+            'path' => 'expense-proofs/claimed.pdf',
+            'reason' => 'proof_replaced',
+            'next_attempt_at' => now(),
+        ]);
+        Storage::disk('expense_proofs')->put($task->path, 'proof');
+        $cleanup = app(ExpenseProofCleanup::class);
+
+        $firstClaim = $cleanup->claim($task->getKey());
+
+        $this->assertNotNull($firstClaim);
+        $this->assertSame(ExpenseProofCleanupTask::STATUS_PROCESSING, $firstClaim->status);
+        $this->assertNull($cleanup->claim($task->getKey()));
+        $this->assertFalse($cleanup->attempt($task));
+        Storage::disk('expense_proofs')->assertExists($task->path);
+        $this->assertDatabaseMissing('activity_logs', ['action' => 'proof_cleanup_succeeded']);
+
+        Carbon::setTestNow(now()->addMinutes(31));
+        $recoveredClaim = $cleanup->claim($task->getKey());
+        $this->assertNotNull($recoveredClaim);
+        $this->assertNotSame($firstClaim->claim_token, $recoveredClaim->claim_token);
+    }
+
+    public function test_cleanup_outbox_migration_rollback_fails_fast_while_tasks_are_pending(): void
+    {
+        ExpenseProofCleanupTask::query()->create([
+            'disk' => 'expense_proofs',
+            'path' => 'expense-proofs/pending.pdf',
+            'reason' => 'retention_purge',
+        ]);
+        $migration = require database_path('migrations/2026_08_02_020000_add_expense_version_and_proof_cleanup_tasks.php');
+
+        try {
+            $migration->down();
+            $this->fail('Rollback should fail while cleanup tasks remain.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('masih memiliki task pending', $exception->getMessage());
+        }
+
+        $this->assertTrue(Schema::hasTable('expense_proof_cleanup_tasks'));
+        $this->assertTrue(Schema::hasColumn('expenses', 'version'));
+    }
+
+    public function test_cleanup_outbox_migration_rolls_back_when_no_tasks_remain(): void
+    {
+        $migration = require database_path('migrations/2026_08_02_020000_add_expense_version_and_proof_cleanup_tasks.php');
+
+        $migration->down();
+
+        $this->assertFalse(Schema::hasTable('expense_proof_cleanup_tasks'));
+        $this->assertFalse(Schema::hasColumn('expenses', 'version'));
+
+        $migration->up();
+        $this->assertTrue(Schema::hasTable('expense_proof_cleanup_tasks'));
+        $this->assertTrue(Schema::hasColumn('expenses', 'version'));
     }
 }

@@ -34,7 +34,7 @@ class ExpensePermissionProvisioningTest extends TestCase
         );
     }
 
-    public function test_migration_up_and_down_preserve_preexisting_permission_and_role_metadata(): void
+    public function test_migration_updates_active_permission_idempotently_and_rollback_preserves_it(): void
     {
         $permission = Permission::query()->where('code', 'expense.view')->firstOrFail();
         $role = Role::factory()->create(['code' => Role::CODE_FINANCE_ADMIN]);
@@ -52,12 +52,14 @@ class ExpensePermissionProvisioningTest extends TestCase
 
         $migration = require database_path('migrations/2026_08_02_010000_provision_expense_permissions.php');
         $migration->up();
+        $migration->up();
         $migration->down();
 
         $this->assertDatabaseHas('permissions', [
             'id' => $permission->getKey(),
             'code' => 'expense.view',
-            'name' => 'Permission Pengeluaran Lama',
+            'name' => 'Lihat Pengeluaran',
+            'deleted_at' => null,
         ]);
         $this->assertDatabaseHas('permission_role', [
             'role_id' => $role->getKey(),
@@ -68,5 +70,32 @@ class ExpensePermissionProvisioningTest extends TestCase
             $createdAt->toDateTimeString(),
             Permission::query()->findOrFail($permission->getKey())->created_at->toDateTimeString(),
         );
+    }
+
+    public function test_migration_restores_soft_deleted_permission_before_assigning_finance_admin(): void
+    {
+        $permission = Permission::query()->where('code', 'expense.update')->firstOrFail();
+        $permission->delete();
+        $role = Role::factory()->create(['code' => Role::CODE_FINANCE_ADMIN]);
+
+        $this->assertFalse($role->permissions()->where('code', 'expense.update')->exists());
+
+        $migration = require database_path('migrations/2026_08_02_010000_provision_expense_permissions.php');
+        $migration->up();
+        $migration->up();
+
+        $restored = Permission::query()->where('code', 'expense.update')->firstOrFail();
+        $this->assertSame($permission->getKey(), $restored->getKey());
+        $this->assertNull($restored->deleted_at);
+        $this->assertSame('Ubah Pengeluaran', $restored->name);
+        $this->assertTrue($role->refresh()->permissions()->whereKey($restored->getKey())->exists());
+        $this->assertSame(4, Permission::query()->where('module', Permission::MODULE_EXPENSE)->count());
+
+        $migration->down();
+        $this->assertDatabaseHas('permissions', [
+            'id' => $restored->getKey(),
+            'code' => 'expense.update',
+            'deleted_at' => null,
+        ]);
     }
 }

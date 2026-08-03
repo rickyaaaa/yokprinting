@@ -106,7 +106,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/api/expenses/{expense}/proof', [ExpenseController::class, 'downloadProof'])
         ->middleware('permission:expense.view')
         ->name('api.expenses.proof.download');
-    Route::view('/reports/sales', 'reports.sales')->name('reports.sales.index');
+    Route::view('/reports/sales', 'reports.sales')
+        ->middleware('permission:report.view')
+        ->name('reports.sales.index');
     Route::get('/reports/profit-loss', ProfitLossReportPageController::class)
         ->middleware('permission:report.view')
         ->name('reports.profit-loss.index');
@@ -114,10 +116,10 @@ Route::middleware('auth')->group(function () {
         ->middleware('permission:report.view')
         ->name('api.reports.profit-loss.show');
     Route::get('/api/reports/profit-loss/pdf', [ProfitLossReportController::class, 'pdf'])
-        ->middleware(['permission:report.export', 'throttle:invoice-pdf'])
+        ->middleware(['permission:report.export', 'throttle:report-export'])
         ->name('api.reports.profit-loss.pdf');
     Route::get('/api/reports/profit-loss/excel', [ProfitLossReportController::class, 'excel'])
-        ->middleware('permission:report.export')
+        ->middleware(['permission:report.export', 'throttle:report-export'])
         ->name('api.reports.profit-loss.excel');
     Route::view('/settings/company-profile', 'settings.company-profile')->name('settings.company-profile.edit');
 });

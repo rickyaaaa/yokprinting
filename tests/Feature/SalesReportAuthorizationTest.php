@@ -14,6 +14,8 @@ class SalesReportAuthorizationTest extends TestCase
 
     public function test_guest_cannot_access_sales_report_data_or_export(): void
     {
+        $this->get(route('reports.sales.index'))->assertRedirect(route('login'));
+
         foreach ($this->viewRoutes() as $routeName) {
             $this->getJson(route($routeName))->assertUnauthorized();
         }
@@ -30,6 +32,7 @@ class SalesReportAuthorizationTest extends TestCase
         }
 
         $this->getJson(route('api.reports.sales.export'))->assertForbidden();
+        $this->get(route('reports.sales.index'))->assertForbidden();
     }
 
     public function test_report_view_and_export_permissions_are_enforced_separately(): void
@@ -39,6 +42,8 @@ class SalesReportAuthorizationTest extends TestCase
         foreach ($this->viewRoutes() as $routeName) {
             $this->getJson(route($routeName))->assertOk();
         }
+
+        $this->get(route('reports.sales.index'))->assertOk();
 
         $this->getJson(route('api.reports.sales.export'))->assertForbidden();
 

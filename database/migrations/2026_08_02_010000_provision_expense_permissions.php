@@ -20,27 +20,36 @@ return new class extends Migration
         ];
 
         foreach ($definitions as $action => [$name, $riskLevel, $sortOrder]) {
-            DB::table('permissions')->insertOrIgnore([
-                [
-                    'code' => "expense.{$action}",
-                    'name' => $name,
-                    'module' => 'expense',
-                    'action' => $action,
-                    'guard_name' => 'web',
-                    'description' => "Izin {$name}.",
-                    'risk_level' => $riskLevel,
-                    'is_system' => true,
-                    'sort_order' => $sortOrder,
-                    'deleted_at' => null,
+            $code = "expense.{$action}";
+            $attributes = [
+                'name' => $name,
+                'module' => 'expense',
+                'action' => $action,
+                'guard_name' => 'web',
+                'description' => "Izin {$name}.",
+                'risk_level' => $riskLevel,
+                'is_system' => true,
+                'sort_order' => $sortOrder,
+                'deleted_at' => null,
+                'updated_at' => $now,
+            ];
+            $permission = DB::table('permissions')->where('code', $code)->first();
+
+            if ($permission) {
+                DB::table('permissions')->where('id', $permission->id)->update($attributes);
+            } else {
+                DB::table('permissions')->insert([
+                    'code' => $code,
+                    ...$attributes,
                     'created_at' => $now,
-                    'updated_at' => $now,
-                ],
-            ]);
+                ]);
+            }
         }
 
         $financeRoleId = DB::table('roles')->where('code', 'finance_admin')->value('id');
         $permissionIds = DB::table('permissions')
             ->whereIn('code', array_map(fn (string $action): string => "expense.{$action}", array_keys($definitions)))
+            ->whereNull('deleted_at')
             ->pluck('id');
 
         if ($financeRoleId) {

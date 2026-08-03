@@ -2,6 +2,8 @@
 
 namespace App\Services\Reports;
 
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 use RuntimeException;
 use ZipArchive;
 
@@ -21,11 +23,9 @@ class GenerateProfitLossSpreadsheet
             throw new RuntimeException('Ekstensi PHP zip diperlukan untuk membuat export Excel.');
         }
 
-        $temporaryPath = tempnam(sys_get_temp_dir(), 'profit-loss-');
-
-        if ($temporaryPath === false) {
-            throw new RuntimeException('File sementara export Excel tidak dapat dibuat.');
-        }
+        $temporaryDirectory = (string) config('reports.temporary_directory');
+        File::ensureDirectoryExists($temporaryDirectory, 0700, true);
+        $temporaryPath = $temporaryDirectory.DIRECTORY_SEPARATOR.'profit-loss-'.Str::uuid().'.tmp';
 
         try {
             $archive = new ZipArchive;
