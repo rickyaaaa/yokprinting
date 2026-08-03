@@ -38,7 +38,7 @@ class ExpenseSessionIntegrationTest extends TestCase
         $loginToken = $this->csrfTokenFrom($this->get(route('login'))->assertOk()->getContent());
         $this->post(route('login.store'), [
             '_token' => $loginToken,
-            'email' => $user->email,
+            'username' => $user->username,
             'password' => 'session-password',
         ])->assertRedirect(route('dashboard'));
 
@@ -60,7 +60,7 @@ class ExpenseSessionIntegrationTest extends TestCase
 
         $this->post(route('login.store'), [
             '_token' => $loginToken,
-            'email' => $user->email,
+            'username' => $user->username,
             'password' => 'session-password',
         ])->assertRedirect(route('dashboard'));
 

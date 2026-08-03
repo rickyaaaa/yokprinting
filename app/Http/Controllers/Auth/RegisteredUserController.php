@@ -21,6 +21,7 @@ class RegisteredUserController extends Controller
 
         $user = User::query()->create([
             'name' => $payload['name'],
+            'username' => $payload['username'],
             'email' => $payload['email'],
             'password' => $payload['password'],
             'company_name' => $payload['company_name'],
@@ -47,6 +48,7 @@ class RegisteredUserController extends Controller
                 'data' => [
                     'id' => $user->getKey(),
                     'name' => $user->name,
+                    'username' => $user->username,
                     'email' => $user->email,
                     'company_name' => $user->company_name,
                     'role' => $user->role,

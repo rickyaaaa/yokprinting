@@ -52,18 +52,20 @@
                                 </svg>
                             </span>
                             <input
-                                type="email"
-                                name="email"
-                                value="{{ old('email') }}"
-                                autocomplete="email"
-                                inputmode="email"
+                                type="text"
+                                name="username"
+                                value="{{ old('username') }}"
+                                autocomplete="username"
                                 required
                                 autofocus
                                 class="form-control pl-10"
                                 placeholder="Masukkan username"
-                                data-testid="login-email-input"
+                                data-testid="login-username-input"
                             >
                         </span>
+                        @error('username')
+                            <span class="mt-1.5 block text-sm text-red-700">{{ $message }}</span>
+                        @enderror
                     </label>
 
                     <label class="block">

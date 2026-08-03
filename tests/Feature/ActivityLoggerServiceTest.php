@@ -52,12 +52,13 @@ class ActivityLoggerServiceTest extends TestCase
     public function test_login_success_and_failure_are_logged(): void
     {
         $user = User::factory()->create([
+            'username' => 'owner',
             'email' => 'owner@example.test',
             'password' => 'secret-password',
         ]);
 
         $this->postJson(route('api.auth.login'), [
-            'email' => 'owner@example.test',
+            'username' => 'owner',
             'password' => 'secret-password',
         ])
             ->assertOk();
@@ -70,7 +71,7 @@ class ActivityLoggerServiceTest extends TestCase
         ]);
 
         $this->postJson(route('api.auth.login'), [
-            'email' => 'owner@example.test',
+            'username' => 'owner',
             'password' => 'wrong-password',
         ])
             ->assertUnprocessable();
@@ -81,6 +82,10 @@ class ActivityLoggerServiceTest extends TestCase
             'action' => 'login_failed',
             'risk_level' => ActivityLog::RISK_HIGH,
         ]);
+
+        $failedLogin = ActivityLog::query()->where('action', 'login_failed')->latest('id')->firstOrFail();
+        $this->assertSame('owner', $failedLogin->metadata['username']);
+        $this->assertArrayNotHasKey('email', $failedLogin->metadata);
     }
 
     public function test_role_management_endpoint_records_activity(): void

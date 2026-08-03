@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -14,6 +15,7 @@ class UserModelTest extends TestCase
     public function test_users_table_contains_business_security_and_session_fields(): void
     {
         foreach ([
+            'username',
             'company_name',
             'role',
             'status',
@@ -35,6 +37,7 @@ class UserModelTest extends TestCase
     {
         $user = User::query()->create([
             'name' => 'Andi Pratama',
+            'username' => 'andi',
             'email' => 'andi@example.test',
             'password' => 'secret-password',
             'company_name' => 'Ruang Karya Digital',
@@ -51,6 +54,7 @@ class UserModelTest extends TestCase
         ]);
 
         $this->assertSame(User::ROLE_FINANCE_ADMIN, $user->role);
+        $this->assertSame('andi', $user->username);
         $this->assertSame(User::STATUS_ACTIVE, $user->status);
         $this->assertTrue($user->isActive());
         $this->assertSame('Finance Manager', $user->job_title);
@@ -66,5 +70,21 @@ class UserModelTest extends TestCase
 
         $this->assertSame(User::STATUS_SUSPENDED, $user->status);
         $this->assertFalse($user->isActive());
+    }
+
+    public function test_username_is_required_by_the_database(): void
+    {
+        $this->expectException(QueryException::class);
+
+        User::factory()->create(['username' => null]);
+    }
+
+    public function test_username_is_unique_in_the_database(): void
+    {
+        User::factory()->create(['username' => 'andi']);
+
+        $this->expectException(QueryException::class);
+
+        User::factory()->create(['username' => 'andi']);
     }
 }

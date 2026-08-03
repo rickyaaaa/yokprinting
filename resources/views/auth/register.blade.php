@@ -63,6 +63,24 @@
                         </div>
 
                         <label class="block">
+                            <span class="text-sm font-medium text-ink">Username</span>
+                            <input
+                                type="text"
+                                name="username"
+                                value="{{ old('username') }}"
+                                autocomplete="username"
+                                required
+                                maxlength="80"
+                                class="form-control mt-1.5"
+                                placeholder="username_admin"
+                                data-testid="register-username-input"
+                            >
+                            @error('username')
+                                <span class="mt-1.5 block text-sm text-red-700">{{ $message }}</span>
+                            @enderror
+                        </label>
+
+                        <label class="block">
                             <span class="text-sm font-medium text-ink">Email kerja</span>
                             <input
                                 type="email"

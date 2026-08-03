@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Http\Requests\RegisterUserRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Validator;
 use Tests\TestCase;
 
 class LoginEndpointTest extends TestCase
@@ -16,6 +18,7 @@ class LoginEndpointTest extends TestCase
     public function test_user_can_login_through_api_endpoint(): void
     {
         $user = User::factory()->create([
+            'username' => 'andi',
             'email' => 'andi@ruangkarya.example',
             'password' => Hash::make('secure-password'),
             'company_name' => 'Ruang Karya Digital',
@@ -23,13 +26,14 @@ class LoginEndpointTest extends TestCase
         ]);
 
         $this->postJson(route('api.auth.login'), [
-            'email' => 'andi@ruangkarya.example',
+            'username' => 'andi',
             'password' => 'secure-password',
             'remember' => true,
         ])
             ->assertOk()
             ->assertJsonPath('status', 'success')
             ->assertJsonPath('data.id', $user->getKey())
+            ->assertJsonPath('data.username', 'andi')
             ->assertJsonPath('data.email', 'andi@ruangkarya.example')
             ->assertJsonPath('data.company_name', 'Ruang Karya Digital')
             ->assertJsonPath('auth.type', 'session')
@@ -41,45 +45,48 @@ class LoginEndpointTest extends TestCase
         $this->assertNotNull($user->last_login_ip);
     }
 
-    public function test_login_api_rejects_invalid_credentials(): void
+    public function test_login_api_rejects_wrong_username(): void
     {
         User::factory()->create([
+            'username' => 'andi',
             'email' => 'andi@ruangkarya.example',
             'password' => Hash::make('secure-password'),
         ]);
 
         $this->postJson(route('api.auth.login'), [
-            'email' => 'andi@ruangkarya.example',
-            'password' => 'wrong-password',
+            'username' => 'username-salah',
+            'password' => 'secure-password',
         ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['email']);
+            ->assertJsonValidationErrors(['username']);
     }
 
     public function test_login_api_rejects_suspended_user(): void
     {
         User::factory()->suspended()->create([
+            'username' => 'andi',
             'email' => 'andi@ruangkarya.example',
             'password' => Hash::make('secure-password'),
         ]);
 
         $this->postJson(route('api.auth.login'), [
-            'email' => 'andi@ruangkarya.example',
+            'username' => 'andi',
             'password' => 'secure-password',
         ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['email']);
+            ->assertJsonValidationErrors(['username']);
     }
 
     public function test_user_can_login_through_web_session_endpoint(): void
     {
         $user = User::factory()->create([
+            'username' => 'andi',
             'email' => 'andi@ruangkarya.example',
             'password' => Hash::make('secure-password'),
         ]);
 
         $this->post(route('login.store'), [
-            'email' => 'andi@ruangkarya.example',
+            'username' => 'andi',
             'password' => 'secure-password',
             'remember' => '1',
         ])
@@ -89,12 +96,51 @@ class LoginEndpointTest extends TestCase
         $this->assertNotNull($user->refresh()->last_login_at);
     }
 
+    public function test_email_cannot_be_used_as_login_identifier(): void
+    {
+        User::factory()->create([
+            'username' => 'andi',
+            'email' => 'andi@ruangkarya.example',
+            'password' => Hash::make('secure-password'),
+        ]);
+
+        $this->postJson(route('api.auth.login'), [
+            'username' => 'andi@ruangkarya.example',
+            'password' => 'secure-password',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['username']);
+
+        $this->assertGuest();
+    }
+
+    public function test_duplicate_username_is_rejected_by_user_validation(): void
+    {
+        User::factory()->create(['username' => 'andi']);
+        $request = new RegisterUserRequest;
+        $validator = Validator::make([
+            'name' => 'Andi Kedua',
+            'username' => 'andi',
+            'company_name' => 'YokPrinting',
+            'email' => 'andi-kedua@example.test',
+            'password' => 'secure-password',
+            'password_confirmation' => 'secure-password',
+            'terms' => true,
+        ], $request->rules());
+
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('username', $validator->errors()->toArray());
+    }
+
     public function test_login_page_uses_fresh_csrf_token_and_disables_browser_cache(): void
     {
         $response = $this->get(route('login'))
             ->assertOk()
             ->assertSee('name="_token"', false)
             ->assertSee('name="csrf-token"', false)
+            ->assertSee('type="text"', false)
+            ->assertSee('name="username"', false)
+            ->assertSee('autocomplete="username"', false)
             ->assertHeader('Pragma', 'no-cache')
             ->assertHeader('Expires', '0');
 

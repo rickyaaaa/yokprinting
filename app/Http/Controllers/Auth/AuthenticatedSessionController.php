@@ -23,14 +23,14 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginUserRequest $request, ActivityLogger $activityLogger): JsonResponse|RedirectResponse
     {
-        $credentials = $request->only('email', 'password');
+        $credentials = $request->only('username', 'password');
         $remember = $request->boolean('remember');
 
         if ($request->expectsJson()) {
             try {
-                $user = $this->validateApiCredentials($credentials['email'], $credentials['password']);
+                $user = $this->validateApiCredentials($credentials['username'], $credentials['password']);
             } catch (ValidationException $exception) {
-                $this->recordFailedLogin($activityLogger, $credentials['email']);
+                $this->recordFailedLogin($activityLogger, $credentials['username']);
 
                 throw $exception;
             }
@@ -43,6 +43,7 @@ class AuthenticatedSessionController extends Controller
                 'data' => [
                     'id' => $user->getKey(),
                     'name' => $user->name,
+                    'username' => $user->username,
                     'email' => $user->email,
                     'company_name' => $user->company_name,
                     'role' => $user->role,
@@ -57,10 +58,10 @@ class AuthenticatedSessionController extends Controller
         }
 
         if (! Auth::attempt($credentials, $remember)) {
-            $this->recordFailedLogin($activityLogger, $credentials['email']);
+            $this->recordFailedLogin($activityLogger, $credentials['username']);
 
             throw ValidationException::withMessages([
-                'email' => __('auth.failed'),
+                'username' => __('auth.failed'),
             ]);
         }
 
@@ -74,13 +75,13 @@ class AuthenticatedSessionController extends Controller
                 action: 'login_blocked',
                 event: 'Inactive user attempted login',
                 description: 'Login ditolak karena akun tidak aktif.',
-                metadata: ['email' => $credentials['email']],
+                metadata: ['username' => $credentials['username']],
                 riskLevel: ActivityLog::RISK_MEDIUM,
                 actor: $user,
             );
 
             throw ValidationException::withMessages([
-                'email' => 'Akun ini belum aktif atau sedang dinonaktifkan.',
+                'username' => 'Akun ini belum aktif atau sedang dinonaktifkan.',
             ]);
         }
 
@@ -131,19 +132,19 @@ class AuthenticatedSessionController extends Controller
      *
      * @throws ValidationException
      */
-    private function validateApiCredentials(string $email, string $password): User
+    private function validateApiCredentials(string $username, string $password): User
     {
-        $user = User::query()->where('email', $email)->first();
+        $user = User::query()->where('username', $username)->first();
 
         if (! $user || ! Hash::check($password, $user->password)) {
             throw ValidationException::withMessages([
-                'email' => __('auth.failed'),
+                'username' => __('auth.failed'),
             ]);
         }
 
         if (! $user->isActive()) {
             throw ValidationException::withMessages([
-                'email' => 'Akun ini belum aktif atau sedang dinonaktifkan.',
+                'username' => 'Akun ini belum aktif atau sedang dinonaktifkan.',
             ]);
         }
 
@@ -179,14 +180,14 @@ class AuthenticatedSessionController extends Controller
     /**
      * Record a failed login attempt without linking a user.
      */
-    private function recordFailedLogin(ActivityLogger $activityLogger, string $email): void
+    private function recordFailedLogin(ActivityLogger $activityLogger, string $username): void
     {
         $activityLogger->record(
             module: 'auth',
             action: 'login_failed',
             event: 'Failed login attempt',
             description: 'Percobaan login gagal.',
-            metadata: ['email' => $email],
+            metadata: ['username' => $username],
             riskLevel: ActivityLog::RISK_HIGH,
         );
     }
