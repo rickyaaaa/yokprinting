@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -31,7 +32,8 @@ class CustomerCrudApiTest extends TestCase
             ->assertJsonPath('data.name', 'PT Mentari Nusantara')
             ->assertJsonPath('data.activity_status', Customer::ACTIVITY_NEVER_ORDERED)
             ->assertJsonPath('data.status', Customer::STATUS_ACTIVE)
-            ->assertJsonPath('data.initials', 'PM');
+            ->assertJsonPath('data.initials', 'PM')
+            ->assertJsonPath('redirect_url', route('customers.index', ['created' => 'CUS-910']));
 
         $customerId = $createResponse->json('data.id');
 
@@ -40,6 +42,28 @@ class CustomerCrudApiTest extends TestCase
             ->assertJsonPath('data.email', 'finance@mentari.example.com')
             ->assertJsonPath('data.city', 'Jakarta Selatan')
             ->assertJsonPath('data.notes', 'PIC finance minta invoice dikirim setiap Senin.');
+    }
+
+    public function test_newly_created_customer_appears_on_customer_index(): void
+    {
+        $response = $this->postJson(route('api.customers.store'), [
+            'name' => 'PT Pelanggan Baru',
+            'email' => 'pelanggan-baru@example.test',
+            'phone' => '081234567890',
+            'address' => 'Jl. Baru No. 1',
+            'city' => 'Tangerang',
+        ])->assertCreated();
+
+        $customerCode = $response->json('data.code');
+
+        $this->actingAs(User::factory()->create())
+            ->get(route('customers.index', ['created' => $customerCode]))
+            ->assertOk()
+            ->assertSee('Pelanggan berhasil ditambahkan.')
+            ->assertSee($customerCode)
+            ->assertSee('PT Pelanggan Baru')
+            ->assertSee('pelanggan-baru@example.test')
+            ->assertSee('Tangerang');
     }
 
     public function test_customer_code_is_generated_when_omitted(): void

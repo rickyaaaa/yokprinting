@@ -48,6 +48,7 @@ class GlobalAuthenticationMiddlewareTest extends TestCase
         $this->actingAs(User::factory()->create())
             ->get('/dashboard')
             ->assertOk()
-            ->assertSee('Workspace setelah login');
+            ->assertSee('Ringkasan keuangan')
+            ->assertDontSee('post-login-home-shell');
     }
 }

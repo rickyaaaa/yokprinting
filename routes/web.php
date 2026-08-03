@@ -1,8 +1,11 @@
 <?php
 
 use App\Http\Controllers\Api\ExpenseController;
+use App\Http\Controllers\Api\InvoiceProductionStatusController;
 use App\Http\Controllers\Api\ProfitLossReportController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\CustomerIndexPageController;
+use App\Http\Controllers\InvoicePaymentPageController;
 use App\Http\Controllers\ProfitLossReportPageController;
 use App\Models\Expense;
 use Illuminate\Http\Request;
@@ -47,7 +50,7 @@ Route::middleware('auth')->group(function () {
     })->name('roles.edit');
     Route::view('/activity-logs', 'auth.activity-logs')->name('activity-logs.index');
     Route::view('/notifications/due-invoices', 'auth.due-invoices')->name('notifications.due-invoices.index');
-    Route::view('/customers', 'customers.index')->name('customers.index');
+    Route::get('/customers', CustomerIndexPageController::class)->name('customers.index');
     Route::view('/customers/create', 'customers.form')->name('customers.create');
     Route::get('/customers/{customer}/edit', function (string $customer) {
         return view('customers.form', ['customerCode' => $customer]);
@@ -65,7 +68,12 @@ Route::middleware('auth')->group(function () {
     Route::view('/invoices/preview', 'invoices.preview')->name('invoices.preview');
     Route::view('/payments/receivables', 'payments.receivables')->name('payments.receivables.index');
     Route::view('/payments/history', 'payments.history')->name('payments.history.index');
-    Route::view('/payments/invoices/{invoice}', 'payments.invoice-detail')->name('payments.invoices.show');
+    Route::get('/payments/invoices/{invoice:invoice_number}', InvoicePaymentPageController::class)
+        ->middleware('permission:invoice.view')
+        ->name('payments.invoices.show');
+    Route::patch('/api/invoices/{invoice:invoice_number}/production-status', [InvoiceProductionStatusController::class, 'update'])
+        ->middleware('permission:invoice.update')
+        ->name('api.invoices.production-status.update');
     Route::view('/expenses', 'expenses.index')
         ->middleware('permission:expense.view')
         ->name('expenses.index');

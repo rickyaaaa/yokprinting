@@ -64,7 +64,7 @@
     </head>
     <body>
         <div class="footer">
-            YokPrinting.ID | {{ $yokPrintingAddress }} | {{ $preview['invoice_number'] }} | Halaman <span class="page-number"></span>
+            YokPrinting.ID | {{ $preview['invoice_number'] }} | Halaman <span class="page-number"></span>
         </div>
 
         <table class="header">

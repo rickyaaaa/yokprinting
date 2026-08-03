@@ -263,10 +263,10 @@ class Invoice extends Model
         return [
             ['key' => self::PRODUCTION_DRAFT, 'label' => 'Drafting'],
             ['key' => self::PRODUCTION_AWAITING_DP, 'label' => 'Menunggu DP'],
-            ['key' => self::PRODUCTION_DESIGN_ACC, 'label' => 'ACC Mockup'],
-            ['key' => self::PRODUCTION_IN_PRODUCTION, 'label' => 'Produksi'],
-            ['key' => self::PRODUCTION_READY_FOR_PICKUP, 'label' => 'Siap Kirim'],
-            ['key' => self::PRODUCTION_COMPLETED, 'label' => 'Selesai'],
+            ['key' => self::PRODUCTION_DESIGN_ACC, 'label' => 'ACC Mockup/Desain'],
+            ['key' => self::PRODUCTION_IN_PRODUCTION, 'label' => 'Proses Sablon/Cetak'],
+            ['key' => self::PRODUCTION_READY_FOR_PICKUP, 'label' => 'Siap Diambil/Kirim'],
+            ['key' => self::PRODUCTION_COMPLETED, 'label' => 'Lunas & Selesai'],
         ];
     }
 }

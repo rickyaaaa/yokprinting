@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Customer;
+use App\Models\Invoice;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
@@ -107,13 +109,10 @@ class ExampleTest extends TestCase
     {
         $this->get('/dashboard')
             ->assertOk()
-            ->assertSee('Workspace setelah login')
-            ->assertSee('Sesi aktif')
-            ->assertSee('Navigasi dasar sudah siap')
-            ->assertSee('Role aktif')
-            ->assertSee('Pemilik usaha')
-            ->assertSee('logout-placeholder-button')
-            ->assertSee(route('logout'))
+            ->assertDontSee('post-login-home-shell')
+            ->assertDontSee('Workspace setelah login')
+            ->assertDontSee('Halo, Andi. Navigasi dasar sudah siap.')
+            ->assertDontSee('logout-placeholder-button')
             ->assertSee(route('roles.index'))
             ->assertSee(route('activity-logs.index'))
             ->assertSee('Ringkasan keuangan')
@@ -287,6 +286,23 @@ class ExampleTest extends TestCase
 
     public function test_customers_index_page_is_available(): void
     {
+        Customer::query()->create([
+            'code' => 'CUS-001',
+            'name' => 'PT Sinar Nusantara',
+            'email' => 'finance@sinarnusantara.co.id',
+            'phone' => '+62 21 555 0198',
+            'address' => 'Jl. Sudirman No. 1',
+            'city' => 'Jakarta Selatan',
+        ]);
+        Customer::query()->create([
+            'code' => 'CUS-002',
+            'name' => 'CV Lautan Rasa',
+            'email' => 'billing@lautanrasa.example',
+            'phone' => '+62 361 700 210',
+            'address' => 'Jl. Pantai No. 2',
+            'city' => 'Denpasar',
+        ]);
+
         $this->get('/customers')
             ->assertOk()
             ->assertSee('Indeks pelanggan')
@@ -295,7 +311,7 @@ class ExampleTest extends TestCase
             ->assertSee('Tabel pelanggan')
             ->assertSee('PT Sinar Nusantara')
             ->assertSee('CV Lautan Rasa')
-            ->assertSee('Rp74.850.000')
+            ->assertSee('Tersimpan di database')
             ->assertSee('Filter status pelanggan')
             ->assertSee('customerIndexTable')
             ->assertSee('resultSummary')
@@ -466,6 +482,24 @@ class ExampleTest extends TestCase
 
     public function test_payment_invoice_detail_page_is_available(): void
     {
+        $customer = Customer::query()->create([
+            'code' => 'CUS-001',
+            'name' => 'PT Sinar Nusantara',
+            'email' => 'finance@sinarnusantara.example',
+        ]);
+        Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-2026-0084',
+            'issue_date' => '2026-07-23',
+            'due_date' => '2026-07-30',
+            'status' => Invoice::STATUS_SENT,
+            'payment_status' => Invoice::PAYMENT_PARTIAL,
+            'production_status' => Invoice::PRODUCTION_DESIGN_ACC,
+            'currency' => 'IDR',
+            'subtotal' => 18450000,
+            'total_amount' => 18450000,
+        ]);
+
         $this->get('/payments/invoices/INV-2026-0084')
             ->assertOk()
             ->assertSee('Detail INV-2026-0084')

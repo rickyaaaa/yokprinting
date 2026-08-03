@@ -66,12 +66,111 @@
     ];
 @endphp
 
+@php
+    $formatRupiah = static fn (float $amount): string => 'Rp'.number_format($amount, 0, ',', '.');
+    $formatDate = static fn ($date): string => $date?->locale('id')->translatedFormat('j F Y') ?? '-';
+    $paidAmount = $invoiceModel->verifiedPaidAmount();
+    $remainingAmount = $invoiceModel->remainingAmount();
+    $totalAmount = (float) $invoiceModel->total_amount;
+    $paymentProgress = $totalAmount > 0
+        ? min(100, round(($paidAmount / $totalAmount) * 100))
+        : 0;
+    $isOverdue = $invoiceModel->due_date?->isPast()
+        && $invoiceModel->payment_status !== \App\Models\Invoice::PAYMENT_PAID;
+    $effectivePaymentStatus = $isOverdue
+        ? \App\Models\Invoice::PAYMENT_OVERDUE
+        : $invoiceModel->payment_status;
+    $paymentStatusLabel = match ($effectivePaymentStatus) {
+        \App\Models\Invoice::PAYMENT_PAID => 'Lunas',
+        \App\Models\Invoice::PAYMENT_PARTIAL => 'Pembayaran parsial',
+        \App\Models\Invoice::PAYMENT_OVERDUE => 'Jatuh tempo',
+        default => 'Menunggu pembayaran',
+    };
+
+    $invoice = [
+        'number' => $invoiceModel->invoice_number,
+        'status' => $paymentStatusLabel,
+        'customer' => $invoiceModel->customer?->name ?? 'Pelanggan tidak tersedia',
+        'email' => $invoiceModel->customer?->email,
+        'phone' => $invoiceModel->customer?->phone,
+        'address' => collect([
+            $invoiceModel->customer?->address,
+            $invoiceModel->customer?->city,
+            $invoiceModel->customer?->province,
+        ])->filter()->implode(', '),
+        'issued_at' => $formatDate($invoiceModel->issue_date),
+        'due_at' => $formatDate($invoiceModel->due_date),
+        'terms' => $invoiceModel->terms ?: '-',
+        'subtotal' => $formatRupiah((float) $invoiceModel->subtotal),
+        'tax' => $formatRupiah((float) $invoiceModel->tax_amount),
+        'discount' => '- '.$formatRupiah((float) $invoiceModel->discount_amount),
+        'total' => $formatRupiah($totalAmount),
+        'paid' => $formatRupiah($paidAmount),
+        'remaining' => $formatRupiah($remainingAmount),
+        'remaining_amount' => $remainingAmount,
+        'progress' => $paymentProgress,
+        'payment_status' => $effectivePaymentStatus,
+        'production_status' => $invoiceModel->productionStatusLabel(),
+        'production_status_key' => $invoiceModel->production_status,
+        'dp_required' => $formatRupiah($invoiceModel->requiredDpAmount()),
+        'design_notes' => $invoiceModel->design_notes ?: 'Belum ada catatan desain.',
+        'mockup_url' => $invoiceModel->mockup_url,
+    ];
+
+    $items = $invoiceModel->items->map(static function ($item) use ($formatRupiah): array {
+        $quantity = rtrim(rtrim(number_format((float) $item->quantity, 4, ',', '.'), '0'), ',');
+
+        return [
+            'name' => $item->product_name,
+            'spec' => $item->description ?: collect([
+                $item->cup_size,
+                $item->cup_model,
+                $item->grammage,
+                $item->screen_printing_color ? "Tinta {$item->screen_printing_color}" : null,
+                $item->jenis_cetak,
+            ])->filter()->implode(' · '),
+            'quantity' => trim("{$quantity} {$item->unit}"),
+            'price' => $formatRupiah((float) $item->unit_price),
+            'total' => $formatRupiah((float) $item->total_amount),
+        ];
+    });
+
+    $productionSteps = \App\Models\Invoice::productionWorkflow();
+    $currentProductionIndex = collect($productionSteps)
+        ->search(fn (array $step): bool => $step['key'] === $invoice['production_status_key']);
+
+    $waMessage = implode("\n", [
+        "Halo {$invoice['customer']},",
+        '',
+        'Berikut invoice dari YokPrinting.ID:',
+        "Invoice: {$invoice['number']}",
+        "Total tagihan: {$invoice['total']}",
+        "DP/pembayaran diterima: {$invoice['paid']}",
+        "Sisa pelunasan: {$invoice['remaining']}",
+        '',
+        'Mohon konfirmasi pembayaran/ACC desain agar produksi bisa kami lanjutkan. Terima kasih.',
+    ]);
+
+    $waNumber = preg_replace('/\D+/', '', $invoice['phone'] ?? '') ?: '';
+    $waNumber = str_starts_with($waNumber, '0') ? '62'.substr($waNumber, 1) : $waNumber;
+    $waLink = $waNumber !== '' ? 'https://wa.me/'.$waNumber.'?text='.rawurlencode($waMessage) : null;
+
+    $payments = $invoiceModel->payments->map(static fn ($payment): array => [
+        'date' => $formatDate($payment->payment_date),
+        'method' => $payment->methodLabel(),
+        'reference' => $payment->reference ?: '-',
+        'amount' => $formatRupiah((float) $payment->amount),
+        'status' => $payment->statusLabel(),
+    ]);
+@endphp
+
 <!DOCTYPE html>
 <html lang="id">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="description" content="Detail invoice dan pembayaran YokPrinting.ID">
+        <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <title>Detail {{ $invoice['number'] }} - YokPrinting.ID</title>
 
@@ -138,13 +237,17 @@
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Pantau rincian tagihan, pembayaran masuk, dan sisa outstanding untuk invoice ini.</p>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
-                            <a href="{{ route('invoices.preview') }}" class="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
+                            <a href="{{ route('api.invoices.pdf.download', ['invoice' => $invoiceModel]) }}" class="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
                                 <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                                     <path d="M7 3h7l4 4v14H7zM14 3v5h4M10 13h5M10 17h3" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
                                 Lihat invoice
                             </a>
-                            <a href="{{ $waLink }}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3.5 py-2 text-sm font-semibold text-green-800 hover:bg-green-100">
+                            <a
+                                href="{{ $waLink ?? '#' }}"
+                                @if ($waLink) target="_blank" rel="noopener" @else aria-disabled="true" @endif
+                                class="inline-flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3.5 py-2 text-sm font-semibold text-green-800 hover:bg-green-100 {{ $waLink ? '' : 'pointer-events-none opacity-50' }}"
+                            >
                                 <svg class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                                     <path d="M12.04 3.5a8.45 8.45 0 0 0-7.3 12.7L3.75 20l3.9-1.02A8.44 8.44 0 1 0 12.04 3.5Zm0 1.45a6.99 6.99 0 0 1 5.92 10.72 6.99 6.99 0 0 1-9.98 1.86l-.28-.17-2.31.61.62-2.25-.18-.29a7 7 0 0 1 6.21-10.48Zm-2.2 3.48c-.15-.34-.31-.35-.46-.36h-.4c-.14 0-.36.05-.55.26-.19.21-.72.7-.72 1.7s.74 1.98.84 2.12c.1.14 1.43 2.29 3.55 3.12 1.76.7 2.12.56 2.5.52.38-.03 1.23-.5 1.4-.99.18-.48.18-.9.13-.99-.05-.09-.19-.14-.4-.24-.2-.1-1.23-.61-1.42-.68-.19-.07-.33-.1-.47.1-.14.21-.54.68-.66.82-.12.14-.24.16-.45.05-.2-.1-.87-.32-1.66-1.02-.61-.55-1.03-1.23-1.15-1.43-.12-.21-.01-.32.09-.42.09-.09.2-.24.31-.36.1-.12.14-.21.2-.35.07-.14.04-.26-.02-.36-.05-.1-.46-1.12-.64-1.52Z"/>
                                 </svg>
@@ -235,45 +338,121 @@
                                 </dl>
                             </section>
 
-                            <section class="rounded-xl bg-white border border-line" aria-labelledby="production-workflow-heading">
+                            <section
+                                class="rounded-xl bg-white border border-line"
+                                aria-labelledby="production-workflow-heading"
+                                x-data="productionStatusForm"
+                                data-current-status="{{ $invoice['production_status_key'] }}"
+                                data-endpoint="{{ route('api.invoices.production-status.update', ['invoice' => $invoiceModel]) }}"
+                                data-production-steps="{{ json_encode($productionSteps, JSON_THROW_ON_ERROR) }}"
+                            >
                                 <div class="border-b border-line px-5 py-4 sm:px-6">
                                     <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                         <div>
                                             <h2 id="production-workflow-heading" class="font-semibold text-ink">Workflow produksi</h2>
                                             <p class="mt-1 text-sm text-muted">Pantau alur dari DP, ACC desain, sablon/cetak, sampai pengiriman.</p>
                                         </div>
-                                        <span class="inline-flex w-fit rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">{{ $invoice['production_status'] }}</span>
+                                        <span
+                                            class="inline-flex w-fit rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800"
+                                            x-text="currentLabel"
+                                        >{{ $invoice['production_status'] }}</span>
                                     </div>
                                 </div>
                                 <div class="p-5 sm:p-6">
                                     <ol class="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
                                         @foreach ($productionSteps as $index => $step)
-                                            @php
-                                                $isDone = $index < $currentProductionIndex;
-                                                $isCurrent = $index === $currentProductionIndex;
-                                                $stepClass = $isCurrent
-                                                    ? 'border-brand-300 bg-brand-50 text-brand-900'
-                                                    : ($isDone ? 'border-green-200 bg-green-50 text-green-900' : 'border-line bg-canvas text-muted');
-                                            @endphp
-                                            <li class="rounded-lg border p-3 {{ $stepClass }}">
-                                                <span class="grid size-7 place-items-center rounded-full {{ $isCurrent ? 'bg-brand-700 text-white' : ($isDone ? 'bg-green-700 text-white' : 'bg-white text-muted') }} text-xs font-bold">
-                                                    {{ $isDone ? '✓' : $index + 1 }}
+                                            <li
+                                                class="rounded-lg border p-3 transition-colors duration-200"
+                                                :class="stepCardClass(@js($step['key']))"
+                                                :aria-current="currentStatus === @js($step['key']) ? 'step' : null"
+                                            >
+                                                <span
+                                                    class="grid size-7 place-items-center rounded-full text-xs font-bold transition-colors duration-200"
+                                                    :class="stepNumberClass(@js($step['key']))"
+                                                    x-text="stepNumber(@js($step['key']), {{ $index + 1 }})"
+                                                >
+                                                    {{ $index < $currentProductionIndex ? '✓' : $index + 1 }}
                                                 </span>
-                                                <p class="mt-3 text-sm font-semibold">{{ $step }}</p>
+                                                <p class="mt-3 text-sm font-semibold">{{ $step['label'] }}</p>
                                             </li>
                                         @endforeach
                                     </ol>
+
+                                    @if ($canUpdateProduction)
+                                        <form class="mt-5 border-t border-line pt-5" @submit.prevent="submit()">
+                                            <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                                                <div class="max-w-xl">
+                                                    <label for="production-status" class="block text-sm font-semibold text-ink">Update status produksi</label>
+                                                    <p class="mt-1 text-xs leading-5 text-muted">Status ini diubah manual sesuai progres pekerjaan. Status pembayaran tetap dihitung otomatis dari nominal yang tercatat.</p>
+                                                </div>
+                                                <div class="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+                                                    <select
+                                                        id="production-status"
+                                                        name="production_status"
+                                                        data-testid="production-status-select"
+                                                        class="form-control min-w-56"
+                                                        x-model="selectedStatus"
+                                                        :disabled="saving"
+                                                        @change="clearNotice()"
+                                                    >
+                                                        @foreach ($productionSteps as $step)
+                                                            <option
+                                                                value="{{ $step['key'] }}"
+                                                                @disabled(
+                                                                    $step['key'] === \App\Models\Invoice::PRODUCTION_COMPLETED
+                                                                    && $invoice['payment_status'] !== \App\Models\Invoice::PAYMENT_PAID
+                                                                )
+                                                            >{{ $step['label'] }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <button
+                                                        type="submit"
+                                                        aria-label="Simpan status produksi"
+                                                        data-testid="production-status-submit"
+                                                        class="inline-flex min-w-32 items-center justify-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                                        :disabled="saving || selectedStatus === currentStatus"
+                                                    >
+                                                        <svg x-show="saving" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                            <path d="M21 12a9 9 0 1 1-2.64-6.36" stroke-linecap="round"/>
+                                                        </svg>
+                                                        <span x-text="saving ? 'Menyimpan...' : 'Simpan status'">Simpan status</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <p
+                                                x-cloak
+                                                x-show="message"
+                                                x-text="message"
+                                                data-testid="production-status-notice"
+                                                class="mt-3 rounded-lg border px-3 py-2 text-sm"
+                                                :class="messageType === 'success' ? 'border-green-200 bg-green-50 text-green-900' : 'border-red-200 bg-red-50 text-red-900'"
+                                                role="status"
+                                            ></p>
+
+                                            @if ($invoice['payment_status'] !== \App\Models\Invoice::PAYMENT_PAID)
+                                                <p class="mt-2 text-xs text-muted">Tahap “Lunas & Selesai” aktif setelah sisa tagihan menjadi Rp0.</p>
+                                            @endif
+                                        </form>
+                                    @endif
 
                                     <div class="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
                                         <div class="rounded-lg border border-line bg-canvas p-4">
                                             <p class="text-xs font-semibold text-muted">Catatan desain / posisi logo</p>
                                             <p class="mt-2 text-sm leading-6 text-ink">{{ $invoice['design_notes'] }}</p>
                                         </div>
-                                        <a href="{{ $invoice['mockup_url'] }}" target="_blank" rel="noopener" class="rounded-lg border border-brand-200 bg-brand-50 p-4 text-sm text-brand-900 hover:bg-brand-100">
-                                            <span class="text-xs font-semibold text-brand-800">Mockup/attachment</span>
-                                            <span class="mt-2 block font-semibold">Buka file mockup</span>
-                                            <span class="mt-1 block break-all text-xs text-brand-800">{{ $invoice['mockup_url'] }}</span>
-                                        </a>
+                                        @if ($invoice['mockup_url'])
+                                            <a href="{{ $invoice['mockup_url'] }}" target="_blank" rel="noopener" class="rounded-lg border border-brand-200 bg-brand-50 p-4 text-sm text-brand-900 hover:bg-brand-100">
+                                                <span class="text-xs font-semibold text-brand-800">Mockup/attachment</span>
+                                                <span class="mt-2 block font-semibold">Buka file mockup</span>
+                                                <span class="mt-1 block break-all text-xs text-brand-800">{{ $invoice['mockup_url'] }}</span>
+                                            </a>
+                                        @else
+                                            <div class="rounded-lg border border-line bg-canvas p-4 text-sm text-muted">
+                                                <span class="text-xs font-semibold">Mockup/attachment</span>
+                                                <span class="mt-2 block">Belum ada file mockup.</span>
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                             </section>
@@ -282,7 +461,7 @@
                                 id="record-payment"
                                 class="rounded-xl bg-white border border-line"
                                 aria-labelledby="record-payment-heading"
-                                x-data="recordPaymentForm"
+                                x-data="recordPaymentForm({ remainingAmount: @js($invoice['remaining_amount']) })"
                             >
                                 <div class="border-b border-line px-5 py-4 sm:px-6">
                                     <h2 id="record-payment-heading" class="font-semibold text-ink">Catat pembayaran</h2>
@@ -314,7 +493,7 @@
                                         data-testid="payment-saved-notice"
                                     >
                                         <p class="font-semibold">Pembayaran tercatat</p>
-                                        <p class="mt-1 leading-5" x-text="`${savedPayment.amount} via ${savedPayment.method} dengan referensi ${savedPayment.reference}.`"></p>
+                                        <p class="mt-1 leading-5" x-text="savedPayment ? `${savedPayment.amount} via ${savedPayment.method} dengan referensi ${savedPayment.reference}.` : ''"></p>
                                     </div>
 
                                     <div class="grid gap-5 md:grid-cols-2">

@@ -20,6 +20,7 @@ class CustomerController extends Controller
         return response()->json([
             'data' => $this->serializeCustomer($customer),
             'message' => 'Customer created successfully.',
+            'redirect_url' => route('customers.index', ['created' => $customer->code]),
         ], 201);
     }
 

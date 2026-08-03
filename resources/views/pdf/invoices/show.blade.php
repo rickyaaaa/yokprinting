@@ -278,7 +278,7 @@
     </head>
     <body>
         <div class="footer">
-            YokPrinting.ID &nbsp;|&nbsp; {{ $yokPrintingAddress }} &nbsp;|&nbsp; {{ $invoice->invoice_number }} &nbsp;|&nbsp; Halaman <span class="page-number"></span>
+            YokPrinting.ID &nbsp;|&nbsp; {{ $invoice->invoice_number }} &nbsp;|&nbsp; Halaman <span class="page-number"></span>
         </div>
 
         <table class="header">

@@ -1,21 +1,3 @@
-@php
-    $summaryCards = [
-        ['label' => 'Total pelanggan', 'value' => '128', 'caption' => '+12 pelanggan bulan ini', 'tone' => 'brand'],
-        ['label' => 'Pelanggan aktif', 'value' => '96', 'caption' => '75% rutin transaksi', 'tone' => 'success'],
-        ['label' => 'Piutang terbuka', 'value' => 'Rp74.850.000', 'caption' => '18 invoice aktif', 'tone' => 'warning'],
-        ['label' => 'Rata-rata transaksi', 'value' => 'Rp6.508.000', 'caption' => 'Per invoice pelanggan', 'tone' => 'brand'],
-    ];
-
-    $customers = [
-        ['code' => 'CUS-001', 'name' => 'PT Sinar Nusantara', 'initials' => 'SN', 'segment' => 'Enterprise', 'email' => 'finance@sinarnusantara.co.id', 'phone' => '+62 21 555 0198', 'city' => 'Jakarta Selatan', 'lastOrder' => '23 Jul 2026', 'lastOrderSort' => 20260723, 'totalSales' => 'Rp42.850.000', 'totalSalesValue' => 42850000, 'outstanding' => 'Rp6.450.000', 'outstandingValue' => 6450000, 'status' => 'Aktif'],
-        ['code' => 'CUS-002', 'name' => 'CV Lautan Rasa', 'initials' => 'LR', 'segment' => 'UMKM', 'email' => 'billing@lautanrasa.example', 'phone' => '+62 361 700 210', 'city' => 'Denpasar', 'lastOrder' => '20 Jul 2026', 'lastOrderSort' => 20260720, 'totalSales' => 'Rp25.500.000', 'totalSalesValue' => 25500000, 'outstanding' => 'Rp12.750.000', 'outstandingValue' => 12750000, 'status' => 'Aktif'],
-        ['code' => 'CUS-003', 'name' => 'PT Bumi Lestari', 'initials' => 'BL', 'segment' => 'Corporate', 'email' => 'finance@bumilestari.example', 'phone' => '+62 22 7788 440', 'city' => 'Bandung', 'lastOrder' => '10 Jul 2026', 'lastOrderSort' => 20260710, 'totalSales' => 'Rp18.600.000', 'totalSalesValue' => 18600000, 'outstanding' => 'Rp5.600.000', 'outstandingValue' => 5600000, 'status' => 'Perlu follow-up'],
-        ['code' => 'CUS-004', 'name' => 'PT Cakra Media', 'initials' => 'CM', 'segment' => 'Enterprise', 'email' => 'ap@cakramedia.example', 'phone' => '+62 31 811 040', 'city' => 'Surabaya', 'lastOrder' => '8 Jul 2026', 'lastOrderSort' => 20260708, 'totalSales' => 'Rp31.300.000', 'totalSalesValue' => 31300000, 'outstanding' => 'Rp10.550.000', 'outstandingValue' => 10550000, 'status' => 'Aktif'],
-        ['code' => 'CUS-005', 'name' => 'UD Sumber Makmur', 'initials' => 'SM', 'segment' => 'Retail', 'email' => 'owner@sumbermakmur.example', 'phone' => '+62 274 889 441', 'city' => 'Yogyakarta', 'lastOrder' => '2 Jul 2026', 'lastOrderSort' => 20260702, 'totalSales' => 'Rp7.900.000', 'totalSalesValue' => 7900000, 'outstanding' => 'Rp7.900.000', 'outstandingValue' => 7900000, 'status' => 'Perlu follow-up'],
-        ['code' => 'CUS-006', 'name' => 'Studio Arunika', 'initials' => 'SA', 'segment' => 'UMKM', 'email' => 'hello@arunika.example', 'phone' => '+62 812 4400 1818', 'city' => 'Makassar', 'lastOrder' => '18 Jun 2026', 'lastOrderSort' => 20260618, 'totalSales' => 'Rp9.250.000', 'totalSalesValue' => 9250000, 'outstanding' => 'Rp0', 'outstandingValue' => 0, 'status' => 'Prospek'],
-    ];
-@endphp
-
 <!DOCTYPE html>
 <html lang="id">
     <head>
@@ -78,6 +60,13 @@
                 </header>
 
                 <main class="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+                    @if (request('created'))
+                        <div class="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900" role="status" data-testid="customer-created-notice">
+                            <p class="font-semibold">Pelanggan berhasil ditambahkan.</p>
+                            <p class="mt-1">{{ request('created') }} sekarang sudah tampil di daftar pelanggan.</p>
+                        </div>
+                    @endif
+
                     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <div class="mb-2 flex flex-wrap items-center gap-2">

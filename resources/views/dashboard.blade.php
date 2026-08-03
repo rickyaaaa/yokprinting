@@ -150,56 +150,6 @@
                         </div>
                     </div>
 
-                    <section class="mb-6 rounded-xl border border-line bg-white p-5" aria-labelledby="post-login-home-heading" data-testid="post-login-home-shell">
-                        <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-center">
-                            <div>
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Workspace setelah login</span>
-                                    <span class="rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-800">Sesi aktif</span>
-                                </div>
-                                <h2 id="post-login-home-heading" class="mt-3 text-lg font-semibold tracking-[-0.015em] text-ink">Halo, Andi. Navigasi dasar sudah siap.</h2>
-                                <p class="mt-1 max-w-3xl text-sm leading-6 text-muted">Akses cepat ke modul utama YokPrinting.ID tersedia dari sidebar dan pintasan berikut. Integrasi session, role, dan logout akan disambungkan pada layer backend keamanan.</p>
-
-                                <nav class="mt-4 flex flex-wrap gap-2" aria-label="Navigasi dasar setelah login">
-                                    <a href="{{ route('dashboard') }}" class="inline-flex items-center rounded-lg bg-brand-700 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-800">Dashboard</a>
-                                    <a href="{{ route('invoices.create') }}" class="inline-flex items-center rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">Buat invoice</a>
-                                    <a href="{{ route('customers.index') }}" class="inline-flex items-center rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">Pelanggan</a>
-                                    <a href="{{ route('products.index') }}" class="inline-flex items-center rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">Produk</a>
-                                    <a href="{{ route('reports.sales.index') }}" class="inline-flex items-center rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">Laporan</a>
-                                    <a href="{{ route('settings.company-profile.edit') }}" class="inline-flex items-center rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">Pengaturan</a>
-                                    <a href="{{ route('roles.index') }}" class="inline-flex items-center rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">Peran & akses</a>
-                                    <a href="{{ route('activity-logs.index') }}" class="inline-flex items-center rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">Log aktivitas</a>
-                                </nav>
-                            </div>
-
-                            <div class="rounded-xl bg-canvas p-4">
-                                <div class="flex items-center gap-3">
-                                    <span class="grid size-11 place-items-center rounded-full bg-brand-700 text-sm font-bold text-white">AP</span>
-                                    <div class="min-w-0">
-                                        <p class="truncate text-sm font-semibold text-ink">Andi Pratama</p>
-                                        <p class="mt-0.5 text-xs text-muted">Owner · Ruang Karya Digital</p>
-                                    </div>
-                                </div>
-                                <dl class="mt-4 grid grid-cols-2 gap-3 text-xs">
-                                    <div>
-                                        <dt class="text-muted">Role aktif</dt>
-                                        <dd class="mt-1 font-semibold text-ink">Pemilik usaha</dd>
-                                    </div>
-                                    <div>
-                                        <dt class="text-muted">Status akses</dt>
-                                        <dd class="mt-1 font-semibold text-green-800">Terverifikasi</dd>
-                                    </div>
-                                </dl>
-                                <form class="mt-4" method="POST" action="{{ route('logout') }}">
-                                    @csrf
-                                    <button type="submit" class="inline-flex w-full items-center justify-center rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800" data-testid="logout-placeholder-button">
-                                        Keluar dari akun
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    </section>
-
                     <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="Ringkasan keuangan utama">
                         @foreach ($summaryCards as $card)
                             @php

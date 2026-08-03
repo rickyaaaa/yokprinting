@@ -722,13 +722,112 @@ Alpine.data('dashboardRecentActivities', () => ({
     },
 }));
 
-Alpine.data('recordPaymentForm', () => ({
-    remainingAmount: 6450000,
+Alpine.data('productionStatusForm', () => ({
+    currentStatus: '',
+    selectedStatus: '',
+    endpoint: '',
+    steps: [],
+    saving: false,
+    message: '',
+    messageType: 'success',
+
+    init() {
+        this.currentStatus = this.$el.dataset.currentStatus;
+        this.selectedStatus = this.currentStatus;
+        this.endpoint = this.$el.dataset.endpoint;
+        this.steps = JSON.parse(this.$el.dataset.productionSteps ?? '[]');
+    },
+
+    get currentIndex() {
+        return this.steps.findIndex((step) => step.key === this.currentStatus);
+    },
+
+    get currentLabel() {
+        return this.steps.find((step) => step.key === this.currentStatus)?.label ?? 'Status tidak dikenal';
+    },
+
+    stepIndex(status) {
+        return this.steps.findIndex((step) => step.key === status);
+    },
+
+    stepCardClass(status) {
+        const index = this.stepIndex(status);
+
+        if (status === this.currentStatus) {
+            return 'border-brand-300 bg-brand-50 text-brand-900';
+        }
+
+        return index < this.currentIndex
+            ? 'border-green-200 bg-green-50 text-green-900'
+            : 'border-line bg-canvas text-muted';
+    },
+
+    stepNumberClass(status) {
+        const index = this.stepIndex(status);
+
+        if (status === this.currentStatus) {
+            return 'bg-brand-700 text-white';
+        }
+
+        return index < this.currentIndex
+            ? 'bg-green-700 text-white'
+            : 'bg-white text-muted';
+    },
+
+    stepNumber(status, number) {
+        return this.stepIndex(status) < this.currentIndex ? '✓' : number;
+    },
+
+    clearNotice() {
+        this.message = '';
+    },
+
+    async submit() {
+        if (this.saving || this.selectedStatus === this.currentStatus) {
+            return;
+        }
+
+        this.saving = true;
+        this.message = '';
+
+        try {
+            const response = await fetch(this.endpoint, {
+                method: 'PATCH',
+                credentials: 'same-origin',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                },
+                body: JSON.stringify({ production_status: this.selectedStatus }),
+            });
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                const validationMessage = Object.values(payload.errors ?? {}).flat()[0];
+                throw new Error(validationMessage ?? payload.message ?? 'Status produksi gagal diperbarui.');
+            }
+
+            this.currentStatus = payload.data.production_status;
+            this.selectedStatus = payload.data.production_status;
+            this.message = payload.message;
+            this.messageType = 'success';
+        } catch (error) {
+            this.message = error instanceof Error ? error.message : 'Status produksi gagal diperbarui.';
+            this.messageType = 'error';
+        } finally {
+            this.saving = false;
+        }
+    },
+}));
+
+Alpine.data('recordPaymentForm', (config = {}) => ({
+    remainingAmount: Number(config.remainingAmount ?? 0),
     saving: false,
     savedPayment: null,
     fieldErrors: {},
     form: {
-        amount: 6450000,
+        amount: '',
         paidAt: new Date().toISOString().slice(0, 10),
         method: 'Transfer BCA',
         reference: 'BCA-77389',
@@ -1890,13 +1989,18 @@ Alpine.data('customerIndexTable', (initialCustomers = []) => ({
         { key: 'Prospek', label: 'Prospek' },
     ],
 
-    segmentOptions: [
-        { key: 'all', label: 'Semua Segmen' },
-        { key: 'Enterprise', label: 'Enterprise' },
-        { key: 'Corporate', label: 'Corporate' },
-        { key: 'UMKM', label: 'UMKM' },
-        { key: 'Retail', label: 'Retail' },
-    ],
+    get segmentOptions() {
+        const segments = [...new Set(
+            this.customers
+                .map((customer) => customer.segment)
+                .filter((segment) => segment && segment !== '-'),
+        )].sort((first, second) => first.localeCompare(second, 'id'));
+
+        return [
+            { key: 'all', label: 'Semua Segmen' },
+            ...segments.map((segment) => ({ key: segment, label: segment })),
+        ];
+    },
 
     get isFiltered() {
         return this.query.trim() !== '' ||
@@ -2134,6 +2238,7 @@ Alpine.data('customerForm', (initialForm = {}, isEditMode = false) => ({
 
             this.form.code = response.data.code;
             this.saved = true;
+            window.location.assign(response.redirect_url ?? '/customers');
         } catch (error) {
             if (error?.errors) {
                 this.applyApiErrors(error.errors);
