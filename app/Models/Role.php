@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class Role extends Model
@@ -101,6 +102,35 @@ class Role extends Model
     }
 
     /**
+     * Replace role permissions while retaining permissions required by system roles.
+     *
+     * @param  array<int|string, int|array<string, mixed>>  $permissions
+     */
+    public function syncPermissions(array $permissions): void
+    {
+        $syncPayload = [];
+
+        foreach ($permissions as $key => $value) {
+            if (is_array($value)) {
+                $syncPayload[(int) $key] = $value;
+            } else {
+                $syncPayload[(int) $value] = [];
+            }
+        }
+
+        if ($this->code === self::CODE_FINANCE_ADMIN) {
+            Permission::query()
+                ->whereIn('code', ['expense.view', 'expense.create', 'expense.update', 'expense.delete'])
+                ->pluck('id')
+                ->each(function (int $permissionId) use (&$syncPayload): void {
+                    $syncPayload[$permissionId] ??= [];
+                });
+        }
+
+        $this->permissions()->sync($syncPayload);
+    }
+
+    /**
      * Scope roles that can be assigned to users.
      */
     public function scopeAssignable(Builder $query): Builder
@@ -117,6 +147,23 @@ class Role extends Model
             if (blank($role->code)) {
                 $role->code = (string) Str::of($role->name)->snake()->lower();
             }
+        });
+
+        static::saved(function (Role $role): void {
+            if ($role->code !== self::CODE_FINANCE_ADMIN) {
+                return;
+            }
+
+            $now = now();
+            Permission::query()
+                ->whereIn('code', ['expense.view', 'expense.create', 'expense.update', 'expense.delete'])
+                ->pluck('id')
+                ->each(function (int $permissionId) use ($role, $now): void {
+                    DB::table('permission_role')->updateOrInsert(
+                        ['role_id' => $role->getKey(), 'permission_id' => $permissionId],
+                        ['constraints' => null, 'created_at' => $now, 'updated_at' => $now],
+                    );
+                });
         });
     }
 }

@@ -34,10 +34,12 @@ import {
     normalizeMinimumStock,
 } from './support/minimum-stock';
 import { registerExpenseComponents } from './expenses';
+import { registerProfitLossComponents } from './profit-loss';
 
 window.Alpine = Alpine;
 
 registerExpenseComponents(Alpine);
+registerProfitLossComponents(Alpine);
 
 Chart.register(BarController, BarElement, CategoryScale, Filler, LinearScale, LineController, LineElement, PointElement, Legend, Tooltip);
 

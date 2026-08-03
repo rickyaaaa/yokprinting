@@ -8,7 +8,6 @@ use App\Http\Controllers\Api\CustomerOptionController;
 use App\Http\Controllers\Api\CustomerStatementController;
 use App\Http\Controllers\Api\CustomerTransactionHistoryController;
 use App\Http\Controllers\Api\DueInvoiceNotificationController;
-use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\FinancialSummaryController;
 use App\Http\Controllers\Api\GrossProfitReportController;
 use App\Http\Controllers\Api\InvoiceDeliveryController;
@@ -162,30 +161,6 @@ Route::get('/activity-logs', [ActivityLogController::class, 'index'])
     ->middleware(['auth', 'permission:activity_log.view'])
     ->name('api.activity-logs.index');
 
-Route::get('/expenses', [ExpenseController::class, 'index'])
-    ->middleware(['auth', 'permission:expense.view'])
-    ->name('api.expenses.index');
-
-Route::post('/expenses', [ExpenseController::class, 'store'])
-    ->middleware(['auth', 'permission:expense.create'])
-    ->name('api.expenses.store');
-
-Route::get('/expenses/{expense}', [ExpenseController::class, 'show'])
-    ->middleware(['auth', 'permission:expense.view'])
-    ->name('api.expenses.show');
-
-Route::match(['put', 'patch'], '/expenses/{expense}', [ExpenseController::class, 'update'])
-    ->middleware(['auth', 'permission:expense.update'])
-    ->name('api.expenses.update');
-
-Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy'])
-    ->middleware(['auth', 'permission:expense.delete'])
-    ->name('api.expenses.destroy');
-
-Route::get('/expenses/{expense}/proof', [ExpenseController::class, 'downloadProof'])
-    ->middleware(['auth', 'permission:expense.view'])
-    ->name('api.expenses.proof.download');
-
 Route::get('/notifications/due-invoices', [DueInvoiceNotificationController::class, 'index'])
     ->middleware('auth')
     ->name('api.notifications.due-invoices.index');
@@ -234,31 +209,35 @@ Route::get('/reports/sales/revenue-chart', SalesReportRevenueChartController::cl
     ->name('api.reports.sales.revenue-chart');
 
 Route::get('/reports/sales/export', SalesReportExportController::class)
-    ->middleware(['auth', 'permission:report.export'])
+    ->middleware(['auth', 'permission:report.export', 'throttle:report-export'])
     ->name('api.reports.sales.export');
 
 Route::get('/reports/gross-profit', [GrossProfitReportController::class, 'index'])
     ->name('api.reports.gross-profit.index');
 
 Route::get('/reports/gross-profit/export', [GrossProfitReportController::class, 'export'])
+    ->middleware('throttle:report-export')
     ->name('api.reports.gross-profit.export');
 
 Route::get('/reports/outstanding-payments', [ReceivableController::class, 'index'])
     ->name('api.reports.outstanding-payments.index');
 
 Route::get('/reports/outstanding-payments/export', [ReportExportController::class, 'outstandingPayments'])
+    ->middleware('throttle:report-export')
     ->name('api.reports.outstanding-payments.export');
 
 Route::get('/reports/inactive-customers', CustomerActivityAlertController::class)
     ->name('api.reports.inactive-customers.index');
 
 Route::get('/reports/inactive-customers/export', [ReportExportController::class, 'inactiveCustomers'])
+    ->middleware('throttle:report-export')
     ->name('api.reports.inactive-customers.export');
 
 Route::get('/reports/low-stock', ProductLowStockSummaryController::class)
     ->name('api.reports.low-stock.index');
 
 Route::get('/reports/low-stock/export', [ReportExportController::class, 'lowStock'])
+    ->middleware('throttle:report-export')
     ->name('api.reports.low-stock.export');
 
 Route::get('/reports/stock-movements', StockMovementReportController::class)
@@ -268,4 +247,5 @@ Route::get('/reports/stock-mutations', StockMovementReportController::class)
     ->name('api.reports.stock-mutations.index');
 
 Route::get('/reports/stock-mutations/export', [ReportExportController::class, 'stockMutations'])
+    ->middleware('throttle:report-export')
     ->name('api.reports.stock-mutations.export');

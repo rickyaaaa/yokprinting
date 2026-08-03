@@ -141,7 +141,7 @@ class RolePermissionSeeder extends Seeder
                 ->pluck('id')
                 ->all();
 
-            $role->permissions()->sync($permissionIds);
+            $role->syncPermissions($permissionIds);
         }
     }
 }

@@ -43,7 +43,7 @@ class RoleCrudApiTest extends TestCase
             'sort_order' => 90,
         ]);
 
-        $this->getJson(route('api.roles.index', [
+        $response = $this->getJson(route('api.roles.index', [
             'search' => 'finance',
             'status' => Role::STATUS_ACTIVE,
             'sort' => 'sort_order',
@@ -53,8 +53,10 @@ class RoleCrudApiTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.code', Role::CODE_FINANCE_ADMIN)
             ->assertJsonPath('data.0.users_count', 1)
-            ->assertJsonPath('data.0.permissions.0.code', 'invoice.view')
             ->assertJsonPath('meta.filters.status', Role::STATUS_ACTIVE);
+
+        $this->assertContains('invoice.view', collect($response->json('data.0.permissions'))->pluck('code')->all());
+        $this->assertContains('expense.view', collect($response->json('data.0.permissions'))->pluck('code')->all());
     }
 
     public function test_role_can_be_created_shown_updated_and_soft_deleted(): void

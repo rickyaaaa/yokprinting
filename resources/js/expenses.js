@@ -26,6 +26,16 @@ const firstValidationMessages = (errors = {}) => Object.fromEntries(
     ]),
 );
 
+export const csrfRequestHeaders = (token, headers = {}) => ({
+    Accept: 'application/json',
+    ...(token ? { 'X-CSRF-TOKEN': token } : {}),
+    ...headers,
+});
+
+const currentCsrfToken = () => document
+    .querySelector('meta[name="csrf-token"]')
+    ?.getAttribute('content') ?? '';
+
 export const registerExpenseComponents = (Alpine) => {
     Alpine.data('expenseIndexPage', (config) => ({
         config,
@@ -124,7 +134,7 @@ export const registerExpenseComponents = (Alpine) => {
                 const response = await fetch(`/api/expenses/${expense.id}`, {
                     method: 'DELETE',
                     credentials: 'same-origin',
-                    headers: { Accept: 'application/json' },
+                    headers: csrfRequestHeaders(currentCsrfToken()),
                 });
                 const payload = await parseJsonResponse(response);
 
@@ -175,6 +185,7 @@ export const registerExpenseComponents = (Alpine) => {
         proofFile: null,
         currentProofName: '',
         currentProofUrl: '',
+        version: null,
         form: {
             expense_date: config.defaultExpenseDate,
             category: '',
@@ -218,6 +229,7 @@ export const registerExpenseComponents = (Alpine) => {
                 };
                 this.currentProofName = expense.proof_original_name ?? '';
                 this.currentProofUrl = expense.proof_download_url ?? '';
+                this.version = expense.version ?? null;
             } catch (error) {
                 this.generalError = error?.message ?? 'Data pengeluaran belum berhasil dimuat.';
             } finally {
@@ -292,6 +304,7 @@ export const registerExpenseComponents = (Alpine) => {
 
             if (this.config.expenseId) {
                 payload.append('_method', 'PATCH');
+                payload.append('version', String(this.version ?? ''));
             }
 
             try {
@@ -302,13 +315,17 @@ export const registerExpenseComponents = (Alpine) => {
                     method: 'POST',
                     body: payload,
                     credentials: 'same-origin',
-                    headers: { Accept: 'application/json' },
+                    headers: csrfRequestHeaders(currentCsrfToken()),
                 });
                 const responsePayload = await parseJsonResponse(response);
 
                 if (!response.ok) {
                     if (response.status === 422) {
                         this.errors = firstValidationMessages(responsePayload.errors);
+                    }
+
+                    if (response.status === 409 && this.config.expenseId) {
+                        await this.loadExpense();
                     }
 
                     throw responsePayload;

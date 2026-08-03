@@ -30,5 +30,18 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(10)->by($key);
         });
+
+        RateLimiter::for('report-export', function (Request $request): Limit {
+            $userId = $request->user()?->getAuthIdentifier();
+            $key = $userId !== null
+                ? "report-export:user:{$userId}"
+                : "report-export:ip:{$request->ip()}";
+
+            return Limit::perMinute(max(1, (int) config('reports.export_rate_limit_per_minute', 10)))
+                ->by($key)
+                ->response(fn () => response()->json([
+                    'message' => 'Terlalu banyak permintaan export laporan. Silakan coba lagi nanti.',
+                ], 429));
+        });
     }
 }

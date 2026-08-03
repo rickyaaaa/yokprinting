@@ -1,6 +1,9 @@
 <?php
 
+use App\Http\Controllers\Api\ExpenseController;
+use App\Http\Controllers\Api\ProfitLossReportController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\ProfitLossReportPageController;
 use App\Models\Expense;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -82,6 +85,41 @@ Route::middleware('auth')->group(function () {
             'employeeSubcategoryOptions' => Expense::employeeSubcategoryOptions(),
         ]);
     })->middleware('permission:expense.update')->name('expenses.edit');
-    Route::view('/reports/sales', 'reports.sales')->name('reports.sales.index');
+    Route::get('/api/expenses', [ExpenseController::class, 'index'])
+        ->middleware('permission:expense.view')
+        ->name('api.expenses.index');
+    Route::post('/api/expenses', [ExpenseController::class, 'store'])
+        ->middleware('permission:expense.create')
+        ->name('api.expenses.store');
+    Route::get('/api/expenses/{expense}', [ExpenseController::class, 'show'])
+        ->middleware('permission:expense.view')
+        ->name('api.expenses.show');
+    Route::match(['put', 'patch'], '/api/expenses/{expense}', [ExpenseController::class, 'update'])
+        ->middleware('permission:expense.update')
+        ->name('api.expenses.update');
+    Route::delete('/api/expenses/{expense}', [ExpenseController::class, 'destroy'])
+        ->middleware('permission:expense.delete')
+        ->name('api.expenses.destroy');
+    Route::post('/api/expenses/{expense}/restore', [ExpenseController::class, 'restore'])
+        ->middleware('permission:expense.delete')
+        ->name('api.expenses.restore');
+    Route::get('/api/expenses/{expense}/proof', [ExpenseController::class, 'downloadProof'])
+        ->middleware('permission:expense.view')
+        ->name('api.expenses.proof.download');
+    Route::view('/reports/sales', 'reports.sales')
+        ->middleware('permission:report.view')
+        ->name('reports.sales.index');
+    Route::get('/reports/profit-loss', ProfitLossReportPageController::class)
+        ->middleware('permission:report.view')
+        ->name('reports.profit-loss.index');
+    Route::get('/api/reports/profit-loss', [ProfitLossReportController::class, 'show'])
+        ->middleware('permission:report.view')
+        ->name('api.reports.profit-loss.show');
+    Route::get('/api/reports/profit-loss/pdf', [ProfitLossReportController::class, 'pdf'])
+        ->middleware(['permission:report.export', 'throttle:report-export'])
+        ->name('api.reports.profit-loss.pdf');
+    Route::get('/api/reports/profit-loss/excel', [ProfitLossReportController::class, 'excel'])
+        ->middleware(['permission:report.export', 'throttle:report-export'])
+        ->name('api.reports.profit-loss.excel');
     Route::view('/settings/company-profile', 'settings.company-profile')->name('settings.company-profile.edit');
 });

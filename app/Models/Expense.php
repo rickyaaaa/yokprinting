@@ -46,6 +46,7 @@ class Expense extends Model
         'proof_original_name',
         'proof_mime_type',
         'created_by',
+        'version',
     ];
 
     /**
@@ -58,6 +59,7 @@ class Expense extends Model
         return [
             'expense_date' => 'date',
             'amount' => 'decimal:2',
+            'version' => 'integer',
         ];
     }
 

@@ -16,7 +16,7 @@ class ExpenseCrudApiTest extends TestCase
 
     public function test_owner_can_create_show_update_and_soft_delete_expense_with_private_proof_and_audit_log(): void
     {
-        Storage::fake('local');
+        Storage::fake('expense_proofs');
 
         $owner = User::factory()->create(['role' => User::ROLE_OWNER]);
         $otherUser = User::factory()->create();
@@ -42,7 +42,7 @@ class ExpenseCrudApiTest extends TestCase
         $expense = Expense::query()->findOrFail($createResponse->json('data.id'));
 
         $this->assertSame($owner->id, $expense->created_by);
-        Storage::disk('local')->assertExists($expense->proof_path);
+        Storage::disk('expense_proofs')->assertExists($expense->proof_path);
 
         $this->getJson(route('api.expenses.show', $expense))
             ->assertOk()
@@ -52,6 +52,7 @@ class ExpenseCrudApiTest extends TestCase
         $oldProofPath = $expense->proof_path;
         $updateResponse = $this->post(route('api.expenses.update', $expense), [
             '_method' => 'PATCH',
+            'version' => $expense->version,
             'category' => Expense::CATEGORY_PRODUCTION,
             'subcategory' => '',
             'amount' => '325000.75',
@@ -66,15 +67,15 @@ class ExpenseCrudApiTest extends TestCase
             ->assertJsonPath('data.created_by', $owner->id);
 
         $expense->refresh();
-        Storage::disk('local')->assertMissing($oldProofPath);
-        Storage::disk('local')->assertExists($expense->proof_path);
+        Storage::disk('expense_proofs')->assertMissing($oldProofPath);
+        Storage::disk('expense_proofs')->assertExists($expense->proof_path);
         $this->assertSame('bukti-finishing.pdf', $expense->proof_original_name);
 
         $this->deleteJson(route('api.expenses.destroy', $expense))
             ->assertNoContent();
 
         $this->assertSoftDeleted('expenses', ['id' => $expense->id]);
-        Storage::disk('local')->assertExists($expense->proof_path);
+        Storage::disk('expense_proofs')->assertExists($expense->proof_path);
         $this->assertDatabaseHas('activity_logs', [
             'module' => 'expense',
             'action' => 'create',
@@ -159,7 +160,7 @@ class ExpenseCrudApiTest extends TestCase
 
     public function test_expense_validation_allows_only_requested_categories_and_employee_subcategories(): void
     {
-        Storage::fake('local');
+        Storage::fake('expense_proofs');
         $this->actingAs(User::factory()->create(['role' => User::ROLE_OWNER]));
 
         $this->postJson(route('api.expenses.store'), [
@@ -225,7 +226,7 @@ class ExpenseCrudApiTest extends TestCase
 
     public function test_payment_proof_is_downloaded_from_private_storage_and_logged(): void
     {
-        Storage::fake('local');
+        Storage::fake('expense_proofs');
         $owner = User::factory()->create(['role' => User::ROLE_OWNER]);
         $expense = Expense::factory()->create([
             'created_by' => $owner->id,
@@ -233,7 +234,7 @@ class ExpenseCrudApiTest extends TestCase
             'proof_original_name' => 'bukti-private.pdf',
             'proof_mime_type' => 'application/pdf',
         ]);
-        Storage::disk('local')->put($expense->proof_path, 'private-proof-content');
+        Storage::disk('expense_proofs')->put($expense->proof_path, 'private-proof-content');
         $this->actingAs($owner);
 
         $this->get(route('api.expenses.proof.download', $expense))
@@ -242,7 +243,7 @@ class ExpenseCrudApiTest extends TestCase
 
         $this->assertDatabaseHas('activity_logs', [
             'module' => 'expense',
-            'action' => 'proof_download',
+            'action' => 'proof_download_prepared',
             'subject_id' => $expense->id,
         ]);
     }
