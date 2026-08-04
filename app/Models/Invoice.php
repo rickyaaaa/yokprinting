@@ -155,7 +155,7 @@ class Invoice extends Model
      */
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Customer::class)->withTrashed();
     }
 
     /**
@@ -242,7 +242,11 @@ class Invoice extends Model
      */
     public function remainingAmount(): float
     {
-        return max(0, (float) $this->total_amount - $this->verifiedPaidAmount());
+        return round(
+            max(0, (float) $this->total_amount - $this->verifiedPaidAmount()),
+            2,
+            PHP_ROUND_HALF_UP,
+        );
     }
 
     /**

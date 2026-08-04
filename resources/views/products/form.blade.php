@@ -63,7 +63,7 @@
                         </svg>
                         <span class="truncate font-medium text-ink">{{ $isEdit ? 'Edit produk' : 'Tambah produk' }}</span>
                     </div>
-                    <div class="ml-auto hidden text-sm text-muted sm:block">Jumat, 24 Juli 2026</div>
+                    <div class="ml-auto hidden text-sm text-muted sm:block">{{ now(config('app.timezone'))->locale('id')->translatedFormat('l, j F Y') }}</div>
                 </header>
 
                 <main class="mx-auto w-full max-w-[1180px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">

@@ -4,69 +4,85 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
+use App\Models\Payment;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class RevenueChartController extends Controller
 {
-    /**
-     * Preset dataset definitions for revenue charts.
-     */
-    private const PRESETS = [
-        'monthly' => [
-            'period' => 'monthly',
-            'label' => '6 bulan terakhir',
-            'headline' => 'Rp86,4 jt',
-            'caption' => 'Juli menjadi bulan terkuat dari data bisnis.',
-            'labels' => ['Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul'],
-            'issued' => [46000000, 58000000, 52000000, 71000000, 64000000, 86400000],
-            'paid' => [38000000, 42000000, 47000000, 59000000, 52100000, 52100000],
-        ],
-        'quarterly' => [
-            'period' => 'quarterly',
-            'label' => '4 kuartal terakhir',
-            'headline' => 'Rp221,4 jt',
-            'caption' => 'Kuartal berjalan naik karena invoice jasa cetak korporat.',
-            'labels' => ['Q4 2025', 'Q1 2026', 'Q2 2026', 'Q3 2026'],
-            'issued' => [142000000, 168000000, 187000000, 221400000],
-            'paid' => [128000000, 149000000, 161000000, 174000000],
-        ],
-        'yearly' => [
-            'period' => 'yearly',
-            'label' => '3 tahun terakhir',
-            'headline' => 'Rp1,18 M',
-            'caption' => 'Simulasi pendapatan tahunan untuk membaca tren besar bisnis.',
-            'labels' => ['2024', '2025', '2026'],
-            'issued' => [720000000, 940000000, 1180000000],
-            'paid' => [665000000, 872000000, 976000000],
-        ],
-    ];
-
-    /**
-     * Return revenue chart data grouped by monthly, quarterly, or yearly period.
-     */
     public function __invoke(Request $request): JsonResponse
     {
-        $period = $request->query('period', 'monthly');
+        $period = in_array($request->query('period'), ['monthly', 'quarterly', 'yearly'], true)
+            ? $request->query('period')
+            : 'monthly';
+        $buckets = $this->buckets($period, CarbonImmutable::now(config('app.timezone')));
+        $start = $buckets[0]['start'];
+        $end = $buckets[array_key_last($buckets)]['end'];
 
-        if (! array_key_exists($period, self::PRESETS)) {
-            $period = 'monthly';
-        }
+        $invoices = Invoice::query()
+            ->where('status', Invoice::STATUS_SENT)
+            ->whereBetween('issue_date', [$start->toDateString(), $end->toDateString()])
+            ->get();
+        $payments = Payment::query()
+            ->verified()
+            ->whereBetween('payment_date', [$start->toDateString(), $end->toDateString()])
+            ->get();
 
-        $preset = self::PRESETS[$period];
-        $hasInvoices = Invoice::query()->exists();
+        $issued = collect($buckets)->map(fn (array $bucket): float => (float) $invoices
+            ->filter(fn (Invoice $invoice): bool => $invoice->issue_date->betweenIncluded($bucket['start'], $bucket['end']))
+            ->sum('total_amount'));
+        $paid = collect($buckets)->map(fn (array $bucket): float => (float) $payments
+            ->filter(fn (Payment $payment): bool => $payment->payment_date->betweenIncluded($bucket['start'], $bucket['end']))
+            ->sum('amount'));
 
-        if (! $hasInvoices) {
-            return response()->json([
-                'status' => 'success',
-                'data' => $preset,
-            ]);
-        }
-
-        // Compute dynamically if DB has invoice records
         return response()->json([
             'status' => 'success',
-            'data' => $preset,
+            'data' => [
+                'period' => $period,
+                'label' => match ($period) {
+                    'quarterly' => '4 kuartal terakhir',
+                    'yearly' => '3 tahun terakhir',
+                    default => '6 bulan terakhir',
+                },
+                'headline' => $this->rupiah((float) $issued->last()),
+                'caption' => 'Dihitung dari invoice final dan pembayaran terverifikasi.',
+                'labels' => collect($buckets)->pluck('label')->all(),
+                'issued' => $issued->all(),
+                'paid' => $paid->all(),
+            ],
         ]);
+    }
+
+    /** @return list<array{start: CarbonImmutable, end: CarbonImmutable, label: string}> */
+    private function buckets(string $period, CarbonImmutable $today): array
+    {
+        $count = $period === 'yearly' ? 3 : ($period === 'quarterly' ? 4 : 6);
+
+        return collect(range($count - 1, 0))
+            ->map(function (int $offset) use ($period, $today): array {
+                if ($period === 'yearly') {
+                    $start = $today->subYears($offset)->startOfYear();
+                    $end = $start->endOfYear();
+                    $label = $start->format('Y');
+                } elseif ($period === 'quarterly') {
+                    $start = $today->startOfQuarter()->subQuarters($offset);
+                    $end = $start->endOfQuarter();
+                    $label = 'Q'.$start->quarter.' '.$start->year;
+                } else {
+                    $start = $today->startOfMonth()->subMonths($offset);
+                    $end = $start->endOfMonth();
+                    $label = $start->locale('id')->translatedFormat('M');
+                }
+
+                return compact('start', 'end', 'label');
+            })
+            ->values()
+            ->all();
+    }
+
+    private function rupiah(float $amount): string
+    {
+        return 'Rp'.number_format($amount, 0, ',', '.');
     }
 }

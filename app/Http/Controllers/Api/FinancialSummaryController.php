@@ -13,28 +13,6 @@ class FinancialSummaryController extends Controller
      */
     public function __invoke(): JsonResponse
     {
-        $hasInvoices = Invoice::query()->exists();
-
-        if (! $hasInvoices) {
-            return response()->json([
-                'status' => 'success',
-                'data' => [
-                    'total_sales' => 312400000,
-                    'total_sales_formatted' => 'Rp312.400.000',
-                    'paid_amount' => 129350000,
-                    'paid_amount_formatted' => 'Rp129.350.000',
-                    'paid_count' => 32,
-                    'unpaid_amount' => 74850000,
-                    'unpaid_amount_formatted' => 'Rp74.850.000',
-                    'unpaid_count' => 8,
-                    'overdue_amount' => 13500000,
-                    'overdue_amount_formatted' => 'Rp13.500.000',
-                    'overdue_count' => 3,
-                    'total_invoices_count' => 48,
-                ],
-            ]);
-        }
-
         $activeInvoices = Invoice::query()
             ->where('status', '!=', Invoice::STATUS_CANCELLED);
 

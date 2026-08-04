@@ -118,6 +118,44 @@ class InvoicePaymentDetailApiTest extends TestCase
             ->assertJsonPath('data.invoice.remaining_amount', 5000000);
     }
 
+    public function test_zero_remaining_balance_overrides_stale_status_and_overdue_date(): void
+    {
+        $customer = Customer::query()->create([
+            'code' => 'CUS-LUNAS',
+            'name' => 'PT Lunas Sentosa',
+            'email' => 'finance@lunas.example',
+        ]);
+        $invoice = Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-LUNAS-001',
+            'issue_date' => now()->subMonth()->toDateString(),
+            'due_date' => now()->subWeek()->toDateString(),
+            'status' => Invoice::STATUS_SENT,
+            'payment_status' => Invoice::PAYMENT_PARTIAL,
+            'currency' => 'IDR',
+            'total_amount' => 5000000,
+        ]);
+        $invoice->payments()->create([
+            'payment_number' => 'PAY-LUNAS-001',
+            'payment_date' => now()->subWeek()->toDateString(),
+            'method' => Payment::METHOD_TRANSFER_BCA,
+            'currency' => 'IDR',
+            'amount' => 5000000,
+            'status' => Payment::STATUS_VERIFIED,
+            'verified_at' => now(),
+        ]);
+
+        $this->getJson(
+            route('api.invoices.payment-detail.show', ['invoice' => $invoice->invoice_number]),
+        )
+            ->assertOk()
+            ->assertJsonPath('data.invoice.payment_status', Invoice::PAYMENT_PAID)
+            ->assertJsonPath('data.invoice.payment_status_label', 'Lunas')
+            ->assertJsonPath('data.invoice.is_overdue', false)
+            ->assertJsonPath('data.invoice.remaining_amount', 0)
+            ->assertJsonPath('data.invoice.payment_progress', 100);
+    }
+
     public function test_unknown_invoice_payment_detail_returns_not_found(): void
     {
         $this->getJson('/api/invoices/INV-2026-9999/payment-detail')

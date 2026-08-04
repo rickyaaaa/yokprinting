@@ -271,7 +271,7 @@
 
                             <section class="rounded-xl border border-brand-200 bg-brand-50 p-5 text-sm text-brand-900">
                                 <h2 class="font-semibold">Catatan analisis</h2>
-                                <p class="mt-3 leading-6">Penjualan bulan ini didorong oleh paket desain dan cetak premium. Invoice overdue tetap perlu diprioritaskan agar cashflow tidak tersendat.</p>
+                                <p class="mt-3 leading-6">Gunakan filter periode, status, dan kategori untuk membaca pola penjualan dari invoice tersimpan.</p>
                             </section>
                         </aside>
                     </div>

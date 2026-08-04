@@ -55,7 +55,7 @@
                             <span class="absolute right-1.5 top-1.5 size-2 rounded-full bg-red-500 ring-2 ring-white"></span>
                         </button>
                         <span class="hidden h-6 w-px bg-line sm:block"></span>
-                        <span class="hidden text-sm text-muted sm:inline">Jumat, 24 Juli 2026</span>
+                        <span class="hidden text-sm text-muted sm:inline">{{ now(config('app.timezone'))->locale('id')->translatedFormat('l, j F Y') }}</span>
                     </div>
                 </header>
 
@@ -64,6 +64,13 @@
                         <div class="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900" role="status" data-testid="customer-created-notice">
                             <p class="font-semibold">Pelanggan berhasil ditambahkan.</p>
                             <p class="mt-1">{{ request('created') }} sekarang sudah tampil di daftar pelanggan.</p>
+                        </div>
+                    @endif
+
+                    @if (request('deleted'))
+                        <div class="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900" role="status" data-testid="customer-deleted-notice">
+                            <p class="font-semibold">Pelanggan berhasil dihapus.</p>
+                            <p class="mt-1">{{ request('deleted') }} sudah dikeluarkan dari daftar aktif. Invoice dan transaksi historis tetap tersimpan.</p>
                         </div>
                     @endif
 
@@ -80,7 +87,7 @@
                                 <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                                     <path d="M4 7h16M7 4v6M17 4v6M6 12h12v8H6z" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
-                                Juli 2026
+                                {{ now(config('app.timezone'))->locale('id')->translatedFormat('F Y') }}
                             </button>
                             <a href="{{ route('customers.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800">
                                 <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -112,6 +119,7 @@
                         class="mt-6 rounded-xl bg-white border border-line"
                         aria-labelledby="customers-heading"
                         x-data='customerIndexTable(@json($customers))'
+                        @keydown.escape.window="closeDeleteModal()"
                     >
                         <div class="flex flex-col gap-4 border-b border-line px-5 py-4 sm:px-6 xl:flex-row xl:items-center xl:justify-between">
                             <div>
@@ -234,6 +242,17 @@
                                                     >
                                                         Edit
                                                     </a>
+                                                    @if ($canDeleteCustomer)
+                                                        <button
+                                                            type="button"
+                                                            class="inline-flex items-center justify-center rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 hover:text-red-900"
+                                                            @click="openDeleteModal(customer)"
+                                                            :aria-label="`Hapus pelanggan ${customer.name}`"
+                                                            data-testid="delete-customer-button"
+                                                        >
+                                                            Hapus
+                                                        </button>
+                                                    @endif
                                                 </div>
                                             </td>
                                         </tr>
@@ -254,6 +273,82 @@
                             <span><strong class="font-semibold text-ink" x-text="filteredCustomers.length"></strong> pelanggan tampil dari {{ count($customers) }} data.</span>
                             <span>Total transaksi tampil: <strong class="font-semibold text-ink" x-text="visibleSalesFormatted"></strong></span>
                         </div>
+
+                        @if ($canDeleteCustomer)
+                            <div
+                                x-cloak
+                                x-show="deleteModalOpen"
+                                x-transition.opacity.duration.150ms
+                                class="fixed inset-0 z-40 grid place-items-center bg-ink/55 p-4"
+                                @click.self="closeDeleteModal()"
+                                role="presentation"
+                            >
+                                <section
+                                    x-show="deleteModalOpen"
+                                    x-transition:enter="transition duration-200 ease-out"
+                                    x-transition:enter-start="translate-y-2 opacity-0"
+                                    x-transition:enter-end="translate-y-0 opacity-100"
+                                    x-transition:leave="transition duration-150 ease-in"
+                                    x-transition:leave-start="translate-y-0 opacity-100"
+                                    x-transition:leave-end="translate-y-2 opacity-0"
+                                    class="w-full max-w-md rounded-xl bg-white p-6 shadow-lg"
+                                    role="dialog"
+                                    aria-modal="true"
+                                    aria-labelledby="delete-customer-title"
+                                    aria-describedby="delete-customer-description"
+                                >
+                                    <div class="flex items-start gap-4">
+                                        <span class="grid size-10 shrink-0 place-items-center rounded-full bg-red-100 text-red-700" aria-hidden="true">
+                                            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                                <path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                        </span>
+                                        <div class="min-w-0">
+                                            <h2 id="delete-customer-title" class="text-lg font-semibold text-ink">Hapus pelanggan?</h2>
+                                            <p id="delete-customer-description" class="mt-2 text-sm leading-6 text-muted">
+                                                <span class="font-semibold text-ink" x-text="deleteCandidate?.name"></span>
+                                                akan dikeluarkan dari daftar aktif dan tidak dapat dipilih untuk invoice baru.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-5 rounded-lg bg-canvas p-4 text-sm leading-6 text-muted">
+                                        <template x-if="(deleteCandidate?.invoiceCount ?? 0) > 0">
+                                            <p>
+                                                Pelanggan ini memiliki <strong class="font-semibold text-ink" x-text="deleteCandidate.invoiceCount"></strong>
+                                                invoice. Invoice, pembayaran, dan relasi historis tidak akan dihapus.
+                                            </p>
+                                        </template>
+                                        <template x-if="(deleteCandidate?.invoiceCount ?? 0) === 0">
+                                            <p>Pelanggan ini belum memiliki invoice. Penghapusan tetap menggunakan soft delete.</p>
+                                        </template>
+                                    </div>
+
+                                    <p x-show="deleteError" x-text="deleteError" class="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-800" role="alert"></p>
+
+                                    <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center justify-center rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-60"
+                                            @click="closeDeleteModal()"
+                                            :disabled="deleting"
+                                        >
+                                            Batal
+                                        </button>
+                                        <button
+                                            x-ref="deleteConfirmButton"
+                                            type="button"
+                                            class="inline-flex items-center justify-center rounded-lg bg-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-800 disabled:cursor-wait disabled:opacity-70"
+                                            @click="confirmDelete()"
+                                            :disabled="deleting"
+                                            data-testid="confirm-delete-customer"
+                                        >
+                                            <span x-text="deleting ? 'Menghapus…' : 'Ya, hapus pelanggan'"></span>
+                                        </button>
+                                    </div>
+                                </section>
+                            </div>
+                        @endif
                     </section>
                 </main>
             </div>

@@ -7,9 +7,9 @@
 >
     <div class="mb-2 flex items-center justify-between gap-4">
         <label class="form-label mb-0" for="customer-search">Pelanggan <span aria-hidden="true">*</span></label>
-        <button class="text-sm font-semibold text-brand transition hover:text-brand-strong" type="button">
+        <a class="text-sm font-semibold text-brand transition hover:text-brand-strong" href="{{ route('customers.create') }}" target="_blank" rel="noopener">
             + Pelanggan baru
-        </button>
+        </a>
     </div>
 
     <input name="customer_id" type="hidden" :value="selected?.id ?? ''">
@@ -92,7 +92,7 @@
                     x-model="query"
                     class="form-control min-h-10 pl-9"
                     type="search"
-                    placeholder="Cari nama, email, atau telepon"
+                    placeholder="Cari kode, nama, email, atau telepon"
                     autocomplete="off"
                     @keydown.arrow-down.prevent="$refs.customerOptions?.querySelector('[role=option]')?.focus()"
                 >

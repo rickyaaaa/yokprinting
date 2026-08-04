@@ -11,16 +11,16 @@ class FinancialSummaryApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_financial_summary_returns_default_structure_when_empty(): void
+    public function test_financial_summary_returns_zeroes_instead_of_demo_values_when_empty(): void
     {
         $response = $this->getJson(route('api.dashboard.financial-summary'));
 
         $response->assertOk()
             ->assertJsonPath('status', 'success')
-            ->assertJsonPath('data.total_sales', 312400000)
-            ->assertJsonPath('data.paid_amount', 129350000)
-            ->assertJsonPath('data.unpaid_amount', 74850000)
-            ->assertJsonPath('data.overdue_amount', 13500000);
+            ->assertJsonPath('data.total_sales', 0)
+            ->assertJsonPath('data.paid_amount', 0)
+            ->assertJsonPath('data.unpaid_amount', 0)
+            ->assertJsonPath('data.overdue_amount', 0);
     }
 
     public function test_financial_summary_calculates_totals_from_database_invoices(): void

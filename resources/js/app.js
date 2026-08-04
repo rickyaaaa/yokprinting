@@ -14,7 +14,7 @@ import {
     PointElement,
     Tooltip,
 } from 'chart.js';
-import { createCustomer, listCustomers } from './services/customer-api';
+import { createCustomer, deleteCustomer, listCustomers, updateCustomer } from './services/customer-api';
 import { sendInvoiceEmail } from './services/invoice-delivery-api';
 import { persistInvoiceDraft, saveInvoiceDraft } from './services/invoice-api';
 import { downloadInvoicePdf, downloadInvoicePreviewPdf } from './services/invoice-pdf-api';
@@ -57,34 +57,14 @@ const formatRupiah = (value) => new Intl.NumberFormat('id-ID', {
     maximumFractionDigits: 0,
 }).format(value);
 
-const dashboardRevenueDatasets = {
-    monthly: {
-        label: '6 bulan terakhir',
-        headline: 'Rp86,4 jt',
-        caption: 'Juli menjadi bulan terkuat dari data saat ini.',
-        labels: ['Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul'],
-        issued: [46000000, 58000000, 52000000, 71000000, 64000000, 86400000],
-        paid: [38000000, 42000000, 47000000, 59000000, 52100000, 52100000],
-    },
-    quarterly: {
-        label: '4 kuartal terakhir',
-        headline: 'Rp221,4 jt',
-        caption: 'Kuartal berjalan naik karena invoice jasa cetak korporat.',
-        labels: ['Q4 2025', 'Q1 2026', 'Q2 2026', 'Q3 2026'],
-        issued: [142000000, 168000000, 187000000, 221400000],
-        paid: [128000000, 149000000, 161000000, 174000000],
-    },
-    yearly: {
-        label: '3 tahun terakhir',
-        headline: 'Rp1,18 M',
-        caption: 'Simulasi pendapatan tahunan untuk membaca tren besar bisnis.',
-        labels: ['2024', '2025', '2026'],
-        issued: [720000000, 940000000, 1180000000],
-        paid: [665000000, 872000000, 976000000],
-    },
-};
-
-const minutesAgo = (minutes) => new Date(Date.now() - minutes * 60 * 1000).toISOString();
+const emptyDashboardRevenueDataset = () => ({
+    label: '',
+    headline: 'Rp0',
+    caption: 'Belum ada data invoice pada periode ini.',
+    labels: [],
+    issued: [],
+    paid: [],
+});
 const invoicePreviewStorageKey = 'yokprinting.invoice.previewDraft';
 const invoiceDraftStorageKey = 'yokprinting.invoice.editorDraft';
 const persistedInvoiceDraftStorageKey = 'yokprinting.invoice.persistedDraft';
@@ -197,7 +177,7 @@ const buildInvoicePreviewSnapshot = (payload) => {
     const dpPercent = clampNumber(payload.dp_required_percent, 0, 100);
 
     return {
-        invoice_number: payload.invoice_number || 'INV-2026-0079',
+        invoice_number: payload.invoice_number || 'Draft belum disimpan',
         issue_date: payload.issue_date,
         issue_date_label: formatLongDate(payload.issue_date),
         currency: 'IDR',
@@ -251,10 +231,6 @@ const validateInvoiceDraft = (payload) => {
 
     if (!payload.customer_id) {
         errors.customer_id = 'Pilih pelanggan untuk invoice ini.';
-    }
-
-    if (!payload.invoice_number.trim()) {
-        errors.invoice_number = 'Nomor invoice wajib diisi.';
     }
 
     if (!payload.issue_date) {
@@ -481,6 +457,7 @@ Alpine.data('invoiceDraftForm', () => ({
 Alpine.data('dashboardRevenueChart', () => ({
     chart: null,
     selectedPeriod: 'monthly',
+    dataset: emptyDashboardRevenueDataset(),
     periods: [
         { key: 'monthly', label: 'Bulanan' },
         { key: 'quarterly', label: 'Kuartal' },
@@ -488,19 +465,21 @@ Alpine.data('dashboardRevenueChart', () => ({
     ],
 
     get currentDataset() {
-        return dashboardRevenueDatasets[this.selectedPeriod];
+        return this.dataset;
     },
 
-    init() {
+    async init() {
+        await this.loadPeriod();
         this.$nextTick(() => this.renderChart());
     },
 
-    selectPeriod(period) {
-        if (this.selectedPeriod === period || !dashboardRevenueDatasets[period]) {
+    async selectPeriod(period) {
+        if (this.selectedPeriod === period) {
             return;
         }
 
         this.selectedPeriod = period;
+        await this.loadPeriod();
 
         if (!this.chart) {
             this.renderChart();
@@ -510,6 +489,17 @@ Alpine.data('dashboardRevenueChart', () => ({
         this.chart.data = this.buildChartData();
         this.chart.options.scales.y.suggestedMax = this.suggestedMax();
         this.chart.update();
+    },
+
+    async loadPeriod() {
+        const response = await fetch(`/api/dashboard/revenue-chart?period=${encodeURIComponent(this.selectedPeriod)}`, {
+            cache: 'no-store',
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+        });
+        const payload = await response.json().catch(() => ({}));
+
+        this.dataset = response.ok ? payload.data : emptyDashboardRevenueDataset();
     },
 
     renderChart() {
@@ -619,7 +609,7 @@ Alpine.data('dashboardRevenueChart', () => ({
     },
 
     suggestedMax() {
-        return Math.max(...this.currentDataset.issued) * 1.2;
+        return Math.max(1, ...this.currentDataset.issued) * 1.2;
     },
 }));
 
@@ -629,50 +619,21 @@ Alpine.data('dashboardRecentActivities', () => ({
         { key: 'all', label: 'Semua' },
         { key: 'invoice', label: 'Invoice' },
         { key: 'payment', label: 'Pembayaran' },
-        { key: 'reminder', label: 'Pengingat' },
     ],
-    activities: [
-        {
-            id: 'act-001',
-            type: 'invoice',
-            tone: 'brand',
-            title: 'Invoice INV-2026-0084 dikirim',
-            description: 'PT Sinar Nusantara menerima invoice desain brand.',
-            occurredAt: minutesAgo(10),
-        },
-        {
-            id: 'act-002',
-            type: 'payment',
-            tone: 'success',
-            title: 'Pembayaran diterima',
-            description: 'CV Lautan Rasa membayar Rp12.750.000 melalui transfer bank.',
-            occurredAt: minutesAgo(42),
-        },
-        {
-            id: 'act-003',
-            type: 'reminder',
-            tone: 'warning',
-            title: 'Invoice mendekati jatuh tempo',
-            description: 'INV-2026-0078 perlu ditindaklanjuti dalam 2 hari.',
-            occurredAt: minutesAgo(125),
-        },
-        {
-            id: 'act-004',
-            type: 'invoice',
-            tone: 'muted',
-            title: 'Draft invoice baru dibuat',
-            description: 'Paket cetak katalog untuk PT Bumi Lestari masuk sebagai draft.',
-            occurredAt: minutesAgo(980),
-        },
-        {
-            id: 'act-005',
-            type: 'payment',
-            tone: 'success',
-            title: 'Pembayaran parsial dicatat',
-            description: 'PT Cakra Media membayar Rp4.250.000 untuk INV-2026-0076.',
-            occurredAt: minutesAgo(1540),
-        },
-    ],
+    activities: [],
+
+    async init() {
+        const response = await fetch('/api/dashboard/activities', {
+            cache: 'no-store',
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+        });
+        const payload = await response.json().catch(() => ({}));
+
+        this.activities = response.ok
+            ? payload.data.map((activity) => ({ ...activity, occurredAt: activity.occurred_at }))
+            : [];
+    },
 
     get visibleActivities() {
         if (this.activeFilter === 'all') {
@@ -822,6 +783,7 @@ Alpine.data('productionStatusForm', () => ({
 }));
 
 Alpine.data('recordPaymentForm', (config = {}) => ({
+    endpoint: config.endpoint ?? '',
     remainingAmount: Number(config.remainingAmount ?? 0),
     saving: false,
     savedPayment: null,
@@ -829,9 +791,9 @@ Alpine.data('recordPaymentForm', (config = {}) => ({
     form: {
         amount: '',
         paidAt: new Date().toISOString().slice(0, 10),
-        method: 'Transfer BCA',
-        reference: 'BCA-77389',
-        notes: 'Pembayaran lanjutan dari pelanggan.',
+        method: 'transfer_bca',
+        reference: '',
+        notes: '',
     },
 
     get validationMessages() {
@@ -842,7 +804,15 @@ Alpine.data('recordPaymentForm', (config = {}) => ({
         return formatRupiah(Number(this.form.amount) || 0);
     },
 
+    get isPaid() {
+        return this.remainingAmount <= 0;
+    },
+
     useRemainingAmount() {
+        if (this.isPaid) {
+            return;
+        }
+
         this.form.amount = this.remainingAmount;
         this.clearFieldError('amount');
     },
@@ -861,7 +831,9 @@ Alpine.data('recordPaymentForm', (config = {}) => ({
         const errors = {};
         const amount = Number(this.form.amount) || 0;
 
-        if (amount <= 0) {
+        if (this.isPaid) {
+            errors.amount = 'Invoice sudah lunas. Pembayaran tambahan tidak dapat dicatat.';
+        } else if (amount <= 0) {
             errors.amount = 'Nominal pembayaran harus lebih dari Rp0.';
         } else if (amount > this.remainingAmount) {
             errors.amount = 'Nominal tidak boleh melebihi sisa tagihan.';
@@ -882,7 +854,7 @@ Alpine.data('recordPaymentForm', (config = {}) => ({
         return errors;
     },
 
-    submit() {
+    async submit() {
         if (this.saving) {
             return;
         }
@@ -896,14 +868,56 @@ Alpine.data('recordPaymentForm', (config = {}) => ({
 
         this.saving = true;
 
-        window.setTimeout(() => {
+        try {
+            const response = await fetch(this.endpoint, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                },
+                body: JSON.stringify({
+                    amount: Number(this.form.amount),
+                    payment_date: this.form.paidAt,
+                    method: this.form.method,
+                    reference: this.form.reference,
+                    notes: this.form.notes,
+                    status: 'verified',
+                }),
+            });
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                this.fieldErrors = {
+                    amount: payload.errors?.amount?.[0],
+                    paidAt: payload.errors?.payment_date?.[0],
+                    method: payload.errors?.method?.[0],
+                    reference: payload.errors?.reference?.[0],
+                };
+                throw new Error(payload.message ?? 'Pembayaran belum dapat disimpan.');
+            }
+
             this.savedPayment = {
                 amount: this.formattedAmount,
-                method: this.form.method,
+                method: payload.data.method_label,
                 reference: this.form.reference,
             };
+            this.remainingAmount = Math.max(0, this.remainingAmount - Number(this.form.amount));
+            this.form.amount = '';
+
+            if (this.isPaid) {
+                window.location.reload();
+            }
+        } catch (error) {
+            if (this.validationMessages.length === 0) {
+                this.fieldErrors = {
+                    form: error?.message ?? 'Pembayaran belum dapat disimpan.',
+                };
+            }
+        } finally {
             this.saving = false;
-        }, 450);
+        }
     },
 }));
 
@@ -1095,9 +1109,15 @@ Alpine.data('customerPicker', () => ({
     customers: [],
     loading: true,
     errorMessage: '',
+    searchTimer: null,
+    requestSequence: 0,
 
     async init() {
         await this.loadCustomers();
+        this.$watch('query', (query) => {
+            window.clearTimeout(this.searchTimer);
+            this.searchTimer = window.setTimeout(() => this.loadCustomers(query), 250);
+        });
     },
 
     get filteredCustomers() {
@@ -1108,26 +1128,37 @@ Alpine.data('customerPicker', () => ({
         }
 
         return this.customers.filter((customer) =>
-            `${customer.name} ${customer.email} ${customer.phone}`
+            `${customer.code ?? ''} ${customer.name} ${customer.email} ${customer.phone}`
                 .toLocaleLowerCase('id')
                 .includes(keyword),
         );
     },
 
-    async loadCustomers() {
+    async loadCustomers(search = this.query) {
+        const requestSequence = ++this.requestSequence;
+
         this.loading = true;
         this.errorMessage = '';
 
         try {
-            const response = await listCustomers();
+            const response = await listCustomers({ search });
+
+            if (requestSequence !== this.requestSequence) {
+                return;
+            }
 
             this.customers = response.data;
             this.restoreSelectedCustomer();
-            this.selected = this.selected ?? this.customers[0] ?? null;
         } catch (error) {
+            if (requestSequence !== this.requestSequence) {
+                return;
+            }
+
             this.errorMessage = error?.message ?? 'Data pelanggan belum dapat dimuat.';
         } finally {
-            this.loading = false;
+            if (requestSequence === this.requestSequence) {
+                this.loading = false;
+            }
         }
     },
 
@@ -1160,11 +1191,12 @@ Alpine.data('customerPicker', () => ({
         }
     },
 
-    show() {
+    async show() {
         if (this.loading || this.errorMessage) {
             return;
         }
 
+        await this.loadCustomers(this.query);
         this.open = true;
         this.$nextTick(() => this.$refs.search.focus());
     },
@@ -1453,41 +1485,30 @@ Alpine.data('invoiceItems', () => ({
 
 Alpine.data('invoicePreviewActions', () => ({
     preview: {
-        invoice_number: 'INV-2026-0079',
-        issue_date_label: '23 Juli 2026',
+        invoice_number: 'Draft belum disimpan',
+        issue_date_label: '-',
         currency: 'IDR',
         customer: {
-            name: 'PT Sinar Nusantara',
-            email: 'finance@sinarnusantara.co.id',
-            phone: '+62 21 555 0198',
-            address: 'Jl. Jenderal Sudirman No. 88, Jakarta Selatan 12190',
+            name: 'Pelanggan belum dipilih',
+            email: '',
+            phone: '',
+            address: '',
         },
-        items: [
-            {
-                key: 'sample-1',
-                name: 'Cup Injection 12Oz Datar (360ml) Natural',
-                note: 'SKU: H-001 · Kelipatan jumlah 500 Pcs',
-                quantity: 500,
-                unit: 'Pcs',
-                quantity_label: '500 Pcs',
-                unit_price: 300,
-                line_total: 150000,
-            },
-        ],
-        subtotal: 150000,
+        items: [],
+        subtotal: 0,
         discount_type: 'percentage',
-        discount_value: 5,
-        discount_amount: 7500,
-        tax_enabled: true,
+        discount_value: 0,
+        discount_amount: 0,
+        tax_enabled: false,
         tax_rate: 11,
-        tax_amount: 15675,
+        tax_amount: 0,
         shipping_cost: 0,
         is_free_shipping: false,
-        total_amount: 158175,
-        dp_required_percent: 50,
-        dp_amount: 79087.5,
-        notes: 'Produksi berjalan setelah DP minimal 50% diterima dan mockup/desain sudah di-ACC. Pelunasan dilakukan sebelum barang dikirim atau diambil.',
-        terms: 'Minimal DP 50% sebelum produksi. Pelunasan dilakukan sebelum barang dikirim atau diambil.',
+        total_amount: 0,
+        dp_required_percent: 0,
+        dp_amount: 0,
+        notes: '',
+        terms: '',
     },
     savingDraft: false,
     draftSaved: false,
@@ -1981,6 +2002,10 @@ Alpine.data('customerIndexTable', (initialCustomers = []) => ({
     sortKey: 'lastOrderSort',
     sortDirection: 'desc',
     customers: initialCustomers,
+    deleteCandidate: null,
+    deleteModalOpen: false,
+    deleting: false,
+    deleteError: '',
 
     statusOptions: [
         { key: 'all', label: 'Semua Status' },
@@ -2094,6 +2119,44 @@ Alpine.data('customerIndexTable', (initialCustomers = []) => ({
         this.segmentFilter = 'all';
     },
 
+    openDeleteModal(customer) {
+        this.deleteCandidate = customer;
+        this.deleteError = '';
+        this.deleteModalOpen = true;
+        this.$nextTick(() => this.$refs.deleteConfirmButton?.focus());
+    },
+
+    closeDeleteModal() {
+        if (this.deleting) {
+            return;
+        }
+
+        this.deleteModalOpen = false;
+        this.deleteCandidate = null;
+        this.deleteError = '';
+    },
+
+    async confirmDelete() {
+        if (!this.deleteCandidate || this.deleting) {
+            return;
+        }
+
+        this.deleting = true;
+        this.deleteError = '';
+
+        try {
+            const deletedCode = this.deleteCandidate.code;
+
+            await deleteCustomer(this.deleteCandidate.id);
+            this.customers = this.customers.filter((customer) => customer.id !== this.deleteCandidate.id);
+            window.location.assign(`/customers?deleted=${encodeURIComponent(deletedCode)}`);
+        } catch (error) {
+            this.deleteError = error?.message ?? 'Pelanggan belum dapat dihapus.';
+        } finally {
+            this.deleting = false;
+        }
+    },
+
     statusClass(status) {
         return {
             Aktif: 'bg-green-100 text-green-800',
@@ -2103,8 +2166,9 @@ Alpine.data('customerIndexTable', (initialCustomers = []) => ({
     },
 }));
 
-Alpine.data('customerForm', (initialForm = {}, isEditMode = false) => ({
+Alpine.data('customerForm', (initialForm = {}, isEditMode = false, customerId = null) => ({
     isEdit: isEditMode,
+    customerId,
     saving: false,
     saved: false,
     fieldErrors: {},
@@ -2226,11 +2290,10 @@ Alpine.data('customerForm', (initialForm = {}, isEditMode = false) => ({
 
         try {
             if (this.isEdit) {
-                window.setTimeout(() => {
-                    this.saved = true;
-                    this.saving = false;
-                }, 450);
+                const response = await updateCustomer(this.customerId, this.payload());
 
+                this.form.code = response.data.code;
+                this.saved = true;
                 return;
             }
 
@@ -2863,7 +2926,7 @@ Alpine.data('companyProfileSettings', (initialForm = {}) => ({
     },
 
     get sampleInvoiceNumber() {
-        return `${this.form.invoicePrefix || 'INV'}-2026-0085`;
+        return `${this.form.invoicePrefix || 'INV'}-${new Date().getFullYear()}-0001`;
     },
 
     get validationMessages() {

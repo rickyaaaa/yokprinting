@@ -1,84 +1,3 @@
-const API_MODE = import.meta.env.VITE_PRODUCT_API_MODE ?? 'live';
-
-const MOCK_PRODUCTS = [
-    {
-        id: 1,
-        name: 'Sablon Cup 12 Oz Oval 8gr - 2 warna Hitam',
-        sku: 'H-001',
-        code: 'H-001',
-        category: 'Sablon cup F&B',
-        price: 0,
-        purchase_price: 650,
-        stock: 32000,
-        cup_size: '12 Oz',
-        cup_model: 'Oval',
-        grammage: '8gr',
-        screen_printing_color: 'Hitam',
-        sides: 2,
-        cup_description: 'Sablon Cup 12 Oz Oval (8gr) - 2 warna (Tinta Hitam)',
-        moq_quantity: 500,
-        order_increment: 500,
-        packaging_unit: 'Pcs',
-    },
-    {
-        id: 2,
-        name: 'Sablon Cup 12 Oz Datar 7gr',
-        sku: 'H-002',
-        code: 'H-002',
-        category: 'Sablon cup F&B',
-        price: 0,
-        purchase_price: 525,
-        stock: 28000,
-        cup_size: '12 Oz',
-        cup_model: 'Datar',
-        grammage: '7gr',
-        screen_printing_color: 'Putih',
-        sides: 1,
-        cup_description: 'Sablon Cup 12 Oz Datar (7gr) - 1 warna (Tinta Putih)',
-        moq_quantity: 500,
-        order_increment: 500,
-        packaging_unit: 'Pcs',
-    },
-    {
-        id: 3,
-        name: 'Sablon Cup 12 Oz Oval 9.5gr - 2 warna Custom',
-        sku: 'H-003',
-        code: 'H-003',
-        category: 'Sablon cup F&B',
-        price: 0,
-        purchase_price: 875,
-        stock: 18000,
-        cup_size: '12 Oz',
-        cup_model: 'Oval',
-        grammage: '9.5gr',
-        screen_printing_color: 'Custom',
-        sides: 2,
-        cup_description: 'Sablon Cup 12 Oz Oval (9.5gr) - 2 warna (Tinta Custom)',
-        moq_quantity: 500,
-        order_increment: 500,
-        packaging_unit: 'Pcs',
-    },
-    {
-        id: 4,
-        name: 'Dus Kemasan Cup 12 Oz',
-        sku: 'H-004',
-        code: 'H-004',
-        category: 'Kemasan pendukung',
-        price: 0,
-        purchase_price: 9500,
-        stock: 240,
-        cup_size: '12 Oz',
-        cup_model: 'Datar',
-        grammage: '8gr',
-        screen_printing_color: 'Custom',
-        sides: 1,
-        cup_description: 'Kemasan dus untuk cup 12 Oz',
-        moq_quantity: 10,
-        order_increment: 500,
-        packaging_unit: 'Pcs',
-    },
-];
-
 export class ProductApiError extends Error {
     constructor(message, status = 500) {
         super(message);
@@ -86,13 +5,6 @@ export class ProductApiError extends Error {
         this.status = status;
     }
 }
-
-const mockListProducts = () =>
-    new Promise((resolve) => {
-        window.setTimeout(() => {
-            resolve({ data: MOCK_PRODUCTS });
-        }, 500);
-    });
 
 const jsonHeaders = () => ({
     Accept: 'application/json',
@@ -107,16 +19,13 @@ const buildQuery = (params = {}) => new URLSearchParams(
 );
 
 export async function listProducts(params = {}) {
-    if (API_MODE !== 'live') {
-        return mockListProducts();
-    }
-
     const query = buildQuery({
         status: 'active',
         limit: '150',
         ...params,
     });
     const response = await fetch(`/api/products/options?${query.toString()}`, {
+        cache: 'no-store',
         credentials: 'same-origin',
         headers: {
             Accept: 'application/json',
@@ -142,6 +51,7 @@ export async function listProductCatalog(params = {}) {
         ...params,
     });
     const response = await fetch(`/api/products?${query.toString()}`, {
+        cache: 'no-store',
         credentials: 'same-origin',
         headers: {
             Accept: 'application/json',

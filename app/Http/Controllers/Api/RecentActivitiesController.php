@@ -3,74 +3,57 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Invoice;
+use App\Models\Payment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class RecentActivitiesController extends Controller
 {
-    /**
-     * Default list of recent business activities.
-     */
-    private const ACTIVITIES = [
-        [
-            'id' => 'act-001',
-            'type' => 'invoice',
-            'tone' => 'brand',
-            'title' => 'Invoice INV-2026-0084 dikirim',
-            'description' => 'PT Sinar Nusantara menerima invoice desain brand.',
-            'occurred_at' => '2026-07-23T23:05:00+07:00',
-        ],
-        [
-            'id' => 'act-002',
-            'type' => 'payment',
-            'tone' => 'success',
-            'title' => 'Pembayaran diterima',
-            'description' => 'CV Lautan Rasa membayar Rp12.750.000 melalui transfer bank.',
-            'occurred_at' => '2026-07-23T22:33:00+07:00',
-        ],
-        [
-            'id' => 'act-003',
-            'type' => 'reminder',
-            'tone' => 'warning',
-            'title' => 'Invoice mendekati jatuh tempo',
-            'description' => 'INV-2026-0078 perlu ditindaklanjuti dalam 2 hari.',
-            'occurred_at' => '2026-07-23T21:10:00+07:00',
-        ],
-        [
-            'id' => 'act-004',
-            'type' => 'invoice',
-            'tone' => 'muted',
-            'title' => 'Draft invoice baru dibuat',
-            'description' => 'Paket cetak katalog untuk PT Bumi Lestari masuk sebagai draft.',
-            'occurred_at' => '2026-07-23T06:40:00+07:00',
-        ],
-        [
-            'id' => 'act-005',
-            'type' => 'payment',
-            'tone' => 'success',
-            'title' => 'Pembayaran parsial dicatat',
-            'description' => 'PT Cakra Media membayar Rp4.250.000 untuk INV-2026-0076.',
-            'occurred_at' => '2026-07-22T21:20:00+07:00',
-        ],
-    ];
-
-    /**
-     * Return list of recent business activities with optional type filtering.
-     */
     public function __invoke(Request $request): JsonResponse
     {
-        $type = $request->query('type', 'all');
-        $activities = collect(self::ACTIVITIES);
+        $invoiceActivities = Invoice::query()
+            ->with('customer')
+            ->latest('created_at')
+            ->take(10)
+            ->get()
+            ->map(fn (Invoice $invoice): array => [
+                'id' => 'invoice-'.$invoice->id,
+                'type' => 'invoice',
+                'tone' => 'brand',
+                'title' => ($invoice->status === Invoice::STATUS_DRAFT ? 'Draft invoice ' : 'Invoice ').$invoice->invoice_number,
+                'description' => ($invoice->customer?->name ?? 'Pelanggan tidak tersedia').' · '.$this->rupiah((float) $invoice->total_amount),
+                'occurred_at' => $invoice->created_at->toISOString(),
+            ]);
+        $paymentActivities = Payment::query()
+            ->with('invoice.customer')
+            ->latest('created_at')
+            ->take(10)
+            ->get()
+            ->map(fn (Payment $payment): array => [
+                'id' => 'payment-'.$payment->id,
+                'type' => 'payment',
+                'tone' => $payment->status === Payment::STATUS_VERIFIED ? 'success' : 'warning',
+                'title' => 'Pembayaran '.$payment->statusLabel(),
+                'description' => ($payment->invoice?->customer?->name ?? 'Pelanggan tidak tersedia').' membayar '.$this->rupiah((float) $payment->amount).' untuk '.($payment->invoice?->invoice_number ?? '-').'.',
+                'occurred_at' => $payment->created_at->toISOString(),
+            ]);
 
-        if ($type && $type !== 'all') {
-            $activities = $activities->where('type', $type)->values();
-        } else {
-            $activities = $activities->values();
-        }
+        $activities = $invoiceActivities
+            ->concat($paymentActivities)
+            ->when(
+                in_array($request->query('type'), ['invoice', 'payment'], true),
+                fn ($items) => $items->where('type', $request->query('type')),
+            )
+            ->sortByDesc('occurred_at')
+            ->take(10)
+            ->values();
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $activities,
-        ]);
+        return response()->json(['status' => 'success', 'data' => $activities]);
+    }
+
+    private function rupiah(float $amount): string
+    {
+        return 'Rp'.number_format($amount, 0, ',', '.');
     }
 }

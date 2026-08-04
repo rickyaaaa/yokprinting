@@ -1,21 +1,3 @@
-@php
-    $summaryCards = [
-        ['label' => 'Pembayaran diterima', 'value' => 'Rp129.350.000', 'caption' => 'Bulan Juli 2026', 'tone' => 'success'],
-        ['label' => 'Transaksi masuk', 'value' => '32', 'caption' => 'Dari 24 pelanggan', 'tone' => 'brand'],
-        ['label' => 'Rata-rata bayar', 'value' => 'Rp4.040.000', 'caption' => 'Per transaksi', 'tone' => 'brand'],
-        ['label' => 'Perlu verifikasi', 'value' => '3', 'caption' => 'Menunggu pengecekan', 'tone' => 'warning'],
-    ];
-
-    $payments = [
-        ['date' => '26 Jul 2026', 'time' => '14:42', 'invoice' => 'INV-2026-0084', 'customer' => 'PT Sinar Nusantara', 'method' => 'Transfer BCA', 'reference' => 'BCA-77302', 'amount' => 'Rp4.000.000', 'status' => 'Terverifikasi'],
-        ['date' => '26 Jul 2026', 'time' => '09:18', 'invoice' => 'INV-2026-0081', 'customer' => 'PT Cakra Media', 'method' => 'Transfer Mandiri', 'reference' => 'MDR-92118', 'amount' => 'Rp4.250.000', 'status' => 'Terverifikasi'],
-        ['date' => '25 Jul 2026', 'time' => '16:05', 'invoice' => 'INV-2026-0080', 'customer' => 'UD Sumber Makmur', 'method' => 'Kartu kredit', 'reference' => 'CC-44021', 'amount' => 'Rp7.900.000', 'status' => 'Menunggu'],
-        ['date' => '24 Jul 2026', 'time' => '11:20', 'invoice' => 'INV-2026-0084', 'customer' => 'PT Sinar Nusantara', 'method' => 'Transfer BCA', 'reference' => 'BCA-77219', 'amount' => 'Rp8.000.000', 'status' => 'Terverifikasi'],
-        ['date' => '23 Jul 2026', 'time' => '15:11', 'invoice' => 'INV-2026-0075', 'customer' => 'CV Lautan Rasa', 'method' => 'Transfer BCA', 'reference' => 'BCA-77190', 'amount' => 'Rp12.750.000', 'status' => 'Terverifikasi'],
-        ['date' => '22 Jul 2026', 'time' => '10:09', 'invoice' => 'INV-2026-0072', 'customer' => 'PT Bumi Lestari', 'method' => 'Tunai', 'reference' => 'CSH-1024', 'amount' => 'Rp2.500.000', 'status' => 'Menunggu'],
-    ];
-@endphp
-
 <!DOCTYPE html>
 <html lang="id">
     <head>
@@ -73,7 +55,7 @@
                             <span class="absolute right-1.5 top-1.5 size-2 rounded-full bg-red-500 ring-2 ring-white"></span>
                         </button>
                         <span class="hidden h-6 w-px bg-line sm:block"></span>
-                        <span class="hidden text-sm text-muted sm:inline">Kamis, 23 Juli 2026</span>
+                        <span class="hidden text-sm text-muted sm:inline">{{ now(config('app.timezone'))->locale('id')->translatedFormat('l, j F Y') }}</span>
                     </div>
                 </header>
 

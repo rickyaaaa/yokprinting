@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Customer;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -229,6 +230,12 @@ class StoreInvoiceDraftApiTest extends TestCase
      */
     private function validPayload(): array
     {
+        $customer = Customer::query()->create([
+            'name' => 'PT Pelanggan Invoice',
+            'email' => fake()->unique()->safeEmail(),
+            'address' => 'Jl. Invoice No. 1',
+            'city' => 'Tangerang',
+        ]);
         $brandPackage = Product::query()->create([
             'name' => 'Paket Desain Identitas Brand',
             'sku' => 'JSA-BRAND-01',
@@ -247,7 +254,7 @@ class StoreInvoiceDraftApiTest extends TestCase
         ]);
 
         return [
-            'customer_id' => 1,
+            'customer_id' => $customer->id,
             'invoice_number' => 'INV-2026-0090',
             'issue_date' => '2026-07-23',
             'due_date' => '2026-08-06',

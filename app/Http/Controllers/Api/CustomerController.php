@@ -52,9 +52,23 @@ class CustomerController extends Controller
      */
     public function destroy(Customer $customer): JsonResponse
     {
+        $invoiceCount = $customer->invoices()->count();
+        $customerCode = $customer->code;
+        $customerName = $customer->name;
+
         $customer->delete();
 
-        return response()->json(status: 204);
+        return response()->json([
+            'message' => $invoiceCount > 0
+                ? 'Pelanggan dihapus dari daftar aktif. Invoice dan transaksi historis tetap tersimpan.'
+                : 'Pelanggan berhasil dihapus dari daftar aktif.',
+            'data' => [
+                'code' => $customerCode,
+                'name' => $customerName,
+                'invoice_count' => $invoiceCount,
+                'history_preserved' => true,
+            ],
+        ]);
     }
 
     /**

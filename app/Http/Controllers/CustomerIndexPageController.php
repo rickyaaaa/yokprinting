@@ -41,6 +41,7 @@ class CustomerIndexPageController extends Controller
                 ->first()?->issue_date;
 
             return [
+                'id' => $customer->getKey(),
                 'code' => $customer->code,
                 'name' => $customer->name,
                 'initials' => $customer->initials(),
@@ -55,12 +56,14 @@ class CustomerIndexPageController extends Controller
                 'outstanding' => $this->formatRupiah($outstanding),
                 'outstandingValue' => $outstanding,
                 'status' => $this->statusLabel($customer),
+                'invoiceCount' => $invoices->count(),
             ];
         })->values();
 
         return view('customers.index', [
             'customers' => $customers,
             'summaryCards' => $this->summaryCards($customerModels, $customers),
+            'canDeleteCustomer' => request()->user()?->hasPermission('customer.delete') ?? false,
         ]);
     }
 

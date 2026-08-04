@@ -1,62 +1,3 @@
-@php
-    $customerCode = $customerCode ?? 'CUS-001';
-    $customers = [
-        'CUS-001' => [
-            'code' => 'CUS-001',
-            'name' => 'PT Sinar Nusantara',
-            'initials' => 'SN',
-            'segment' => 'Enterprise',
-            'status' => 'Aktif',
-            'email' => 'finance@sinarnusantara.co.id',
-            'phone' => '+62 21 555 0198',
-            'address' => 'Jl. Kemang Raya No. 18, Jakarta Selatan, DKI Jakarta 12730',
-            'totalSales' => 'Rp42.850.000',
-            'outstanding' => 'Rp6.450.000',
-            'paid' => 'Rp36.400.000',
-            'invoiceCount' => '4 invoice',
-            'averageInvoice' => 'Rp10.712.500',
-        ],
-        'CUS-002' => [
-            'code' => 'CUS-002',
-            'name' => 'CV Lautan Rasa',
-            'initials' => 'LR',
-            'segment' => 'UMKM',
-            'status' => 'Aktif',
-            'email' => 'billing@lautanrasa.example',
-            'phone' => '+62 361 700 210',
-            'address' => 'Jl. Danau Tamblingan No. 42, Denpasar, Bali 80228',
-            'totalSales' => 'Rp25.500.000',
-            'outstanding' => 'Rp12.750.000',
-            'paid' => 'Rp12.750.000',
-            'invoiceCount' => '2 invoice',
-            'averageInvoice' => 'Rp12.750.000',
-        ],
-    ];
-    $customer = $customers[$customerCode] ?? $customers['CUS-001'];
-    $summaryCards = [
-        ['label' => 'Total transaksi', 'value' => $customer['totalSales'], 'caption' => $customer['invoiceCount'], 'tone' => 'brand'],
-        ['label' => 'Sudah tertagih', 'value' => $customer['paid'], 'caption' => 'Pembayaran terverifikasi', 'tone' => 'success'],
-        ['label' => 'Outstanding', 'value' => $customer['outstanding'], 'caption' => 'Butuh monitoring', 'tone' => 'warning'],
-        ['label' => 'Rata-rata invoice', 'value' => $customer['averageInvoice'], 'caption' => 'Per transaksi', 'tone' => 'brand'],
-    ];
-    $invoices = [
-        ['invoice' => 'INV-2026-0084', 'date' => '23 Jul 2026', 'due' => '30 Jul 2026', 'amount' => 'Rp18.450.000', 'paid' => 'Rp12.000.000', 'status' => 'Parsial'],
-        ['invoice' => 'INV-2026-0068', 'date' => '18 Jun 2026', 'due' => '2 Jul 2026', 'amount' => 'Rp11.200.000', 'paid' => 'Rp11.200.000', 'status' => 'Lunas'],
-        ['invoice' => 'INV-2026-0041', 'date' => '9 Mei 2026', 'due' => '23 Mei 2026', 'amount' => 'Rp8.400.000', 'paid' => 'Rp8.400.000', 'status' => 'Lunas'],
-        ['invoice' => 'INV-2026-0028', 'date' => '14 Apr 2026', 'due' => '28 Apr 2026', 'amount' => 'Rp4.800.000', 'paid' => 'Rp4.800.000', 'status' => 'Lunas'],
-    ];
-    $payments = [
-        ['date' => '26 Jul 2026', 'method' => 'Transfer BCA', 'reference' => 'BCA-77302', 'amount' => 'Rp4.000.000', 'status' => 'Terverifikasi'],
-        ['date' => '24 Jul 2026', 'method' => 'Transfer BCA', 'reference' => 'BCA-77219', 'amount' => 'Rp8.000.000', 'status' => 'Terverifikasi'],
-        ['date' => '20 Jun 2026', 'method' => 'Transfer Mandiri', 'reference' => 'MDR-66102', 'amount' => 'Rp11.200.000', 'status' => 'Terverifikasi'],
-    ];
-    $activities = [
-        ['type' => 'invoice', 'title' => 'Invoice INV-2026-0084 dikirim', 'description' => 'Paket brand refresh dan katalog premium dikirim ke email finance.', 'time' => '23 Jul 2026, 10:24'],
-        ['type' => 'payment', 'title' => 'Pembayaran parsial diterima', 'description' => 'Transfer BCA sebesar Rp8.000.000 terverifikasi.', 'time' => '24 Jul 2026, 11:20'],
-        ['type' => 'note', 'title' => 'Catatan follow-up ditambahkan', 'description' => 'Pelanggan meminta jadwal pembayaran lanjutan minggu depan.', 'time' => '24 Jul 2026, 15:00'],
-    ];
-@endphp
-
 <!DOCTYPE html>
 <html lang="id">
     <head>
@@ -88,7 +29,7 @@
                         </svg>
                         <span class="truncate font-medium text-ink">Riwayat pelanggan</span>
                     </div>
-                    <div class="ml-auto hidden text-sm text-muted sm:block">Jumat, 24 Juli 2026</div>
+                    <div class="ml-auto hidden text-sm text-muted sm:block">{{ now(config('app.timezone'))->locale('id')->translatedFormat('l, j F Y') }}</div>
                 </header>
 
                 <main class="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">

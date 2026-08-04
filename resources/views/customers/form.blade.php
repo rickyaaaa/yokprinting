@@ -1,15 +1,3 @@
-@php
-    $customerCode = $customerCode ?? null;
-    $customers = [
-        'CUS-001' => ['code' => 'CUS-001', 'name' => 'PT Sinar Nusantara', 'segment' => 'Enterprise', 'email' => 'finance@sinarnusantara.co.id', 'phone' => '+62 21 555 0198', 'taxNumber' => '09.123.456.7-012.000', 'address' => 'Jl. Kemang Raya No. 18', 'city' => 'Jakarta Selatan', 'province' => 'DKI Jakarta', 'postalCode' => '12730', 'status' => 'Aktif', 'notes' => 'Prioritas follow-up untuk invoice desain brand dan katalog.'],
-        'CUS-002' => ['code' => 'CUS-002', 'name' => 'CV Lautan Rasa', 'segment' => 'UMKM', 'email' => 'billing@lautanrasa.example', 'phone' => '+62 361 700 210', 'taxNumber' => '08.772.110.3-904.000', 'address' => 'Jl. Danau Tamblingan No. 42', 'city' => 'Denpasar', 'province' => 'Bali', 'postalCode' => '80228', 'status' => 'Aktif', 'notes' => 'Sering memesan materi promosi musiman.'],
-        'CUS-003' => ['code' => 'CUS-003', 'name' => 'PT Bumi Lestari', 'segment' => 'Corporate', 'email' => 'finance@bumilestari.example', 'phone' => '+62 22 7788 440', 'taxNumber' => '04.551.320.8-441.000', 'address' => 'Jl. Asia Afrika No. 77', 'city' => 'Bandung', 'province' => 'Jawa Barat', 'postalCode' => '40111', 'status' => 'Perlu follow-up', 'notes' => 'Perlu dihubungi terkait invoice overdue.'],
-    ];
-    $isEdit = $customerCode !== null;
-    $customer = $customers[$customerCode] ?? ['code' => '', 'name' => '', 'email' => '', 'phone' => '', 'taxNumber' => '', 'address' => '', 'city' => '', 'province' => '', 'postalCode' => '', 'status' => 'Aktif', 'notes' => ''];
-    $title = $isEdit ? 'Edit pelanggan '.$customer['code'] : 'Tambah pelanggan baru';
-@endphp
-
 <!DOCTYPE html>
 <html lang="id">
     <head>
@@ -53,7 +41,7 @@
                         <span class="truncate font-medium text-ink">{{ $isEdit ? 'Edit pelanggan' : 'Tambah pelanggan' }}</span>
                     </div>
                     <div class="ml-auto flex items-center gap-2">
-                        <span class="hidden text-sm text-muted sm:inline">Jumat, 24 Juli 2026</span>
+                        <span class="hidden text-sm text-muted sm:inline">{{ now(config('app.timezone'))->locale('id')->translatedFormat('l, j F Y') }}</span>
                     </div>
                 </header>
 
@@ -76,7 +64,7 @@
 
                     <form
                         class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]"
-                        x-data='customerForm(@json($customer), @json($isEdit))'
+                        x-data='customerForm(@json($customer), @json($isEdit), @json($customerId))'
                         @submit.prevent="submit()"
                         novalidate
                     >

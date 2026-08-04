@@ -1,69 +1,3 @@
-@php
-    $summaryCards = [
-        [
-            'label' => 'Pendapatan bulan ini',
-            'value' => 'Rp86,4 jt',
-            'change' => '+18,2%',
-            'changeTone' => 'success',
-            'caption' => 'Dibanding bulan lalu',
-            'icon' => 'revenue',
-        ],
-        [
-            'label' => 'Invoice tertagih',
-            'value' => 'Rp52,1 jt',
-            'change' => '61%',
-            'changeTone' => 'brand',
-            'caption' => 'Dari total invoice aktif',
-            'icon' => 'paid',
-        ],
-        [
-            'label' => 'Menunggu bayar',
-            'value' => 'Rp28,7 jt',
-            'change' => '14 invoice',
-            'changeTone' => 'warning',
-            'caption' => 'Rata-rata jatuh tempo 9 hari',
-            'icon' => 'pending',
-        ],
-        [
-            'label' => 'Lewat tempo',
-            'value' => 'Rp5,6 jt',
-            'change' => '3 invoice',
-            'changeTone' => 'danger',
-            'caption' => 'Perlu tindak lanjut',
-            'icon' => 'overdue',
-        ],
-    ];
-
-    $cashflowSegments = [
-        ['label' => 'Tertagih', 'value' => '60%', 'class' => 'bg-brand-600'],
-        ['label' => 'Menunggu', 'value' => '33%', 'class' => 'bg-accent'],
-        ['label' => 'Lewat tempo', 'value' => '7%', 'class' => 'bg-red-600'],
-    ];
-
-    $upcomingInvoices = [
-        ['customer' => 'PT Sinar Nusantara', 'invoice' => 'INV-2026-0084', 'amount' => 'Rp18.450.000', 'due' => '30 Jul', 'status' => 'ACC desain'],
-        ['customer' => 'CV Lautan Rasa', 'invoice' => 'INV-2026-0082', 'amount' => 'Rp12.750.000', 'due' => '2 Agu', 'status' => 'Menunggu DP'],
-        ['customer' => 'PT Bumi Lestari', 'invoice' => 'INV-2026-0078', 'amount' => 'Rp5.600.000', 'due' => 'Lewat 3 hari', 'status' => 'Lewat tempo'],
-    ];
-
-    $dueNotifications = [
-        ['tone' => 'danger', 'title' => 'Lewat tempo 3 hari', 'invoice' => 'INV-2026-0078', 'customer' => 'PT Bumi Lestari', 'amount' => 'Rp5.600.000', 'action' => 'Follow up hari ini'],
-        ['tone' => 'warning', 'title' => 'Jatuh tempo besok', 'invoice' => 'INV-2026-0084', 'customer' => 'PT Sinar Nusantara', 'amount' => 'Rp18.450.000', 'action' => 'Kirim pengingat'],
-        ['tone' => 'info', 'title' => 'Jatuh tempo 5 hari', 'invoice' => 'INV-2026-0082', 'customer' => 'CV Lautan Rasa', 'amount' => 'Rp12.750.000', 'action' => 'Jadwalkan reminder'],
-    ];
-
-    $lowStockProducts = [
-        ['name' => 'Cup 16 Oz Oval 8gr', 'sku' => 'CUP-16OV-8G', 'stock' => '18.000 pcs', 'minimum' => '25.000 pcs', 'urgency' => 'Butuh restock minggu ini'],
-        ['name' => 'Tinta sablon hitam food grade', 'sku' => 'INK-BLK-FG', 'stock' => '4 kg', 'minimum' => '8 kg', 'urgency' => 'Prioritas produksi'],
-    ];
-
-    $productionQueue = [
-        ['invoice' => 'INV-2026-0084', 'customer' => 'PT Sinar Nusantara', 'spec' => '16 Oz Oval · 10.000 pcs · 2 sisi', 'status' => 'ACC Mockup', 'eta' => 'Mulai sablon hari ini', 'tone' => 'brand'],
-        ['invoice' => 'INV-2026-0082', 'customer' => 'CV Lautan Rasa', 'spec' => '12 Oz Datar · 8.000 pcs · 1 sisi', 'status' => 'Menunggu DP', 'eta' => 'Tahan produksi', 'tone' => 'warning'],
-        ['invoice' => 'INV-2026-0080', 'customer' => 'Kopi Pagi Group', 'spec' => '22 Oz Oval · 5.000 pcs · tinta custom', 'status' => 'Proses Sablon', 'eta' => 'Siap kirim 26 Jul', 'tone' => 'success'],
-    ];
-@endphp
-
 <!DOCTYPE html>
 <html lang="id">
     <head>
@@ -121,7 +55,7 @@
                             <span class="absolute right-1.5 top-1.5 size-2 rounded-full bg-red-500 ring-2 ring-white"></span>
                         </button>
                         <span class="hidden h-6 w-px bg-line sm:block"></span>
-                        <span class="hidden text-sm text-muted sm:inline">Kamis, 23 Juli 2026</span>
+                        <span class="hidden text-sm text-muted sm:inline">{{ now(config('app.timezone'))->locale('id')->translatedFormat('l, j F Y') }}</span>
                     </div>
                 </header>
 

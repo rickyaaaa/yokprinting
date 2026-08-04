@@ -1,21 +1,3 @@
-@php
-    $summaryCards = [
-        ['label' => 'Total produk', 'value' => '64', 'caption' => '42 aktif dijual', 'tone' => 'brand'],
-        ['label' => 'Stok menipis', 'value' => '7', 'caption' => 'Di bawah minimum', 'tone' => 'warning'],
-        ['label' => 'Nilai persediaan', 'value' => 'Rp186.500.000', 'caption' => 'Estimasi harga beli stok', 'tone' => 'success'],
-        ['label' => 'Produk terlaris', 'value' => 'Katalog Premium', 'caption' => '18 transaksi bulan ini', 'tone' => 'brand'],
-    ];
-
-    $products = [
-        ['sku' => 'JSA-BRAND-01', 'name' => 'Paket desain brand refresh', 'category' => 'Jasa desain', 'unit' => 'PCS', 'purchasePrice' => 'Rp2.500.000', 'purchasePriceValue' => 2500000, 'stock' => 'Tidak dilacak', 'stockValue' => 999, 'minimumStock' => 0, 'sales' => 8, 'status' => 'Aktif'],
-        ['sku' => 'PRN-CATALOG-01', 'name' => 'Cetak katalog premium', 'category' => 'Cetak premium', 'unit' => 'PCS', 'purchasePrice' => 'Rp4.200.000', 'purchasePriceValue' => 4200000, 'stock' => '42 PCS', 'stockValue' => 42, 'minimumStock' => 10, 'sales' => 18, 'status' => 'Aktif'],
-        ['sku' => 'JSA-WEB-03', 'name' => 'Website company profile', 'category' => 'Jasa desain', 'unit' => 'PCS', 'purchasePrice' => 'Rp3.500.000', 'purchasePriceValue' => 3500000, 'stock' => 'Tidak dilacak', 'stockValue' => 999, 'minimumStock' => 0, 'sales' => 5, 'status' => 'Aktif'],
-        ['sku' => 'PRM-FLYER-01', 'name' => 'Flyer promosi bulanan', 'category' => 'Materi promosi', 'unit' => 'PCS', 'purchasePrice' => 'Rp4.900.000', 'purchasePriceValue' => 4900000, 'stock' => '6 PCS', 'stockValue' => 6, 'minimumStock' => 12, 'sales' => 11, 'status' => 'Stok menipis'],
-        ['sku' => 'PRN-BANNER-02', 'name' => 'Banner outdoor premium', 'category' => 'Cetak premium', 'unit' => 'PCS', 'purchasePrice' => 'Rp310.000', 'purchasePriceValue' => 310000, 'stock' => '120 PCS', 'stockValue' => 120, 'minimumStock' => 30, 'sales' => 14, 'status' => 'Aktif'],
-        ['sku' => 'PKG-STARTER-01', 'name' => 'Paket starter UMKM', 'category' => 'Paket bundling', 'unit' => 'PCS', 'purchasePrice' => 'Rp1.800.000', 'purchasePriceValue' => 1800000, 'stock' => '0 PCS', 'stockValue' => 0, 'minimumStock' => 5, 'sales' => 3, 'status' => 'Nonaktif'],
-    ];
-@endphp
-
 <!DOCTYPE html>
 <html lang="id">
     <head>
@@ -47,7 +29,7 @@
                         </svg>
                         <span class="truncate font-medium text-ink">Data produk</span>
                     </div>
-                    <div class="ml-auto hidden text-sm text-muted sm:block">Jumat, 24 Juli 2026</div>
+                    <div class="ml-auto hidden text-sm text-muted sm:block">{{ now(config('app.timezone'))->locale('id')->translatedFormat('l, j F Y') }}</div>
                 </header>
 
                 <main class="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">

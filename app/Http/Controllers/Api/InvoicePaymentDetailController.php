@@ -20,12 +20,15 @@ class InvoicePaymentDetailController extends Controller
             ->where('status', Payment::STATUS_VERIFIED)
             ->sum('amount');
         $totalAmount = (float) $invoice->total_amount;
-        $remainingAmount = max(0, $totalAmount - $paidAmount);
+        $remainingAmount = round(max(0, $totalAmount - $paidAmount), 2, PHP_ROUND_HALF_UP);
+        $isPaid = $remainingAmount <= 0;
         $progress = $totalAmount > 0
-            ? min(100, round(($paidAmount / $totalAmount) * 100, 2))
+            ? ($isPaid ? 100 : min(100, round(($paidAmount / $totalAmount) * 100, 2)))
             : 0;
-        $isOverdue = $invoice->due_date->isPast()
-            && $invoice->payment_status !== Invoice::PAYMENT_PAID;
+        $isOverdue = ! $isPaid && $invoice->due_date->isPast();
+        $effectivePaymentStatus = $isPaid
+            ? Invoice::PAYMENT_PAID
+            : ($isOverdue ? Invoice::PAYMENT_OVERDUE : $invoice->payment_status);
 
         return response()->json([
             'status' => 'success',
@@ -34,10 +37,8 @@ class InvoicePaymentDetailController extends Controller
                     'id' => $invoice->getKey(),
                     'invoice_number' => $invoice->invoice_number,
                     'status' => $invoice->status,
-                    'payment_status' => $isOverdue ? Invoice::PAYMENT_OVERDUE : $invoice->payment_status,
-                    'payment_status_label' => $this->paymentStatusLabel(
-                        $isOverdue ? Invoice::PAYMENT_OVERDUE : $invoice->payment_status,
-                    ),
+                    'payment_status' => $effectivePaymentStatus,
+                    'payment_status_label' => $this->paymentStatusLabel($effectivePaymentStatus),
                     'production_status' => $invoice->production_status,
                     'production_status_label' => $invoice->productionStatusLabel(),
                     'issue_date' => $invoice->issue_date->toDateString(),

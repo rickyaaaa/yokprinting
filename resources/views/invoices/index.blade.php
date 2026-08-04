@@ -1,20 +1,3 @@
-@php
-    $invoiceRows = [
-        ['number' => 'INV-2026-0084', 'customer' => 'PT Sinar Nusantara', 'email' => 'finance@sinarnusantara.co.id', 'issue_date' => '23 Jul 2026', 'due_date' => '06 Agu 2026', 'amount' => 'Rp18.450.000', 'status' => 'Menunggu', 'tone' => 'warning'],
-        ['number' => 'INV-2026-0082', 'customer' => 'CV Lautan Rasa', 'email' => 'billing@lautanrasa.id', 'issue_date' => '20 Jul 2026', 'due_date' => '03 Agu 2026', 'amount' => 'Rp12.750.000', 'status' => 'Lunas', 'tone' => 'success'],
-        ['number' => 'INV-2026-0079', 'customer' => 'PT Sinar Nusantara', 'email' => 'finance@sinarnusantara.co.id', 'issue_date' => '23 Jul 2026', 'due_date' => '06 Agu 2026', 'amount' => 'Rp22.408.125', 'status' => 'Draft', 'tone' => 'brand'],
-        ['number' => 'INV-2026-0078', 'customer' => 'PT Bumi Lestari', 'email' => 'ap@bumilestari.co.id', 'issue_date' => '10 Jul 2026', 'due_date' => '20 Jul 2026', 'amount' => 'Rp5.600.000', 'status' => 'Overdue', 'tone' => 'danger'],
-        ['number' => 'INV-2026-0076', 'customer' => 'PT Cakra Media', 'email' => 'finance@cakramedia.id', 'issue_date' => '08 Jul 2026', 'due_date' => '22 Jul 2026', 'amount' => 'Rp14.800.000', 'status' => 'Parsial', 'tone' => 'info'],
-        ['number' => 'INV-2026-0072', 'customer' => 'UD Sumber Makmur', 'email' => 'owner@sumbermakmur.id', 'issue_date' => '02 Jul 2026', 'due_date' => '12 Jul 2026', 'amount' => 'Rp7.900.000', 'status' => 'Overdue', 'tone' => 'danger'],
-    ];
-
-    $summaryCards = [
-        ['label' => 'Total invoice', 'value' => '24', 'caption' => 'Periode berjalan'],
-        ['label' => 'Menunggu bayar', 'value' => 'Rp28,7 jt', 'caption' => '14 invoice aktif'],
-        ['label' => 'Lewat tempo', 'value' => '3', 'caption' => 'Butuh follow-up'],
-    ];
-@endphp
-
 <!DOCTYPE html>
 <html lang="id">
     <head>
@@ -72,7 +55,7 @@
                             <span class="absolute right-1.5 top-1.5 size-2 rounded-full bg-red-500 ring-2 ring-white"></span>
                         </button>
                         <span class="hidden h-6 w-px bg-line sm:block"></span>
-                        <span class="hidden text-sm text-muted sm:inline">Kamis, 23 Juli 2026</span>
+                        <span class="hidden text-sm text-muted sm:inline">{{ now(config('app.timezone'))->locale('id')->translatedFormat('l, j F Y') }}</span>
                     </div>
                 </header>
 

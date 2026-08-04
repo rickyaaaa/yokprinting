@@ -89,13 +89,14 @@ Route::get('/customers/{customer}/transactions', [CustomerTransactionHistoryCont
     ->name('api.customers.transactions.index');
 
 Route::get('/customers/{customer}/statement', CustomerStatementController::class)
-    ->middleware('auth')
+    ->middleware(['web', 'auth'])
     ->name('api.customers.statement.show');
 
 Route::match(['put', 'patch'], '/customers/{customer}', [CustomerController::class, 'update'])
     ->name('api.customers.update');
 
 Route::delete('/customers/{customer}', [CustomerController::class, 'destroy'])
+    ->middleware(['web', 'auth', 'permission:customer.delete'])
     ->name('api.customers.destroy');
 
 Route::get('/products', [ProductController::class, 'index'])
@@ -111,7 +112,7 @@ Route::get('/products/options', [ProductOptionController::class, 'index'])
     ->name('api.products.options.index');
 
 Route::patch('/products/bulk-stock', ProductBulkStockController::class)
-    ->middleware(['auth', 'permission:product.update'])
+    ->middleware(['web', 'auth', 'permission:product.update'])
     ->name('api.products.bulk-stock.update');
 
 Route::get('/products/{product}', [ProductController::class, 'show'])
@@ -130,50 +131,50 @@ Route::apiResource('suppliers', SupplierController::class)
     ->names('api.suppliers');
 
 Route::get('/roles', [RoleController::class, 'index'])
-    ->middleware(['auth', 'permission:role.view'])
+    ->middleware(['web', 'auth', 'permission:role.view'])
     ->name('api.roles.index');
 
 Route::post('/roles', [RoleController::class, 'store'])
-    ->middleware(['auth', 'permission:role.create'])
+    ->middleware(['web', 'auth', 'permission:role.create'])
     ->name('api.roles.store');
 
 Route::get('/roles/{role:code}', [RoleController::class, 'show'])
-    ->middleware(['auth', 'permission:role.view'])
+    ->middleware(['web', 'auth', 'permission:role.view'])
     ->name('api.roles.show');
 
 Route::match(['put', 'patch'], '/roles/{role:code}', [RoleController::class, 'update'])
-    ->middleware(['auth', 'permission:role.update'])
+    ->middleware(['web', 'auth', 'permission:role.update'])
     ->name('api.roles.update');
 
 Route::delete('/roles/{role:code}', [RoleController::class, 'destroy'])
-    ->middleware(['auth', 'permission:role.delete'])
+    ->middleware(['web', 'auth', 'permission:role.delete'])
     ->name('api.roles.destroy');
 
 Route::get('/roles/{role:code}/permissions', [RolePermissionController::class, 'show'])
-    ->middleware(['auth', 'permission:role.view'])
+    ->middleware(['web', 'auth', 'permission:role.view'])
     ->name('api.roles.permissions.show');
 
 Route::match(['put', 'patch'], '/roles/{role:code}/permissions', [RolePermissionController::class, 'update'])
-    ->middleware(['auth', 'permission:role.update'])
+    ->middleware(['web', 'auth', 'permission:role.update'])
     ->name('api.roles.permissions.update');
 
 Route::get('/activity-logs', [ActivityLogController::class, 'index'])
-    ->middleware(['auth', 'permission:activity_log.view'])
+    ->middleware(['web', 'auth', 'permission:activity_log.view'])
     ->name('api.activity-logs.index');
 
 Route::get('/notifications/due-invoices', [DueInvoiceNotificationController::class, 'index'])
-    ->middleware('auth')
+    ->middleware(['web', 'auth'])
     ->name('api.notifications.due-invoices.index');
 
 Route::post('/invoices/drafts', [InvoiceDraftController::class, 'store'])
     ->name('api.invoices.drafts.store');
 
 Route::post('/stock-movements', [StockMovementController::class, 'store'])
-    ->middleware('auth')
+    ->middleware(['web', 'auth'])
     ->name('api.stock-movements.store');
 
 Route::post('/invoices/{invoice}/send', [InvoiceDeliveryController::class, 'send'])
-    ->middleware(['auth', 'permission:invoice.update'])
+    ->middleware(['web', 'auth', 'permission:invoice.update'])
     ->name('api.invoices.send');
 
 Route::post('/invoices/{invoice:invoice_number}/payments', [InvoicePaymentController::class, 'store'])
@@ -183,11 +184,11 @@ Route::get('/invoices/{invoice:invoice_number}/payment-detail', [InvoicePaymentD
     ->name('api.invoices.payment-detail.show');
 
 Route::get('/invoices/{invoice}/pdf', [InvoicePdfController::class, 'download'])
-    ->middleware(['auth', 'permission:invoice.export', 'throttle:invoice-pdf'])
+    ->middleware(['web', 'auth', 'permission:invoice.export', 'throttle:invoice-pdf'])
     ->name('api.invoices.pdf.download');
 
 Route::post('/invoices/preview/pdf', InvoicePreviewPdfController::class)
-    ->middleware(['auth', 'permission:invoice.export', 'throttle:invoice-pdf'])
+    ->middleware(['web', 'auth', 'permission:invoice.export', 'throttle:invoice-pdf'])
     ->name('api.invoices.preview.pdf.download');
 
 Route::get('/payments/receivables', [ReceivableController::class, 'index'])
@@ -197,19 +198,19 @@ Route::get('/payments/history', [PaymentHistoryController::class, 'index'])
     ->name('api.payments.history.index');
 
 Route::get('/reports/sales/summary', SalesReportSummaryController::class)
-    ->middleware(['auth', 'permission:report.view'])
+    ->middleware(['web', 'auth', 'permission:report.view'])
     ->name('api.reports.sales.summary');
 
 Route::get('/reports/sales/invoices', [SalesReportInvoiceController::class, 'index'])
-    ->middleware(['auth', 'permission:report.view'])
+    ->middleware(['web', 'auth', 'permission:report.view'])
     ->name('api.reports.sales.invoices.index');
 
 Route::get('/reports/sales/revenue-chart', SalesReportRevenueChartController::class)
-    ->middleware(['auth', 'permission:report.view'])
+    ->middleware(['web', 'auth', 'permission:report.view'])
     ->name('api.reports.sales.revenue-chart');
 
 Route::get('/reports/sales/export', SalesReportExportController::class)
-    ->middleware(['auth', 'permission:report.export', 'throttle:report-export'])
+    ->middleware(['web', 'auth', 'permission:report.export', 'throttle:report-export'])
     ->name('api.reports.sales.export');
 
 Route::get('/reports/gross-profit', [GrossProfitReportController::class, 'index'])

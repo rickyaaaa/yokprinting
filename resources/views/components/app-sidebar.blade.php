@@ -36,7 +36,7 @@
             'items' => [
                 ['label' => 'Dashboard', 'route' => 'dashboard', 'active' => ['dashboard'], 'icon' => 'dashboard'],
                 ['label' => 'Buat Invoice', 'route' => 'invoices.create', 'active' => ['invoices.create'], 'icon' => 'invoice-create'],
-                ['label' => 'Daftar Invoice', 'route' => 'invoices.index', 'active' => ['invoices.index'], 'icon' => 'invoice-list', 'badge' => '24'],
+                ['label' => 'Daftar Invoice', 'route' => 'invoices.index', 'active' => ['invoices.index'], 'icon' => 'invoice-list'],
                 ['label' => 'Pembayaran', 'route' => 'payments.receivables.index', 'active' => ['payments.*'], 'icon' => 'payment'],
                 ['label' => 'Pengeluaran', 'route' => 'expenses.index', 'active' => ['expenses.*'], 'icon' => 'expenses', 'visible' => $canViewExpenses],
                 ['label' => 'Peran & akses', 'route' => 'roles.index', 'active' => ['roles.*'], 'icon' => 'roles'],
@@ -173,8 +173,27 @@
         @endforeach
     </nav>
 
-    <div class="border-t border-line p-3">
-        <button type="button" class="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left hover:bg-surface-low">
+    <div class="relative border-t border-line p-3" x-data="{ accountMenuOpen: false }" @keydown.escape.window="accountMenuOpen = false">
+        <div
+            x-cloak
+            x-show="accountMenuOpen"
+            @click.outside="accountMenuOpen = false"
+            class="absolute bottom-[calc(100%-0.25rem)] left-3 right-3 rounded-xl border border-line bg-white p-2 shadow-lg"
+        >
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit" class="flex w-full items-center rounded-lg px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50">
+                    Keluar dari akun
+                </button>
+            </form>
+        </div>
+        <button
+            type="button"
+            class="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left hover:bg-surface-low"
+            @click="accountMenuOpen = ! accountMenuOpen"
+            :aria-expanded="accountMenuOpen"
+            aria-haspopup="menu"
+        >
             <span class="grid size-9 place-items-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">{{ $initials ?: 'AP' }}</span>
             <span class="min-w-0 flex-1">
                 <span class="block truncate text-sm font-medium">{{ $displayName }}</span>

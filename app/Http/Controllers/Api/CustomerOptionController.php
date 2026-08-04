@@ -20,7 +20,7 @@ class CustomerOptionController extends Controller
         $limit = (int) ($validated['limit'] ?? 25);
 
         $customers = Customer::query()
-            ->select(['id', 'name', 'email', 'phone', 'address'])
+            ->select(['id', 'code', 'name', 'email', 'phone', 'address', 'created_at'])
             ->selectable()
             ->when(
                 filled($validated['ids'] ?? null),
@@ -29,16 +29,19 @@ class CustomerOptionController extends Controller
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $query->where(function (Builder $searchQuery) use ($search): void {
                     $searchQuery
-                        ->where('name', 'like', "%{$search}%")
+                        ->where('code', 'like', "%{$search}%")
+                        ->orWhere('name', 'like', "%{$search}%")
                         ->orWhere('email', 'like', "%{$search}%")
                         ->orWhere('phone', 'like', "%{$search}%");
                 });
             })
+            ->orderByDesc('id')
             ->orderBy('name')
             ->limit($limit)
             ->get()
             ->map(fn (Customer $customer): array => [
                 'id' => $customer->getKey(),
+                'code' => $customer->code,
                 'name' => $customer->name,
                 'email' => $customer->email,
                 'phone' => $customer->phone,

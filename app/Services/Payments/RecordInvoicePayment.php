@@ -27,7 +27,17 @@ class RecordInvoicePayment
             $status = $data['status'] ?? Payment::STATUS_VERIFIED;
             $amount = round((float) $data['amount'], 2);
             $paidBefore = $this->verifiedPaymentsTotal($lockedInvoice);
-            $remainingBefore = max(0, (float) $lockedInvoice->total_amount - $paidBefore);
+            $remainingBefore = round(
+                max(0, (float) $lockedInvoice->total_amount - $paidBefore),
+                2,
+                PHP_ROUND_HALF_UP,
+            );
+
+            if ($remainingBefore <= 0) {
+                throw ValidationException::withMessages([
+                    'amount' => 'Invoice sudah lunas. Pembayaran tambahan tidak dapat dicatat.',
+                ]);
+            }
 
             if ($amount > $remainingBefore) {
                 throw ValidationException::withMessages([

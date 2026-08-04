@@ -111,8 +111,10 @@ class CustomerCrudApiTest extends TestCase
             ->assertJsonPath('data.name', 'CV Baru Kreatif')
             ->assertJsonPath('data.status', Customer::STATUS_INACTIVE);
 
-        $this->deleteJson(route('api.customers.destroy', $customer))
-            ->assertNoContent();
+        $this->actingAs(User::factory()->create())
+            ->deleteJson(route('api.customers.destroy', $customer))
+            ->assertOk()
+            ->assertJsonPath('data.history_preserved', true);
 
         $this->assertSoftDeleted($customer);
     }

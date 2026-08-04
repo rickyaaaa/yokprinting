@@ -8,9 +8,9 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="description" content="Pratinjau invoice INV-2026-0079">
+        <meta name="description" content="Pratinjau invoice YokPrinting.ID">
 
-        <title>Pratinjau INV-2026-0079 — YokPrinting.ID</title>
+        <title>Pratinjau invoice — YokPrinting.ID</title>
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
@@ -32,7 +32,7 @@
                 <span class="hidden h-6 w-px bg-line sm:block"></span>
                 <div class="hidden min-w-0 sm:block">
                     <p class="truncate text-sm font-semibold text-ink">Pratinjau invoice</p>
-                    <p class="truncate text-xs text-muted" x-text="invoiceNumber">INV-2026-0079</p>
+                    <p class="truncate text-xs text-muted" x-text="invoiceNumber">Draft belum disimpan</p>
                 </div>
                 <div class="ml-auto flex items-center gap-2">
                     <span class="hidden items-center gap-2 text-xs text-muted lg:inline-flex" aria-live="polite">
@@ -176,7 +176,7 @@
 
                         <div class="text-left sm:text-right">
                             <p class="text-3xl font-bold tracking-[-0.035em] text-brand-800">INVOICE</p>
-                            <p class="mt-2 font-mono text-sm font-semibold text-ink" x-text="invoiceNumber">INV-2026-0079</p>
+                            <p class="mt-2 font-mono text-sm font-semibold text-ink" x-text="invoiceNumber">Draft belum disimpan</p>
                             <span
                                 class="mt-3 inline-flex rounded-full px-3 py-1 text-xs font-semibold"
                                 :class="invoiceStatus === 'Terkirim' ? 'bg-green-100 text-green-800' : 'bg-brand-100 text-brand-800'"
@@ -189,21 +189,16 @@
                     <div class="grid gap-8 border-b border-line py-8 sm:grid-cols-[minmax(0,1fr)_17rem]">
                         <div>
                             <p class="text-xs font-semibold text-muted">Ditagihkan kepada</p>
-                            <h1 class="mt-2 text-lg font-semibold text-ink" x-text="preview.customer.name">PT Sinar Nusantara</h1>
+                            <h1 class="mt-2 text-lg font-semibold text-ink" x-text="preview.customer.name">Pelanggan belum dipilih</h1>
                             <address class="mt-2 max-w-sm text-sm not-italic leading-6 text-muted">
-                                <span x-text="preview.customer.address || '-'">Jl. Jenderal Sudirman No. 88, Jakarta Selatan 12190</span><br>
-                                <span x-text="customerContactLine || '-'">finance@sinarnusantara.co.id &middot; +62 21 555 0198</span>
-                                {{--
-                                finance@sinarnusantara.co.id · +62 21 555 0198
-                                {{--
-                                finance@sinarnusantara.co.id · +62 21 555 0198
-                                --}}
+                                <span x-text="preview.customer.address || '-'">-</span><br>
+                                <span x-text="customerContactLine || '-'">-</span>
                             </address>
                         </div>
 
                         <dl class="grid grid-cols-[1fr_auto] gap-x-6 gap-y-3 text-sm">
                             <dt class="text-muted">Tanggal invoice</dt>
-                            <dd class="font-medium text-ink" x-text="preview.issue_date_label">23 Juli 2026</dd>
+                            <dd class="font-medium text-ink" x-text="preview.issue_date_label">-</dd>
                             <dt class="text-muted">Mata uang</dt>
                             <dd class="font-medium text-ink" x-text="preview.currency">IDR</dd>
                         </dl>
@@ -240,15 +235,15 @@
                             <dl class="w-full max-w-sm space-y-3 text-sm">
                                 <div class="flex justify-between gap-6">
                                     <dt class="text-muted">Subtotal</dt>
-                                    <dd class="font-medium text-ink" x-text="formatCurrency(preview.subtotal)">Rp150.000</dd>
+                                    <dd class="font-medium text-ink" x-text="formatCurrency(preview.subtotal)">Rp0</dd>
                                 </div>
                                 <div class="flex justify-between gap-6">
                                     <dt class="text-muted" x-text="discountLabel">Diskon</dt>
-                                    <dd class="font-medium text-red-700" x-text="`− ${formatCurrency(preview.discount_amount)}`">− Rp7.500</dd>
+                                    <dd class="font-medium text-red-700" x-text="`− ${formatCurrency(preview.discount_amount)}`">− Rp0</dd>
                                 </div>
                                 <div class="flex justify-between gap-6">
                                     <dt class="text-muted" x-text="taxLabel">PPN (11%)</dt>
-                                    <dd class="font-medium text-ink" x-text="formatCurrency(preview.tax_amount)">Rp15.675</dd>
+                                    <dd class="font-medium text-ink" x-text="formatCurrency(preview.tax_amount)">Rp0</dd>
                                 </div>
                                 <div class="flex justify-between gap-6" x-show="preview.shipping_cost > 0">
                                     <dt class="text-muted" x-text="preview.is_free_shipping ? 'Free ongkir' : 'Ongkir'">Ongkir</dt>
@@ -256,11 +251,11 @@
                                 </div>
                                 <div class="flex items-end justify-between gap-6 border-t-2 border-brand-700 pt-4">
                                     <dt class="font-semibold text-ink">Total tagihan</dt>
-                                    <dd class="text-xl font-bold tracking-[-0.025em] text-brand-800" x-text="formatCurrency(preview.total_amount)">Rp158.175</dd>
+                                    <dd class="text-xl font-bold tracking-[-0.025em] text-brand-800" x-text="formatCurrency(preview.total_amount)">Rp0</dd>
                                 </div>
                                 <div class="flex justify-between gap-6 rounded-lg bg-brand-50 px-3 py-2">
-                                    <dt class="font-semibold text-brand-900">Minimal DP <span x-text="`${preview.dp_required_percent}%`">50%</span></dt>
-                                    <dd class="font-bold text-brand-900" x-text="formatCurrency(preview.dp_amount)">Rp79.088</dd>
+                                    <dt class="font-semibold text-brand-900">Minimal DP <span x-text="`${preview.dp_required_percent}%`">0%</span></dt>
+                                    <dd class="font-bold text-brand-900" x-text="formatCurrency(preview.dp_amount)">Rp0</dd>
                                 </div>
                             </dl>
                         </div>

@@ -122,6 +122,38 @@ class StoreInvoicePaymentApiTest extends TestCase
         $this->assertSame(Invoice::PAYMENT_UNPAID, $invoice->refresh()->payment_status);
     }
 
+    public function test_additional_payment_is_rejected_when_verified_payments_already_cover_invoice(): void
+    {
+        $invoice = $this->createInvoice(totalAmount: 5000000);
+        $invoice->forceFill(['payment_status' => Invoice::PAYMENT_PARTIAL])->save();
+        $invoice->payments()->create([
+            'payment_number' => 'PAY-20260723-FULL',
+            'payment_date' => '2026-07-23',
+            'method' => Payment::METHOD_TRANSFER_BCA,
+            'currency' => 'IDR',
+            'amount' => 5000000,
+            'status' => Payment::STATUS_VERIFIED,
+            'verified_at' => now(),
+        ]);
+
+        $this->postJson(
+            route('api.invoices.payments.store', ['invoice' => $invoice->invoice_number]),
+            [
+                'payment_date' => '2026-07-24',
+                'method' => Payment::METHOD_TRANSFER_MANDIRI,
+                'amount' => 1000,
+            ],
+        )
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['amount'])
+            ->assertJsonPath(
+                'errors.amount.0',
+                'Invoice sudah lunas. Pembayaran tambahan tidak dapat dicatat.',
+            );
+
+        $this->assertDatabaseCount('payments', 1);
+    }
+
     public function test_unknown_invoice_number_returns_not_found(): void
     {
         $this->postJson('/api/invoices/INV-2026-9999/payments', [

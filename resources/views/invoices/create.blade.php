@@ -55,7 +55,7 @@
                             <span class="absolute right-1.5 top-1.5 size-2 rounded-full bg-red-500 ring-2 ring-white"></span>
                         </button>
                         <span class="hidden h-6 w-px bg-line sm:block"></span>
-                        <span class="hidden text-sm text-muted sm:inline">Kamis, 23 Juli 2026</span>
+                        <span class="hidden text-sm text-muted sm:inline">{{ now(config('app.timezone'))->locale('id')->translatedFormat('l, j F Y') }}</span>
                     </div>
                 </header>
 
@@ -120,7 +120,8 @@
                                                     name="invoice_number"
                                                     data-validation-field="invoice_number"
                                                     type="text"
-                                                    value="INV-2026-0079"
+                                                    value=""
+                                                    placeholder="Dibuat otomatis saat disimpan"
                                                     class="form-control pr-10 font-medium"
                                                     :class="{ 'border-red-400 ring-2 ring-red-100': fieldErrors.invoice_number }"
                                                     :aria-invalid="Boolean(fieldErrors.invoice_number)"
@@ -140,7 +141,7 @@
                                                 name="issue_date"
                                                 data-validation-field="issue_date"
                                                 type="date"
-                                                value="2026-07-23"
+                                                value="{{ now(config('app.timezone'))->toDateString() }}"
                                                 class="form-control"
                                                 :class="{ 'border-red-400 ring-2 ring-red-100': fieldErrors.issue_date }"
                                                 :aria-invalid="Boolean(fieldErrors.issue_date)"
@@ -155,7 +156,7 @@
                                                 name="due_date"
                                                 data-validation-field="due_date"
                                                 type="date"
-                                                value="2026-08-06"
+                                                value="{{ now(config('app.timezone'))->addDays(14)->toDateString() }}"
                                                 class="form-control"
                                                 :class="{ 'border-red-400 ring-2 ring-red-100': fieldErrors.due_date }"
                                                 :aria-invalid="Boolean(fieldErrors.due_date)"

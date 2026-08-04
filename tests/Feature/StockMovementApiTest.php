@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Customer;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\User;
@@ -70,6 +71,12 @@ class StockMovementApiTest extends TestCase
 
     public function test_invoice_draft_records_sale_stock_movement_and_returns_low_stock_alert(): void
     {
+        $customer = Customer::query()->create([
+            'name' => 'PT Pelanggan Stok',
+            'email' => 'stok@example.test',
+            'address' => 'Jl. Stok No. 1',
+            'city' => 'Tangerang',
+        ]);
         $product = Product::query()->create([
             'sku' => 'CUP-16OV-8G',
             'name' => 'Cup 16 Oz Oval 8gr',
@@ -82,7 +89,7 @@ class StockMovementApiTest extends TestCase
         ]);
 
         $this->postJson(route('api.invoices.drafts.store'), [
-            'customer_id' => 1,
+            'customer_id' => $customer->id,
             'issue_date' => '2026-07-27',
             'due_date' => '2026-08-10',
             'items' => [[

@@ -93,6 +93,25 @@ class User extends Authenticatable
     }
 
     /**
+     * Determine whether the user has a permission through their active role.
+     */
+    public function hasPermission(string $permissionCode): bool
+    {
+        if (! $this->isActive()) {
+            return false;
+        }
+
+        if ($this->role === self::ROLE_OWNER) {
+            return true;
+        }
+
+        return $this->roleDefinition()
+            ->where('status', '!=', Role::STATUS_DISABLED)
+            ->whereHas('permissions', fn ($query) => $query->where('code', $permissionCode))
+            ->exists();
+    }
+
+    /**
      * Get the role definition that matches the stored role code.
      */
     public function roleDefinition(): BelongsTo

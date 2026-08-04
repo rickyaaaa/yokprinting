@@ -1,20 +1,3 @@
-@php
-    $summaryCards = [
-        ['label' => 'Total piutang', 'value' => 'Rp74.850.000', 'caption' => '18 invoice aktif', 'tone' => 'brand'],
-        ['label' => 'Belum jatuh tempo', 'value' => 'Rp42.900.000', 'caption' => '10 invoice', 'tone' => 'success'],
-        ['label' => 'Jatuh tempo 7 hari', 'value' => 'Rp18.250.000', 'caption' => '5 invoice', 'tone' => 'warning'],
-        ['label' => 'Overdue', 'value' => 'Rp13.700.000', 'caption' => '3 invoice', 'tone' => 'danger'],
-    ];
-
-    $receivables = [
-        ['invoice' => 'INV-2026-0084', 'customer' => 'PT Sinar Nusantara', 'issued' => '23 Jul 2026', 'due' => '30 Jul 2026', 'dueSort' => 20260730, 'total' => 'Rp18.450.000', 'paid' => 'Rp12.000.000', 'outstanding' => 'Rp6.450.000', 'outstandingValue' => 6450000, 'status' => 'Menunggu'],
-        ['invoice' => 'INV-2026-0082', 'customer' => 'CV Lautan Rasa', 'issued' => '20 Jul 2026', 'due' => '2 Agu 2026', 'dueSort' => 20260802, 'total' => 'Rp12.750.000', 'paid' => 'Rp0', 'outstanding' => 'Rp12.750.000', 'outstandingValue' => 12750000, 'status' => 'Menunggu'],
-        ['invoice' => 'INV-2026-0078', 'customer' => 'PT Bumi Lestari', 'issued' => '10 Jul 2026', 'due' => '20 Jul 2026', 'dueSort' => 20260720, 'total' => 'Rp5.600.000', 'paid' => 'Rp0', 'outstanding' => 'Rp5.600.000', 'outstandingValue' => 5600000, 'status' => 'Overdue'],
-        ['invoice' => 'INV-2026-0076', 'customer' => 'PT Cakra Media', 'issued' => '8 Jul 2026', 'due' => '22 Jul 2026', 'dueSort' => 20260722, 'total' => 'Rp14.800.000', 'paid' => 'Rp4.250.000', 'outstanding' => 'Rp10.550.000', 'outstandingValue' => 10550000, 'status' => 'Parsial'],
-        ['invoice' => 'INV-2026-0072', 'customer' => 'UD Sumber Makmur', 'issued' => '2 Jul 2026', 'due' => '16 Jul 2026', 'dueSort' => 20260716, 'total' => 'Rp7.900.000', 'paid' => 'Rp0', 'outstanding' => 'Rp7.900.000', 'outstandingValue' => 7900000, 'status' => 'Overdue'],
-    ];
-@endphp
-
 <!DOCTYPE html>
 <html lang="id">
     <head>
@@ -72,7 +55,7 @@
                             <span class="absolute right-1.5 top-1.5 size-2 rounded-full bg-red-500 ring-2 ring-white"></span>
                         </button>
                         <span class="hidden h-6 w-px bg-line sm:block"></span>
-                        <span class="hidden text-sm text-muted sm:inline">Kamis, 23 Juli 2026</span>
+                        <span class="hidden text-sm text-muted sm:inline">{{ now(config('app.timezone'))->locale('id')->translatedFormat('l, j F Y') }}</span>
                     </div>
                 </header>
 
@@ -96,7 +79,7 @@
                                 <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                                     <path d="M4 7h16M7 4v6M17 4v6M6 12h12v8H6z" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
-                                Juli 2026
+                                {{ now(config('app.timezone'))->locale('id')->translatedFormat('F Y') }}
                             </button>
                             <button type="button" class="inline-flex items-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800">
                                 <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">

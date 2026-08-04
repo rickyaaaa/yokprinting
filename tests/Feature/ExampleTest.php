@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\Payment;
 use App\Models\Permission;
+use App\Models\Product;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -30,14 +32,14 @@ class ExampleTest extends TestCase
             ->assertSee('Buat invoice baru')
             ->assertSee('Memuat pelanggan')
             ->assertSee('Muat ulang pelanggan')
-            ->assertSee('Cari nama, email, atau telepon')
+            ->assertSee('Cari kode, nama, email, atau telepon')
             ->assertSee('Memuat data produk')
             ->assertSee('Muat ulang produk')
             ->assertSee('Subtotal item')
             ->assertSee('Pajak & diskon', escape: false)
             ->assertSee('Kalkulasi diperbarui otomatis')
             ->assertSee('Total tagihan')
-            ->assertSee('INV-2026-0079')
+            ->assertSee('Dibuat otomatis saat disimpan')
             ->assertSee('save-invoice-draft')
             ->assertSee('invoice-preview-requested')
             ->assertSee('invoice-validation-summary')
@@ -57,15 +59,28 @@ class ExampleTest extends TestCase
 
     public function test_invoice_index_page_is_available(): void
     {
+        $customer = Customer::query()->create([
+            'name' => 'PT Invoice Nyata',
+            'email' => 'invoice-nyata@example.test',
+        ]);
+        Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-2026-0099',
+            'issue_date' => '2026-07-23',
+            'due_date' => '2026-07-20',
+            'status' => Invoice::STATUS_SENT,
+            'payment_status' => Invoice::PAYMENT_UNPAID,
+            'total_amount' => 5600000,
+        ]);
+
         $this->get('/invoices')
             ->assertOk()
             ->assertSee('Daftar Invoice - YokPrinting.ID')
             ->assertSee('Daftar Invoice')
             ->assertSee('Semua invoice')
             ->assertSee('Cari invoice atau pelanggan')
-            ->assertSee('INV-2026-0084')
-            ->assertSee('PT Sinar Nusantara')
-            ->assertSee('INV-2026-0078')
+            ->assertSee('INV-2026-0099')
+            ->assertSee('PT Invoice Nyata')
             ->assertSee('Overdue')
             ->assertSee(route('invoices.create'))
             ->assertSee('/payments/invoices/${invoice.number}', escape: false);
@@ -118,23 +133,16 @@ class ExampleTest extends TestCase
             ->assertSee('Ringkasan keuangan')
             ->assertSee('Pendapatan bulan ini')
             ->assertSee('Tren pendapatan')
-            ->assertSee('due-notification-card')
             ->assertSee('Notifikasi jatuh tempo')
-            ->assertSee('Invoice perlu ditindaklanjuti')
-            ->assertSee('Lewat tempo 3 hari')
-            ->assertSee('Jatuh tempo besok')
-            ->assertSee('Kirim pengingat')
             ->assertSee(route('payments.receivables.index'))
             ->assertSee(route('notifications.due-invoices.index'))
             ->assertSee('Ringkasan stok menipis')
-            ->assertSee('Cup 16 Oz Oval 8gr')
             ->assertSee('Antrean produksi sablon cup')
-            ->assertSee('Minimum stok')
             ->assertSee(route('products.index'))
             ->assertSee('Aktivitas terbaru')
             ->assertSee('Invoice yang perlu dipantau')
-            ->assertSee('PT Sinar Nusantara')
-            ->assertSee('INV-2026-0084')
+            ->assertDontSee('PT Sinar Nusantara')
+            ->assertDontSee('INV-2026-0084')
             ->assertSee(route('settings.company-profile.edit'))
             ->assertSee(route('invoices.index'))
             ->assertSee(route('invoices.create'));
@@ -344,6 +352,12 @@ class ExampleTest extends TestCase
 
     public function test_customer_edit_form_page_is_available(): void
     {
+        Customer::query()->create([
+            'code' => 'CUS-001',
+            'name' => 'PT Sinar Nusantara',
+            'email' => 'finance@sinarnusantara.co.id',
+        ]);
+
         $this->get('/customers/CUS-001/edit')
             ->assertOk()
             ->assertSee('Edit pelanggan CUS-001')
@@ -356,6 +370,12 @@ class ExampleTest extends TestCase
 
     public function test_customer_detail_history_page_is_available(): void
     {
+        Customer::query()->create([
+            'code' => 'CUS-001',
+            'name' => 'PT Sinar Nusantara',
+            'email' => 'finance@sinarnusantara.co.id',
+        ]);
+
         $this->get('/customers/CUS-001')
             ->assertOk()
             ->assertSee('PT Sinar Nusantara')
@@ -363,24 +383,32 @@ class ExampleTest extends TestCase
             ->assertSee('Riwayat invoice')
             ->assertSee('Pembayaran terakhir')
             ->assertSee('Timeline aktivitas')
-            ->assertSee('INV-2026-0084')
-            ->assertSee('BCA-77219')
-            ->assertSee('Rp42.850.000')
+            ->assertSee('Rp0')
+            ->assertDontSee('INV-2026-0084')
+            ->assertDontSee('BCA-77219')
             ->assertSee(route('customers.edit', ['customer' => 'CUS-001']))
             ->assertSee(route('customers.index'));
     }
 
     public function test_products_index_page_is_available(): void
     {
+        Product::query()->create([
+            'sku' => 'PRM-FLOW-01',
+            'name' => 'Produk Demo Database',
+            'purchase_price' => 4900000,
+            'stock' => 6,
+            'minimum_stock' => 12,
+            'track_stock' => true,
+        ]);
+
         $this->get('/products')
             ->assertOk()
             ->assertSee('Daftar produk')
             ->assertSee('Total produk')
             ->assertSee('Stok menipis')
             ->assertSee('Tabel produk')
-            ->assertSee('Paket desain brand refresh')
-            ->assertSee('Cetak katalog premium')
-            ->assertSee('PRM-FLYER-01')
+            ->assertSee('Produk Demo Database')
+            ->assertSee('PRM-FLOW-01')
             ->assertSee('Filter status produk')
             ->assertSee('productIndexTable')
             ->assertSee('resultSummary')
@@ -519,13 +547,27 @@ class ExampleTest extends TestCase
 
     public function test_receivables_page_is_available(): void
     {
+        $customer = Customer::query()->create([
+            'name' => 'PT Piutang Nyata',
+            'email' => 'piutang@example.test',
+        ]);
+        Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-PIUTANG-001',
+            'issue_date' => today()->subDays(14),
+            'due_date' => today()->subDay(),
+            'status' => Invoice::STATUS_SENT,
+            'payment_status' => Invoice::PAYMENT_UNPAID,
+            'total_amount' => 74850000,
+        ]);
+
         $this->get('/payments/receivables')
             ->assertOk()
             ->assertSee('Daftar piutang')
             ->assertSee('Total piutang')
             ->assertSee('Tabel piutang')
-            ->assertSee('PT Sinar Nusantara')
-            ->assertSee('CV Lautan Rasa')
+            ->assertSee('PT Piutang Nyata')
+            ->assertSee('INV-PIUTANG-001')
             ->assertSee('Rp74.850.000')
             ->assertSee('Overdue')
             ->assertSee('receivablesTable')
@@ -536,15 +578,38 @@ class ExampleTest extends TestCase
 
     public function test_payment_history_page_is_available(): void
     {
+        $customer = Customer::query()->create([
+            'name' => 'PT Pembayaran Nyata',
+            'email' => 'pembayaran@example.test',
+        ]);
+        $invoice = Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-BAYAR-001',
+            'issue_date' => today(),
+            'due_date' => today()->addWeek(),
+            'status' => Invoice::STATUS_SENT,
+            'payment_status' => Invoice::PAYMENT_PARTIAL,
+            'total_amount' => 10000000,
+        ]);
+        Payment::query()->create([
+            'invoice_id' => $invoice->id,
+            'payment_number' => 'PAY-DEMO-001',
+            'payment_date' => today(),
+            'method' => Payment::METHOD_TRANSFER_BCA,
+            'reference' => 'BCA-NYATA-001',
+            'amount' => 4000000,
+            'status' => Payment::STATUS_VERIFIED,
+            'verified_at' => now(),
+        ]);
+
         $this->get('/payments/history')
             ->assertOk()
             ->assertSee('Riwayat pembayaran')
             ->assertSee('Tabel riwayat pembayaran')
             ->assertSee('Pembayaran diterima')
-            ->assertSee('BCA-77302')
-            ->assertSee('PT Sinar Nusantara')
+            ->assertSee('BCA-NYATA-001')
+            ->assertSee('PT Pembayaran Nyata')
             ->assertSee('Terverifikasi')
-            ->assertSee('Menunggu')
             ->assertSee('paymentHistoryTable')
             ->assertSee('Filter status riwayat pembayaran')
             ->assertSee('x-model.debounce.150ms="query"', escape: false)
@@ -574,10 +639,10 @@ class ExampleTest extends TestCase
             ->assertOk()
             ->assertSee('YokPrinting.ID')
             ->assertSee('Jl. Karyawan II')
-            ->assertSee('PT Sinar Nusantara')
+            ->assertSee('Pelanggan belum dipilih')
             ->assertSee('x-for="item in preview.items"', escape: false)
             ->assertSee('formatCurrency(preview.total_amount)', escape: false)
-            ->assertSee('Rp158.175')
+            ->assertSee('Rp0')
             ->assertSee('Minimal DP')
             ->assertSee('preview.dp_required_percent')
             ->assertDontSee('Sablon Cup 16 Oz Oval')
@@ -589,6 +654,6 @@ class ExampleTest extends TestCase
             ->assertSee('preview-action-notice')
             ->assertSee('invoicePreviewActions')
             ->assertSee('!canSendEmail')
-            ->assertSee('finance@sinarnusantara.co.id');
+            ->assertDontSee('finance@sinarnusantara.co.id');
     }
 }

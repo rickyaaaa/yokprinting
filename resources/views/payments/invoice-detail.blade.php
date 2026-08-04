@@ -1,85 +1,17 @@
 @php
-    $invoice = [
-        'number' => 'INV-2026-0084',
-        'status' => 'Menunggu pembayaran',
-        'customer' => 'PT Sinar Nusantara',
-        'email' => 'finance@sinarnusantara.co.id',
-        'phone' => '+62 812 9900 1188',
-        'address' => 'Jl. Jenderal Sudirman No. 88, Jakarta Selatan',
-        'issued_at' => '23 Juli 2026',
-        'due_at' => '30 Juli 2026',
-        'terms' => 'Net 7',
-        'subtotal' => 'Rp18.000.000',
-        'tax' => 'Rp1.980.000',
-        'discount' => '- Rp1.530.000',
-        'total' => 'Rp18.450.000',
-        'paid' => 'Rp12.000.000',
-        'remaining' => 'Rp6.450.000',
-        'progress' => 65,
-        'production_status' => 'ACC Mockup/Desain',
-        'dp_required' => 'Rp9.225.000',
-        'design_notes' => 'Logo tengah, tinta hitam pekat, mockup sudah dikirim ke customer untuk ACC final.',
-        'mockup_url' => 'https://yokprinting.id/mockup/INV-2026-0084',
-    ];
-
-    $items = [
-        ['name' => 'Sablon Cup 16 Oz Oval (8gr)', 'spec' => 'Tinta Hitam · 2 Sisi · MOQ 1.000 pcs', 'quantity' => '10.000 pcs', 'price' => 'Rp850', 'total' => 'Rp8.500.000'],
-        ['name' => 'Sablon Cup 12 Oz Datar (7gr)', 'spec' => 'Tinta Putih · 1 Sisi · MOQ 1.000 pcs', 'quantity' => '8.000 pcs', 'price' => 'Rp700', 'total' => 'Rp5.600.000'],
-        ['name' => 'Dus Kemasan Cup 16 Oz', 'spec' => 'Packing pengiriman · kelipatan 10 dus', 'quantity' => '200 dus', 'price' => 'Rp19.500', 'total' => 'Rp3.900.000'],
-    ];
-
-    $productionSteps = [
-        'Drafting',
-        'Menunggu DP',
-        'ACC Mockup/Desain',
-        'Proses Sablon/Cetak',
-        'Siap Diambil/Kirim',
-        'Lunas & Selesai',
-    ];
-
-    $currentProductionIndex = array_search($invoice['production_status'], $productionSteps, true);
-
-    $waMessage = implode("\n", [
-        "Halo {$invoice['customer']},",
-        '',
-        "Berikut invoice dari YokPrinting.ID:",
-        "Invoice: {$invoice['number']}",
-        "Total tagihan: {$invoice['total']}",
-        "DP/pembayaran diterima: {$invoice['paid']}",
-        "Sisa pelunasan: {$invoice['remaining']}",
-        "Link invoice: http://127.0.0.1:8000/invoices/preview",
-        '',
-        'Mohon konfirmasi pembayaran/ACC desain agar produksi bisa kami lanjutkan. Terima kasih.',
-    ]);
-
-    $waLink = 'https://wa.me/6281299001188?text='.rawurlencode($waMessage);
-
-    $payments = [
-        ['date' => '24 Juli 2026', 'method' => 'Transfer BCA', 'reference' => 'BCA-77219', 'amount' => 'Rp8.000.000', 'status' => 'Terverifikasi'],
-        ['date' => '26 Juli 2026', 'method' => 'Transfer BCA', 'reference' => 'BCA-77302', 'amount' => 'Rp4.000.000', 'status' => 'Terverifikasi'],
-    ];
-
-    $paymentMethods = [
-        ['label' => 'Bank', 'value' => 'Bank Central Asia'],
-        ['label' => 'No. rekening', 'value' => '012 345 6789'],
-        ['label' => 'Atas nama', 'value' => 'PT Ruang Karya Digital'],
-    ];
-@endphp
-
-@php
     $formatRupiah = static fn (float $amount): string => 'Rp'.number_format($amount, 0, ',', '.');
     $formatDate = static fn ($date): string => $date?->locale('id')->translatedFormat('j F Y') ?? '-';
     $paidAmount = $invoiceModel->verifiedPaidAmount();
     $remainingAmount = $invoiceModel->remainingAmount();
     $totalAmount = (float) $invoiceModel->total_amount;
+    $isPaid = $remainingAmount <= 0;
     $paymentProgress = $totalAmount > 0
-        ? min(100, round(($paidAmount / $totalAmount) * 100))
+        ? ($isPaid ? 100 : min(100, round(($paidAmount / $totalAmount) * 100)))
         : 0;
-    $isOverdue = $invoiceModel->due_date?->isPast()
-        && $invoiceModel->payment_status !== \App\Models\Invoice::PAYMENT_PAID;
-    $effectivePaymentStatus = $isOverdue
-        ? \App\Models\Invoice::PAYMENT_OVERDUE
-        : $invoiceModel->payment_status;
+    $isOverdue = ! $isPaid && $invoiceModel->due_date?->isPast();
+    $effectivePaymentStatus = $isPaid
+        ? \App\Models\Invoice::PAYMENT_PAID
+        : ($isOverdue ? \App\Models\Invoice::PAYMENT_OVERDUE : $invoiceModel->payment_status);
     $paymentStatusLabel = match ($effectivePaymentStatus) {
         \App\Models\Invoice::PAYMENT_PAID => 'Lunas',
         \App\Models\Invoice::PAYMENT_PARTIAL => 'Pembayaran parsial',
@@ -110,6 +42,7 @@
         'remaining_amount' => $remainingAmount,
         'progress' => $paymentProgress,
         'payment_status' => $effectivePaymentStatus,
+        'is_paid' => $isPaid,
         'production_status' => $invoiceModel->productionStatusLabel(),
         'production_status_key' => $invoiceModel->production_status,
         'dp_required' => $formatRupiah($invoiceModel->requiredDpAmount()),
@@ -153,7 +86,9 @@
 
     $waNumber = preg_replace('/\D+/', '', $invoice['phone'] ?? '') ?: '';
     $waNumber = str_starts_with($waNumber, '0') ? '62'.substr($waNumber, 1) : $waNumber;
-    $waLink = $waNumber !== '' ? 'https://wa.me/'.$waNumber.'?text='.rawurlencode($waMessage) : null;
+    $waLink = ! $isPaid && $waNumber !== ''
+        ? 'https://wa.me/'.$waNumber.'?text='.rawurlencode($waMessage)
+        : null;
 
     $payments = $invoiceModel->payments->map(static fn ($payment): array => [
         'date' => $formatDate($payment->payment_date),
@@ -162,6 +97,12 @@
         'amount' => $formatRupiah((float) $payment->amount),
         'status' => $payment->statusLabel(),
     ]);
+
+    $paymentMethods = [
+        ['label' => 'Bank', 'value' => 'Bank Central Asia'],
+        ['label' => 'No. rekening', 'value' => '012 345 6789'],
+        ['label' => 'Atas nama', 'value' => 'PT Ruang Karya Digital'],
+    ];
 @endphp
 
 <!DOCTYPE html>
@@ -222,7 +163,7 @@
                             <span class="absolute right-1.5 top-1.5 size-2 rounded-full bg-red-500 ring-2 ring-white"></span>
                         </button>
                         <span class="hidden h-6 w-px bg-line sm:block"></span>
-                        <span class="hidden text-sm text-muted sm:inline">Kamis, 23 Juli 2026</span>
+                        <span class="hidden text-sm text-muted sm:inline">{{ now(config('app.timezone'))->locale('id')->translatedFormat('l, j F Y') }}</span>
                     </div>
                 </header>
 
@@ -231,10 +172,16 @@
                         <div>
                             <div class="mb-2 flex flex-wrap items-center gap-2">
                                 <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Manajemen pembayaran</span>
-                                <span class="rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-semibold text-yellow-900">{{ $invoice['status'] }}</span>
+                                <span @class([
+                                    'rounded-full px-2.5 py-1 text-xs font-semibold',
+                                    'bg-green-100 text-green-800' => $invoice['is_paid'],
+                                    'bg-yellow-100 text-yellow-900' => ! $invoice['is_paid'],
+                                ])>{{ $invoice['status'] }}</span>
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Detail {{ $invoice['number'] }}</h1>
-                            <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Pantau rincian tagihan, pembayaran masuk, dan sisa outstanding untuk invoice ini.</p>
+                            <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">
+                                {{ $invoice['is_paid'] ? 'Invoice telah lunas dan tidak memiliki sisa tagihan.' : 'Pantau rincian tagihan, pembayaran masuk, dan sisa outstanding untuk invoice ini.' }}
+                            </p>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
                             <a href="{{ route('api.invoices.pdf.download', ['invoice' => $invoiceModel]) }}" class="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
@@ -243,22 +190,24 @@
                                 </svg>
                                 Lihat invoice
                             </a>
-                            <a
-                                href="{{ $waLink ?? '#' }}"
-                                @if ($waLink) target="_blank" rel="noopener" @else aria-disabled="true" @endif
-                                class="inline-flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3.5 py-2 text-sm font-semibold text-green-800 hover:bg-green-100 {{ $waLink ? '' : 'pointer-events-none opacity-50' }}"
-                            >
-                                <svg class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                    <path d="M12.04 3.5a8.45 8.45 0 0 0-7.3 12.7L3.75 20l3.9-1.02A8.44 8.44 0 1 0 12.04 3.5Zm0 1.45a6.99 6.99 0 0 1 5.92 10.72 6.99 6.99 0 0 1-9.98 1.86l-.28-.17-2.31.61.62-2.25-.18-.29a7 7 0 0 1 6.21-10.48Zm-2.2 3.48c-.15-.34-.31-.35-.46-.36h-.4c-.14 0-.36.05-.55.26-.19.21-.72.7-.72 1.7s.74 1.98.84 2.12c.1.14 1.43 2.29 3.55 3.12 1.76.7 2.12.56 2.5.52.38-.03 1.23-.5 1.4-.99.18-.48.18-.9.13-.99-.05-.09-.19-.14-.4-.24-.2-.1-1.23-.61-1.42-.68-.19-.07-.33-.1-.47.1-.14.21-.54.68-.66.82-.12.14-.24.16-.45.05-.2-.1-.87-.32-1.66-1.02-.61-.55-1.03-1.23-1.15-1.43-.12-.21-.01-.32.09-.42.09-.09.2-.24.31-.36.1-.12.14-.21.2-.35.07-.14.04-.26-.02-.36-.05-.1-.46-1.12-.64-1.52Z"/>
-                                </svg>
-                                Kirim via WA
-                            </a>
-                            <a href="#record-payment" class="inline-flex items-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800">
-                                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                    <path d="M12 5v14M5 12h14" stroke-linecap="round"/>
-                                </svg>
-                                Catat pembayaran
-                            </a>
+                            @unless ($invoice['is_paid'])
+                                <a
+                                    href="{{ $waLink ?? '#' }}"
+                                    @if ($waLink) target="_blank" rel="noopener" @else aria-disabled="true" @endif
+                                    class="inline-flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3.5 py-2 text-sm font-semibold text-green-800 hover:bg-green-100 {{ $waLink ? '' : 'pointer-events-none opacity-50' }}"
+                                >
+                                    <svg class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                        <path d="M12.04 3.5a8.45 8.45 0 0 0-7.3 12.7L3.75 20l3.9-1.02A8.44 8.44 0 1 0 12.04 3.5Zm0 1.45a6.99 6.99 0 0 1 5.92 10.72 6.99 6.99 0 0 1-9.98 1.86l-.28-.17-2.31.61.62-2.25-.18-.29a7 7 0 0 1 6.21-10.48Zm-2.2 3.48c-.15-.34-.31-.35-.46-.36h-.4c-.14 0-.36.05-.55.26-.19.21-.72.7-.72 1.7s.74 1.98.84 2.12c.1.14 1.43 2.29 3.55 3.12 1.76.7 2.12.56 2.5.52.38-.03 1.23-.5 1.4-.99.18-.48.18-.9.13-.99-.05-.09-.19-.14-.4-.24-.2-.1-1.23-.61-1.42-.68-.19-.07-.33-.1-.47.1-.14.21-.54.68-.66.82-.12.14-.24.16-.45.05-.2-.1-.87-.32-1.66-1.02-.61-.55-1.03-1.23-1.15-1.43-.12-.21-.01-.32.09-.42.09-.09.2-.24.31-.36.1-.12.14-.21.2-.35.07-.14.04-.26-.02-.36-.05-.1-.46-1.12-.64-1.52Z"/>
+                                    </svg>
+                                    Kirim via WA
+                                </a>
+                                <a href="#record-payment" class="inline-flex items-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800">
+                                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                        <path d="M12 5v14M5 12h14" stroke-linecap="round"/>
+                                    </svg>
+                                    Catat pembayaran
+                                </a>
+                            @endunless
                         </div>
                     </div>
 
@@ -281,7 +230,11 @@
                                         <dt class="text-muted">Tanggal invoice</dt>
                                         <dd class="font-medium text-ink">{{ $invoice['issued_at'] }}</dd>
                                         <dt class="text-muted">Jatuh tempo</dt>
-                                        <dd class="font-semibold text-red-700">{{ $invoice['due_at'] }}</dd>
+                                        <dd @class([
+                                            'font-semibold',
+                                            'text-ink' => $invoice['is_paid'],
+                                            'text-red-700' => ! $invoice['is_paid'],
+                                        ])>{{ $invoice['due_at'] }}</dd>
                                         <dt class="text-muted">Termin</dt>
                                         <dd class="font-medium text-ink">{{ $invoice['terms'] }}</dd>
                                     </dl>
@@ -457,12 +410,35 @@
                                 </div>
                             </section>
 
-                            <section
-                                id="record-payment"
-                                class="rounded-xl bg-white border border-line"
-                                aria-labelledby="record-payment-heading"
-                                x-data="recordPaymentForm({ remainingAmount: @js($invoice['remaining_amount']) })"
-                            >
+                            @if ($invoice['is_paid'])
+                                <section
+                                    id="record-payment"
+                                    class="rounded-xl border border-green-200 bg-green-50 p-5 sm:p-6"
+                                    aria-labelledby="record-payment-heading"
+                                    data-testid="payment-complete-state"
+                                >
+                                    <div class="flex items-start gap-4">
+                                        <span class="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-green-600 text-white" aria-hidden="true">
+                                            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="m5 12 4 4L19 6" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                        </span>
+                                        <div>
+                                            <h2 id="record-payment-heading" class="font-semibold text-green-950">Invoice sudah lunas</h2>
+                                            <p class="mt-1 text-sm leading-6 text-green-800">Sisa tagihan Rp0. Pembayaran tambahan tidak dapat dicatat.</p>
+                                        </div>
+                                    </div>
+                                </section>
+                            @else
+                                <section
+                                    id="record-payment"
+                                    class="rounded-xl bg-white border border-line"
+                                    aria-labelledby="record-payment-heading"
+                                    x-data="recordPaymentForm({
+                                        remainingAmount: @js($invoice['remaining_amount']),
+                                        endpoint: @js(route('api.invoices.payments.store', $invoiceModel)),
+                                    })"
+                                >
                                 <div class="border-b border-line px-5 py-4 sm:px-6">
                                     <h2 id="record-payment-heading" class="font-semibold text-ink">Catat pembayaran</h2>
                                     <p class="mt-1 text-sm text-muted">Catat pembayaran masuk untuk invoice ini.</p>
@@ -544,10 +520,10 @@
                                                 @change="clearFieldError('method')"
                                                 aria-describedby="payment-method-error"
                                             >
-                                                <option>Transfer BCA</option>
-                                                <option>Transfer Mandiri</option>
-                                                <option>Kartu kredit</option>
-                                                <option>Tunai</option>
+                                                <option value="transfer_bca">Transfer BCA</option>
+                                                <option value="transfer_mandiri">Transfer Mandiri</option>
+                                                <option value="credit_card">Kartu kredit</option>
+                                                <option value="cash">Tunai</option>
                                             </select>
                                             <p id="payment-method-error" x-show="fieldErrors.method" x-text="fieldErrors.method" class="mt-1.5 text-xs font-medium text-red-700"></p>
                                         </div>
@@ -574,7 +550,7 @@
                                     </div>
 
                                     <div class="flex flex-col gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
-                                        <p class="text-xs leading-5 text-muted">Form ini belum menyimpan ke backend. Data dipakai untuk verifikasi alur frontend pembayaran.</p>
+                                        <p class="text-xs leading-5 text-muted">Pembayaran tersimpan ke invoice dan langsung memperbarui status piutang.</p>
                                         <button
                                             type="submit"
                                             class="inline-flex min-w-40 items-center justify-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-wait disabled:opacity-70"
@@ -590,7 +566,8 @@
                                         </button>
                                     </div>
                                 </form>
-                            </section>
+                                </section>
+                            @endif
                         </div>
 
                         <aside class="space-y-6 xl:sticky xl:top-22" aria-label="Section pembayaran">
@@ -600,7 +577,11 @@
                                         <h2 id="payment-summary-heading" class="font-semibold text-ink">Pembayaran</h2>
                                         <p class="mt-1 text-sm text-muted">Status pelunasan invoice ini.</p>
                                     </div>
-                                    <span class="rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-semibold text-yellow-900">Outstanding</span>
+                                    <span @class([
+                                        'rounded-full px-2.5 py-1 text-xs font-semibold',
+                                        'bg-green-100 text-green-800' => $invoice['is_paid'],
+                                        'bg-yellow-100 text-yellow-900' => ! $invoice['is_paid'],
+                                    ])>{{ $invoice['is_paid'] ? 'Lunas' : 'Outstanding' }}</span>
                                 </div>
 
                                 <div class="mt-6">
@@ -614,11 +595,19 @@
                                     <div class="mt-4 h-3 rounded-full bg-canvas">
                                         <div class="h-3 rounded-full bg-brand-600" style="width: {{ $invoice['progress'] }}%"></div>
                                     </div>
-                                    <div class="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
-                                        <p class="text-xs font-semibold text-red-800">Sisa tagihan</p>
-                                        <p class="mt-1 text-xl font-bold tracking-[-0.025em] text-red-900">{{ $invoice['remaining'] }}</p>
-                                        <p class="mt-2 text-xs leading-5 text-red-800">Jatuh tempo {{ $invoice['due_at'] }}. Kirim pengingat bila belum ada pembayaran lanjutan.</p>
-                                    </div>
+                                    @if ($invoice['is_paid'])
+                                        <div class="mt-4 rounded-lg border border-green-200 bg-green-50 p-4">
+                                            <p class="text-xs font-semibold text-green-800">Tagihan lunas</p>
+                                            <p class="mt-1 text-xl font-bold tracking-[-0.025em] text-green-900">{{ $invoice['remaining'] }}</p>
+                                            <p class="mt-2 text-xs leading-5 text-green-800">Seluruh pembayaran untuk invoice ini telah diterima.</p>
+                                        </div>
+                                    @else
+                                        <div class="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
+                                            <p class="text-xs font-semibold text-red-800">Sisa tagihan</p>
+                                            <p class="mt-1 text-xl font-bold tracking-[-0.025em] text-red-900">{{ $invoice['remaining'] }}</p>
+                                            <p class="mt-2 text-xs leading-5 text-red-800">Jatuh tempo {{ $invoice['due_at'] }}. Kirim pengingat bila belum ada pembayaran lanjutan.</p>
+                                        </div>
+                                    @endif
                                     <div class="mt-3 rounded-lg border border-brand-200 bg-brand-50 p-4">
                                         <p class="text-xs font-semibold text-brand-800">Minimal DP sebelum produksi</p>
                                         <p class="mt-1 text-xl font-bold tracking-[-0.025em] text-brand-900">{{ $invoice['dp_required'] }}</p>
@@ -626,20 +615,22 @@
                                     </div>
                                 </div>
 
-                                <div class="mt-5 grid gap-2">
-                                    <a href="#record-payment" class="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800">
-                                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                            <path d="M12 5v14M5 12h14" stroke-linecap="round"/>
-                                        </svg>
-                                        Catat pembayaran
-                                    </a>
-                                    <button type="button" class="inline-flex items-center justify-center gap-2 rounded-lg border border-brand-300 bg-white px-3.5 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-50">
-                                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                            <path d="M4 5h16v14H4zM4 7l8 6 8-6" stroke-linejoin="round"/>
-                                        </svg>
-                                        Kirim pengingat
-                                    </button>
-                                </div>
+                                @unless ($invoice['is_paid'])
+                                    <div class="mt-5 grid gap-2">
+                                        <a href="#record-payment" class="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800">
+                                            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                                <path d="M12 5v14M5 12h14" stroke-linecap="round"/>
+                                            </svg>
+                                            Catat pembayaran
+                                        </a>
+                                        <button type="button" class="inline-flex items-center justify-center gap-2 rounded-lg border border-brand-300 bg-white px-3.5 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-50">
+                                            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                                <path d="M4 5h16v14H4zM4 7l8 6 8-6" stroke-linejoin="round"/>
+                                            </svg>
+                                            Kirim pengingat
+                                        </button>
+                                    </div>
+                                @endunless
                             </section>
 
                             <section class="rounded-xl bg-white border border-line" aria-labelledby="payment-history-heading">

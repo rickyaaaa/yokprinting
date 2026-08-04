@@ -1,5 +1,3 @@
-const API_MODE = import.meta.env.VITE_INVOICE_API_MODE ?? 'mock';
-
 export class InvoiceApiError extends Error {
     constructor(message, status = 500, errors = {}) {
         super(message);
@@ -9,33 +7,6 @@ export class InvoiceApiError extends Error {
     }
 }
 
-const mockSaveDraft = (payload) =>
-    new Promise((resolve, reject) => {
-        window.setTimeout(() => {
-            if (!payload.customer_id) {
-                reject(new InvoiceApiError('Pilih pelanggan sebelum menyimpan draft.', 422));
-
-                return;
-            }
-
-            if (payload.items.length === 0) {
-                reject(new InvoiceApiError('Tambahkan minimal satu item invoice.', 422));
-
-                return;
-            }
-
-            resolve({
-                persisted: false,
-                data: {
-                    id: 'draft-demo-0079',
-                    invoice_number: payload.invoice_number,
-                    status: 'draft',
-                    saved_at: new Date().toISOString(),
-                },
-            });
-        }, 550);
-    });
-
 export async function persistInvoiceDraft(payload) {
     const response = await fetch('/api/invoices/drafts', {
         method: 'POST',
@@ -43,6 +14,7 @@ export async function persistInvoiceDraft(payload) {
         headers: {
             Accept: 'application/json',
             'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
         },
         body: JSON.stringify(payload),
     });
@@ -64,9 +36,5 @@ export async function persistInvoiceDraft(payload) {
 }
 
 export async function saveInvoiceDraft(payload) {
-    if (API_MODE !== 'live') {
-        return mockSaveDraft(payload);
-    }
-
     return persistInvoiceDraft(payload);
 }

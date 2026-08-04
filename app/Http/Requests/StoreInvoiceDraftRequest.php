@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Product;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -27,7 +28,15 @@ class StoreInvoiceDraftRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'customer_id' => ['required', 'integer', 'min:1'],
+            'customer_id' => [
+                'required',
+                'integer',
+                Rule::exists('customers', 'id')->where(
+                    fn ($query) => $query
+                        ->where('status', Customer::STATUS_ACTIVE)
+                        ->whereNull('deleted_at'),
+                ),
+            ],
             'invoice_number' => ['sometimes', 'nullable', 'string', 'max:50'],
             'issue_date' => ['required', 'date'],
             'due_date' => ['required', 'date', 'after_or_equal:issue_date'],
@@ -137,6 +146,7 @@ class StoreInvoiceDraftRequest extends FormRequest
     {
         return [
             'customer_id.required' => 'Pelanggan wajib dipilih.',
+            'customer_id.exists' => 'Pelanggan tidak aktif atau tidak tersedia.',
             'due_date.after_or_equal' => 'Jatuh tempo tidak boleh sebelum tanggal invoice.',
             'items.required' => 'Tambahkan minimal satu item invoice.',
             'items.min' => 'Tambahkan minimal satu item invoice.',

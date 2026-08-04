@@ -4,9 +4,16 @@ use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\InvoiceProductionStatusController;
 use App\Http\Controllers\Api\ProfitLossReportController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\CustomerFormPageController;
 use App\Http\Controllers\CustomerIndexPageController;
+use App\Http\Controllers\CustomerShowPageController;
+use App\Http\Controllers\DashboardPageController;
+use App\Http\Controllers\InvoiceIndexPageController;
 use App\Http\Controllers\InvoicePaymentPageController;
+use App\Http\Controllers\PaymentHistoryPageController;
+use App\Http\Controllers\ProductIndexPageController;
 use App\Http\Controllers\ProfitLossReportPageController;
+use App\Http\Controllers\ReceivablePageController;
 use App\Models\Expense;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -39,7 +46,7 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
-    Route::view('/dashboard', 'dashboard')->name('dashboard');
+    Route::get('/dashboard', DashboardPageController::class)->name('dashboard');
     Route::view('/roles', 'auth.roles')->name('roles.index');
     Route::view('/roles/create', 'auth.role-form')->name('roles.create');
     Route::get('/roles/{role}/permissions', function (string $role) {
@@ -51,23 +58,19 @@ Route::middleware('auth')->group(function () {
     Route::view('/activity-logs', 'auth.activity-logs')->name('activity-logs.index');
     Route::view('/notifications/due-invoices', 'auth.due-invoices')->name('notifications.due-invoices.index');
     Route::get('/customers', CustomerIndexPageController::class)->name('customers.index');
-    Route::view('/customers/create', 'customers.form')->name('customers.create');
-    Route::get('/customers/{customer}/edit', function (string $customer) {
-        return view('customers.form', ['customerCode' => $customer]);
-    })->name('customers.edit');
-    Route::get('/customers/{customer}', function (string $customer) {
-        return view('customers.show', ['customerCode' => $customer]);
-    })->name('customers.show');
-    Route::view('/products', 'products.index')->name('products.index');
+    Route::get('/customers/create', [CustomerFormPageController::class, 'create'])->name('customers.create');
+    Route::get('/customers/{customer}/edit', [CustomerFormPageController::class, 'edit'])->name('customers.edit');
+    Route::get('/customers/{customer}', CustomerShowPageController::class)->name('customers.show');
+    Route::get('/products', ProductIndexPageController::class)->name('products.index');
     Route::view('/products/create', 'products.form')->name('products.create');
     Route::get('/products/{product}/edit', function (string $product) {
         return view('products.form', ['productCode' => $product]);
     })->name('products.edit');
-    Route::view('/invoices', 'invoices.index')->name('invoices.index');
+    Route::get('/invoices', InvoiceIndexPageController::class)->name('invoices.index');
     Route::view('/invoices/create', 'invoices.create')->name('invoices.create');
     Route::view('/invoices/preview', 'invoices.preview')->name('invoices.preview');
-    Route::view('/payments/receivables', 'payments.receivables')->name('payments.receivables.index');
-    Route::view('/payments/history', 'payments.history')->name('payments.history.index');
+    Route::get('/payments/receivables', ReceivablePageController::class)->name('payments.receivables.index');
+    Route::get('/payments/history', PaymentHistoryPageController::class)->name('payments.history.index');
     Route::get('/payments/invoices/{invoice:invoice_number}', InvoicePaymentPageController::class)
         ->middleware('permission:invoice.view')
         ->name('payments.invoices.show');
