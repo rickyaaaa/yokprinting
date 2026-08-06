@@ -52,7 +52,7 @@
                         <svg x-show="savingDraft" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <path d="M21 12a9 9 0 1 1-2.64-6.36" stroke-linecap="round"/>
                         </svg>
-                        <span x-text="savingDraft ? 'Menyimpan…' : (draftSaved ? 'Tersimpan' : 'Simpan draft')"></span>
+                        <span x-text="savingDraft ? 'Menyimpan…' : (draftSaved ? 'Tersimpan' : 'Simpan invoice')"></span>
                     </button>
                     <button
                         type="button"

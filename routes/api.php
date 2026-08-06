@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\DueInvoiceNotificationController;
 use App\Http\Controllers\Api\FinancialSummaryController;
 use App\Http\Controllers\Api\GrossProfitReportController;
 use App\Http\Controllers\Api\InvoiceDeliveryController;
+use App\Http\Controllers\Api\InvoiceDeliveryNotePdfController;
 use App\Http\Controllers\Api\InvoiceDraftController;
 use App\Http\Controllers\Api\InvoicePaymentController;
 use App\Http\Controllers\Api\InvoicePaymentDetailController;
@@ -186,6 +187,10 @@ Route::get('/invoices/{invoice:invoice_number}/payment-detail', [InvoicePaymentD
 Route::get('/invoices/{invoice}/pdf', [InvoicePdfController::class, 'download'])
     ->middleware(['web', 'auth', 'permission:invoice.export', 'throttle:invoice-pdf'])
     ->name('api.invoices.pdf.download');
+
+Route::get('/invoices/{invoice}/delivery-note/pdf', [InvoiceDeliveryNotePdfController::class, 'download'])
+    ->middleware(['web', 'auth', 'permission:invoice.export', 'throttle:invoice-pdf'])
+    ->name('api.invoices.delivery-note.pdf.download');
 
 Route::post('/invoices/preview/pdf', InvoicePreviewPdfController::class)
     ->middleware(['web', 'auth', 'permission:invoice.export', 'throttle:invoice-pdf'])

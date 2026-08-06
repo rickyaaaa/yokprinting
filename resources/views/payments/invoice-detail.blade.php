@@ -190,6 +190,14 @@
                                 </svg>
                                 Lihat invoice
                             </a>
+                            @if ($invoiceModel->canGenerateDeliveryNote())
+                                <a href="{{ route('api.invoices.delivery-note.pdf.download', ['invoice' => $invoiceModel]) }}" class="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
+                                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                        <path d="M9 17h6m-6-4h6m2 8H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    Surat jalan
+                                </a>
+                            @endif
                             @unless ($invoice['is_paid'])
                                 <a
                                     href="{{ $waLink ?? '#' }}"

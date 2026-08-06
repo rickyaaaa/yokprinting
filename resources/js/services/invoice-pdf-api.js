@@ -67,3 +67,29 @@ export async function downloadInvoicePreviewPdf(preview) {
         ),
     };
 }
+
+export async function downloadDeliveryNotePdf(invoiceId) {
+    const response = await fetch(`/api/invoices/${encodeURIComponent(invoiceId)}/delivery-note/pdf`, {
+        credentials: 'same-origin',
+        headers: {
+            Accept: 'application/pdf',
+        },
+    });
+
+    if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+
+        throw new InvoicePdfApiError(
+            body.message ?? 'Surat jalan belum dapat dibuat. Coba lagi.',
+            response.status,
+        );
+    }
+
+    return {
+        blob: await response.blob(),
+        filename: filenameFromHeader(
+            response.headers.get('Content-Disposition'),
+            `surat-jalan-${invoiceId}.pdf`,
+        ),
+    };
+}

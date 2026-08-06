@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Invoice extends Model
 {
@@ -90,6 +91,7 @@ class Invoice extends Model
         'customer_id',
         'created_by',
         'invoice_number',
+        'delivery_note_number',
         'issue_date',
         'due_date',
         'status',
@@ -272,5 +274,36 @@ class Invoice extends Model
             ['key' => self::PRODUCTION_READY_FOR_PICKUP, 'label' => 'Siap Diambil/Kirim'],
             ['key' => self::PRODUCTION_COMPLETED, 'label' => 'Lunas & Selesai'],
         ];
+    }
+
+    /**
+     * Check if a delivery note / surat jalan can be generated for this invoice.
+     * Only available when production status is Ready for Pickup/Delivery or Paid & Completed.
+     */
+    public function canGenerateDeliveryNote(): bool
+    {
+        return in_array($this->production_status, [
+            self::PRODUCTION_READY_FOR_PICKUP,
+            self::PRODUCTION_COMPLETED,
+        ], true);
+    }
+
+    /**
+     * Get or generate a stable delivery note number for this invoice.
+     */
+    public function deliveryNoteNumber(): string
+    {
+        if (! empty($this->delivery_note_number)) {
+            return $this->delivery_note_number;
+        }
+
+        $number = Str::startsWith($this->invoice_number, 'INV-')
+            ? Str::replaceFirst('INV-', 'SJ-', $this->invoice_number)
+            : 'SJ-'.$this->invoice_number;
+
+        $this->delivery_note_number = $number;
+        $this->saveQuietly();
+
+        return $number;
     }
 }
