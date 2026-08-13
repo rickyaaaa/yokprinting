@@ -203,6 +203,16 @@ class Invoice extends Model
     }
 
     /**
+     * Scope invoices that have been officially sent to the customer and can be tracked as receivables.
+     */
+    public function scopeReceivable(Builder $query): Builder
+    {
+        return $query
+            ->where('status', self::STATUS_SENT)
+            ->where('payment_status', '!=', self::PAYMENT_PAID);
+    }
+
+    /**
      * Scope invoices by production workflow status.
      */
     public function scopeWithProductionStatus(Builder $query, string $status): Builder
@@ -278,7 +288,6 @@ class Invoice extends Model
 
     /**
      * Check if a delivery note / surat jalan can be generated for this invoice.
-     * Only available when production status is Ready for Pickup/Delivery or Paid & Completed.
      */
     public function canGenerateDeliveryNote(): bool
     {

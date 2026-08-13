@@ -8,7 +8,6 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\Invoices\GeneratedInvoicePdf;
 use App\Services\Invoices\GenerateInvoicePdf;
-use App\Services\Invoices\MarkInvoiceDelivered;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -49,12 +48,9 @@ class DownloadInvoicePdfApiTest extends TestCase
 
         $invoice->refresh();
 
-        $this->assertSame(Invoice::STATUS_SENT, $invoice->status);
-        $this->assertNotNull($invoice->sent_at);
-        $this->assertSame(
-            MarkInvoiceDelivered::CHANNEL_PDF_DOWNLOAD,
-            $invoice->metadata['delivery']['last_channel'],
-        );
+        $this->assertSame(Invoice::STATUS_DRAFT, $invoice->status);
+        $this->assertNull($invoice->sent_at);
+        $this->assertNull($invoice->metadata);
     }
 
     public function test_unknown_invoice_id_returns_not_found(): void
@@ -125,12 +121,12 @@ class DownloadInvoicePdfApiTest extends TestCase
                     $capturedPreview = $preview;
                     $html = view('pdf.invoices.preview', ['preview' => $preview])->render();
 
-                    $this->assertStringContainsString('IDR 3.000', $html);
-                    $this->assertStringContainsString('- IDR 300', $html);
-                    $this->assertStringContainsString('IDR 297', $html);
-                    $this->assertStringContainsString('IDR 3.497', $html);
-                    $this->assertStringContainsString('IDR 874', $html);
-                    $this->assertStringContainsString('IDR 2.623', $html);
+                    $this->assertStringContainsString('Rp3.000', $html);
+                    $this->assertStringContainsString('- Rp300', $html);
+                    $this->assertStringContainsString('Rp297', $html);
+                    $this->assertStringContainsString('Rp3.497', $html);
+                    $this->assertStringContainsString('Rp874', $html);
+                    $this->assertStringNotContainsString('999.999.999', $html);
 
                     return new GeneratedInvoicePdf('%PDF-server-calculated', 'invoice-server-calculated.pdf');
                 });

@@ -40,7 +40,8 @@ class MarkInvoiceDeliveredTest extends TestCase
         CarbonImmutable::setTestNow('2026-07-23 11:00:00');
         $updatedInvoice = $service->handle(
             $invoice,
-            MarkInvoiceDelivered::CHANNEL_PDF_DOWNLOAD,
+            MarkInvoiceDelivered::CHANNEL_WHATSAPP,
+            '6281299001188',
         );
 
         $this->assertSame(Invoice::STATUS_SENT, $updatedInvoice->status);
@@ -50,7 +51,7 @@ class MarkInvoiceDeliveredTest extends TestCase
         );
         $this->assertSame('invoice-draft-api', $updatedInvoice->metadata['source']);
         $this->assertSame(
-            MarkInvoiceDelivered::CHANNEL_PDF_DOWNLOAD,
+            MarkInvoiceDelivered::CHANNEL_WHATSAPP,
             $updatedInvoice->metadata['delivery']['last_channel'],
         );
         $this->assertCount(2, $updatedInvoice->metadata['delivery_events']);

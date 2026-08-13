@@ -4,12 +4,15 @@ namespace App\Services\Payments;
 
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Services\CashBank\CashBankService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class RecordInvoicePayment
 {
+    public function __construct(private readonly CashBankService $cashBank) {}
+
     /**
      * Record a payment against an invoice and update payment status when verified.
      *
@@ -62,6 +65,7 @@ class RecordInvoicePayment
 
             if ($status === Payment::STATUS_VERIFIED) {
                 $this->updateInvoicePaymentStatus($lockedInvoice, $paidBefore + $amount);
+                $this->cashBank->recordPayment($payment);
             }
 
             return $payment->load('invoice');

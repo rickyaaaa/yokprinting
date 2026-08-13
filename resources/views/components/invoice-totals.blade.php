@@ -2,8 +2,8 @@
     x-data="{
         subtotal: 21250000,
         discountType: 'percentage',
-        discountValue: 5,
-        taxEnabled: true,
+        discountValue: 0,
+        taxEnabled: false,
         taxRate: 11,
         shippingCost: 0,
         isFreeShipping: false,
@@ -209,7 +209,7 @@
         <button
             type="submit"
             data-testid="save-invoice-draft"
-            class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 py-3 text-sm font-semibold text-white hover:bg-brand-800 active:translate-y-px disabled:cursor-wait disabled:opacity-70"
+            class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 py-3 text-sm font-semibold text-white hover:bg-brand-800 active:translate-y-px disabled:cursor-wait disabled:opacity-70"
             :disabled="savingDraft"
         >
             <svg x-show="! savingDraft" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -222,7 +222,7 @@
         </button>
         <button
             type="button"
-            class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-brand-300 bg-white px-4 py-3 text-sm font-semibold text-brand-800 hover:bg-brand-50"
+            class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-brand-300 bg-white px-4 py-3 text-sm font-semibold text-brand-800 hover:bg-brand-50"
             @click="$dispatch('invoice-preview-requested', { url: '{{ route('invoices.preview') }}' })"
         >
             <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">

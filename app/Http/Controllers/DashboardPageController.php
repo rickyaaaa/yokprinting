@@ -16,9 +16,10 @@ class DashboardPageController extends Controller
             ->where('status', '!=', Invoice::STATUS_CANCELLED)
             ->get();
         $sent = $invoices->where('status', Invoice::STATUS_SENT);
-        $paid = (float) $invoices->sum('verified_paid_amount');
-        $outstanding = (float) $invoices->sum(fn (Invoice $invoice): float => max(0, (float) $invoice->total_amount - (float) ($invoice->verified_paid_amount ?? 0)));
-        $overdue = $invoices->filter(fn (Invoice $invoice): bool => $invoice->payment_status !== Invoice::PAYMENT_PAID && $invoice->due_date->isPast()
+        $receivables = $sent->where('payment_status', '!=', Invoice::PAYMENT_PAID);
+        $paid = (float) $sent->sum('verified_paid_amount');
+        $outstanding = (float) $receivables->sum(fn (Invoice $invoice): float => max(0, (float) $invoice->total_amount - (float) ($invoice->verified_paid_amount ?? 0)));
+        $overdue = $receivables->filter(fn (Invoice $invoice): bool => $invoice->due_date->isPast()
         );
         $overdueAmount = (float) $overdue->sum(fn (Invoice $invoice): float => max(0, (float) $invoice->total_amount - (float) ($invoice->verified_paid_amount ?? 0)));
         $revenueThisMonth = (float) $sent->filter(fn (Invoice $invoice): bool => $invoice->issue_date->isCurrentMonth())->sum('total_amount');
@@ -26,8 +27,7 @@ class DashboardPageController extends Controller
         $totalCashflow = max(1, $paid + $outstanding);
         $pendingAmount = max(0, $outstanding - $overdueAmount);
 
-        $upcoming = $invoices
-            ->where('payment_status', '!=', Invoice::PAYMENT_PAID)
+        $upcoming = $receivables
             ->sortBy('due_date')
             ->take(3);
 
@@ -40,8 +40,8 @@ class DashboardPageController extends Controller
         return view('dashboard', [
             'summaryCards' => [
                 ['label' => 'Pendapatan bulan ini', 'value' => $this->rupiah($revenueThisMonth), 'change' => $sent->filter(fn (Invoice $invoice): bool => $invoice->issue_date->isCurrentMonth())->count().' invoice', 'changeTone' => 'success', 'caption' => 'Invoice final bulan berjalan', 'icon' => 'revenue'],
-                ['label' => 'Invoice tertagih', 'value' => $this->rupiah($paid), 'change' => $invoices->where('payment_status', Invoice::PAYMENT_PAID)->count().' lunas', 'changeTone' => 'brand', 'caption' => 'Pembayaran terverifikasi', 'icon' => 'paid'],
-                ['label' => 'Menunggu bayar', 'value' => $this->rupiah($outstanding), 'change' => $invoices->where('payment_status', '!=', Invoice::PAYMENT_PAID)->count().' invoice', 'changeTone' => 'warning', 'caption' => 'Sisa pembayaran', 'icon' => 'pending'],
+                ['label' => 'Invoice tertagih', 'value' => $this->rupiah($paid), 'change' => $sent->where('payment_status', Invoice::PAYMENT_PAID)->count().' lunas', 'changeTone' => 'brand', 'caption' => 'Pembayaran terverifikasi', 'icon' => 'paid'],
+                ['label' => 'Menunggu bayar', 'value' => $this->rupiah($outstanding), 'change' => $receivables->count().' invoice', 'changeTone' => 'warning', 'caption' => 'Sisa pembayaran', 'icon' => 'pending'],
                 ['label' => 'Lewat tempo', 'value' => $this->rupiah($overdueAmount), 'change' => $overdue->count().' invoice', 'changeTone' => 'danger', 'caption' => 'Perlu tindak lanjut', 'icon' => 'overdue'],
             ],
             'cashflowSegments' => [
@@ -63,6 +63,7 @@ class DashboardPageController extends Controller
                 'customer' => $invoice->customer?->name ?? 'Pelanggan tidak tersedia',
                 'amount' => $this->rupiah(max(0, (float) $invoice->total_amount - (float) ($invoice->verified_paid_amount ?? 0))),
                 'action' => 'Tinjau pembayaran',
+                'whatsapp_endpoint' => route('api.invoices.send-whatsapp', ['invoice' => $invoice]),
             ])->values(),
             'lowStockProducts' => $lowStock->map(fn (Product $product): array => [
                 'name' => $product->name,

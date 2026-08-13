@@ -17,9 +17,10 @@ class StoreInvoiceDraftApiTest extends TestCase
 
         $response
             ->assertCreated()
-            ->assertJsonPath('message', 'Draft invoice berhasil disimpan.')
+            ->assertJsonPath('message', 'Invoice berhasil disimpan.')
             ->assertJsonPath('data.invoice_number', 'INV-2026-0001')
             ->assertJsonPath('data.status', 'draft')
+            ->assertJsonPath('data.sent_at', null)
             ->assertJsonPath('data.production_status', 'draft')
             ->assertJsonPath('data.production_status_label', 'Drafting')
             ->assertJsonPath('data.subtotal', '21250000.00')

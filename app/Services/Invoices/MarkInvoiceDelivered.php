@@ -12,6 +12,8 @@ class MarkInvoiceDelivered
 
     public const CHANNEL_PDF_DOWNLOAD = 'pdf_download';
 
+    public const CHANNEL_WHATSAPP = 'whatsapp';
+
     /**
      * Record a successful delivery and transition the invoice out of draft.
      */
@@ -23,6 +25,7 @@ class MarkInvoiceDelivered
         if (! in_array($channel, [
             self::CHANNEL_EMAIL,
             self::CHANNEL_PDF_DOWNLOAD,
+            self::CHANNEL_WHATSAPP,
         ], true)) {
             throw new InvalidArgumentException("Kanal delivery [{$channel}] tidak didukung.");
         }

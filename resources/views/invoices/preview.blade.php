@@ -32,17 +32,17 @@
                 <span class="hidden h-6 w-px bg-line sm:block"></span>
                 <div class="hidden min-w-0 sm:block">
                     <p class="truncate text-sm font-semibold text-ink">Pratinjau invoice</p>
-                    <p class="truncate text-xs text-muted" x-text="invoiceNumber">Draft belum disimpan</p>
+                    <p class="truncate text-xs text-muted" x-text="invoiceNumber">Belum disimpan</p>
                 </div>
                 <div class="ml-auto flex items-center gap-2">
                     <span class="hidden items-center gap-2 text-xs text-muted lg:inline-flex" aria-live="polite">
                         <span class="size-2 rounded-full" :class="invoiceStatus === 'Terkirim' || draftSaved ? 'bg-green-500' : 'bg-brand-400'"></span>
-                        <span x-text="invoiceStatus === 'Terkirim' ? 'Invoice terkirim' : (draftSaved ? 'Draft tersimpan' : 'Siap ditinjau')"></span>
+                        <span x-text="invoiceStatus === 'Terkirim' ? 'Invoice terkirim' : (draftSaved ? 'Invoice tersimpan' : 'Siap ditinjau')"></span>
                     </span>
                     <button
                         type="button"
                         data-testid="save-preview-draft"
-                        class="inline-flex min-w-28 items-center justify-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-wait disabled:opacity-70"
+                        class="inline-flex min-w-28 cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-wait disabled:opacity-70"
                         :disabled="savingDraft"
                         @click="saveDraft()"
                     >
@@ -56,19 +56,19 @@
                     </button>
                     <button
                         type="button"
-                        data-testid="preview-email-action"
+                        data-testid="preview-whatsapp-action"
                         class="hidden min-w-32 items-center justify-center gap-2 rounded-lg border border-brand-300 bg-white px-3.5 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-50 disabled:cursor-wait disabled:opacity-70 lg:inline-flex"
-                        :disabled="sendingEmail || !canSendEmail"
-                        :aria-busy="sendingEmail"
-                        @click="sendEmail()"
+                        :disabled="sendingWhatsApp || !canSendWhatsApp"
+                        :aria-busy="sendingWhatsApp"
+                        @click="sendWhatsApp()"
                     >
-                        <svg x-show="! sendingEmail" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                        <svg x-show="! sendingWhatsApp" class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                             <path d="M4 5h16v14H4zM4 7l8 6 8-6" stroke-linejoin="round"/>
                         </svg>
-                        <svg x-show="sendingEmail" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <svg x-show="sendingWhatsApp" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <path d="M21 12a9 9 0 1 1-2.64-6.36" stroke-linecap="round"/>
                         </svg>
-                        <span x-text="sendingEmail ? 'Mengirim…' : (invoiceStatus === 'Terkirim' ? 'Sudah terkirim' : 'Kirim email')"></span>
+                        <span x-text="sendingWhatsApp ? 'Membuka WA…' : (invoiceStatus === 'Terkirim' ? 'Sudah terkirim' : 'Kirim via WA')"></span>
                     </button>
                     <button
                         type="button"
@@ -103,19 +103,19 @@
             <div class="grid grid-cols-3 border-t border-line bg-white lg:hidden">
                 <button
                     type="button"
-                    data-testid="preview-email-action-mobile"
+                    data-testid="preview-whatsapp-action-mobile"
                     class="inline-flex items-center justify-center gap-2 px-2 py-2.5 text-xs font-semibold text-brand-800 hover:bg-brand-50 disabled:cursor-wait disabled:opacity-70 sm:text-sm"
-                    :disabled="sendingEmail || !canSendEmail"
-                    :aria-busy="sendingEmail"
-                    @click="sendEmail()"
+                    :disabled="sendingWhatsApp || !canSendWhatsApp"
+                    :aria-busy="sendingWhatsApp"
+                    @click="sendWhatsApp()"
                 >
-                    <svg x-show="! sendingEmail" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <svg x-show="! sendingWhatsApp" class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                         <path d="M4 5h16v14H4zM4 7l8 6 8-6" stroke-linejoin="round"/>
                     </svg>
-                    <svg x-show="sendingEmail" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <svg x-show="sendingWhatsApp" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <path d="M21 12a9 9 0 1 1-2.64-6.36" stroke-linecap="round"/>
                     </svg>
-                    <span x-text="sendingEmail ? 'Mengirim…' : (invoiceStatus === 'Terkirim' ? 'Terkirim' : 'Kirim email')"></span>
+                    <span x-text="sendingWhatsApp ? 'Membuka WA…' : (invoiceStatus === 'Terkirim' ? 'Terkirim' : 'Kirim WA')"></span>
                 </button>
                 <button
                     type="button"
@@ -176,7 +176,7 @@
 
                         <div class="text-left sm:text-right">
                             <p class="text-3xl font-bold tracking-[-0.035em] text-brand-800">INVOICE</p>
-                            <p class="mt-2 font-mono text-sm font-semibold text-ink" x-text="invoiceNumber">Draft belum disimpan</p>
+                            <p class="mt-2 font-mono text-sm font-semibold text-ink" x-text="invoiceNumber">Belum disimpan</p>
                             <span
                                 class="mt-3 inline-flex rounded-full px-3 py-1 text-xs font-semibold"
                                 :class="invoiceStatus === 'Terkirim' ? 'bg-green-100 text-green-800' : 'bg-brand-100 text-brand-800'"

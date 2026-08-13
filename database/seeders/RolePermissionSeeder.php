@@ -21,6 +21,7 @@ class RolePermissionSeeder extends Seeder
             Permission::MODULE_PAYMENT => 'Pembayaran',
             Permission::MODULE_REPORT => 'Laporan',
             Permission::MODULE_EXPENSE => 'Pengeluaran',
+            Permission::MODULE_CASH_BANK => 'Kas & Bank',
             Permission::MODULE_SETTING => 'Pengaturan',
             Permission::MODULE_ROLE => 'Role',
         ];
@@ -36,7 +37,7 @@ class RolePermissionSeeder extends Seeder
         $sort = 10;
 
         foreach ($modules as $module => $moduleLabel) {
-            $moduleActions = $module === Permission::MODULE_EXPENSE
+            $moduleActions = in_array($module, [Permission::MODULE_EXPENSE, Permission::MODULE_CASH_BANK], true)
                 ? ['view', 'create', 'update', 'delete']
                 : array_keys($actions);
 
@@ -90,6 +91,10 @@ class RolePermissionSeeder extends Seeder
                     'expense.create',
                     'expense.update',
                     'expense.delete',
+                    'cash_bank.view',
+                    'cash_bank.create',
+                    'cash_bank.update',
+                    'cash_bank.delete',
                 ],
             ],
             Role::CODE_OPERATIONS => [

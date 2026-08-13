@@ -9,17 +9,17 @@ class BuildInvoiceWhatsAppLink
     /**
      * Build a customer-ready wa.me link for invoice follow-up.
      */
-    public function build(Invoice $invoice, ?string $publicUrl = null): string
+    public function build(Invoice $invoice, ?string $publicUrl = null, bool $isReminder = false): string
     {
         $invoice->loadMissing(['customer', 'payments']);
 
         $phone = $this->normalizePhone($invoice->customer?->phone ?? '');
-        $message = $this->message($invoice, $publicUrl);
+        $message = $this->message($invoice, $publicUrl, $isReminder);
 
         return 'https://wa.me/'.$phone.'?text='.rawurlencode($message);
     }
 
-    public function message(Invoice $invoice, ?string $publicUrl = null): string
+    public function message(Invoice $invoice, ?string $publicUrl = null, bool $isReminder = false): string
     {
         $invoice->loadMissing(['customer', 'payments']);
 
@@ -28,11 +28,12 @@ class BuildInvoiceWhatsAppLink
         $lines = [
             'Halo '.$invoice->customer?->name.',',
             '',
-            'Berikut invoice dari YokPrinting.ID:',
+            $isReminder ? 'Pengingat pembayaran dari YokPrinting.ID:' : 'Berikut invoice dari YokPrinting.ID:',
             'Invoice: '.$invoice->invoice_number,
             'Total tagihan: '.$this->rupiah((float) $invoice->total_amount),
             'DP/pembayaran diterima: '.$this->rupiah($paidAmount),
             'Sisa pelunasan: '.$this->rupiah($remainingAmount),
+            'Jatuh tempo: '.$invoice->due_date?->locale('id')->translatedFormat('j F Y'),
         ];
 
         if ($publicUrl) {
@@ -40,7 +41,9 @@ class BuildInvoiceWhatsAppLink
         }
 
         $lines[] = '';
-        $lines[] = 'Mohon konfirmasi pembayaran/ACC desain agar produksi bisa kami lanjutkan. Terima kasih.';
+        $lines[] = $isReminder
+            ? 'Mohon konfirmasi apabila pembayaran sudah dilakukan. Terima kasih.'
+            : 'Mohon konfirmasi pembayaran/ACC desain agar produksi bisa kami lanjutkan. Terima kasih.';
 
         return implode("\n", $lines);
     }

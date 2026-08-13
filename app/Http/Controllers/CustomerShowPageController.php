@@ -17,9 +17,12 @@ class CustomerShowPageController extends Controller
             ->firstOrFail();
 
         $invoices = $model->invoices->sortByDesc('issue_date');
-        $totalSales = (float) $invoices->where('status', '!=', Invoice::STATUS_CANCELLED)->sum('total_amount');
-        $verifiedPaid = (float) $invoices->flatMap->payments->where('status', Payment::STATUS_VERIFIED)->sum('amount');
-        $outstanding = max(0, $totalSales - $verifiedPaid);
+        $sentInvoices = $invoices->where('status', Invoice::STATUS_SENT);
+        $totalSales = (float) $sentInvoices->sum('total_amount');
+        $verifiedPaid = (float) $sentInvoices->flatMap->payments->where('status', Payment::STATUS_VERIFIED)->sum('amount');
+        $outstanding = (float) $sentInvoices
+            ->where('payment_status', '!=', Invoice::PAYMENT_PAID)
+            ->sum(fn (Invoice $invoice): float => $invoice->remainingAmount());
 
         $customerData = [
             'code' => $model->code,

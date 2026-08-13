@@ -46,5 +46,27 @@ class BuildInvoiceWhatsAppLinkTest extends TestCase
         $this->assertStringContainsString(rawurlencode('Invoice: INV-2026-0084'), $link);
         $this->assertStringContainsString(rawurlencode('DP/pembayaran diterima: Rp4.000.000'), $link);
         $this->assertStringContainsString(rawurlencode('Sisa pelunasan: Rp6.000.000'), $link);
+        $this->assertStringContainsString(rawurlencode('Jatuh tempo: 6 Agustus 2026'), $link);
+    }
+
+    public function test_it_builds_a_distinct_payment_reminder_message(): void
+    {
+        $customer = Customer::query()->create([
+            'code' => 'CUS-002',
+            'name' => 'PT Reminder',
+            'phone' => '0812-9900-1188',
+        ]);
+        $invoice = Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-REMINDER-001',
+            'issue_date' => '2026-07-23',
+            'due_date' => '2026-08-06',
+            'total_amount' => 1000000,
+        ]);
+
+        $link = app(BuildInvoiceWhatsAppLink::class)->build($invoice, null, true);
+
+        $this->assertStringContainsString(rawurlencode('Pengingat pembayaran dari YokPrinting.ID:'), $link);
+        $this->assertStringContainsString(rawurlencode('Mohon konfirmasi apabila pembayaran sudah dilakukan.'), $link);
     }
 }

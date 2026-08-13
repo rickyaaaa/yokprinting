@@ -51,7 +51,7 @@ class CalculateInvoicePreview
             ->values()
             ->map(function (array $item, int $index) use ($totals): array {
                 $calculated = $totals['items'][$index];
-                $unit = $item['unit'] ?? 'Pcs';
+                $unit = 'Pcs';
 
                 return [
                     ...$item,

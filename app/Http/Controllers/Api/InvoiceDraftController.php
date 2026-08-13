@@ -10,7 +10,7 @@ use Illuminate\Http\JsonResponse;
 class InvoiceDraftController extends Controller
 {
     /**
-     * Store a new invoice draft.
+     * Store a newly issued invoice.
      */
     public function store(
         StoreInvoiceDraftRequest $request,
@@ -22,11 +22,12 @@ class InvoiceDraftController extends Controller
         );
 
         return response()->json([
-            'message' => 'Draft invoice berhasil disimpan.',
+            'message' => 'Invoice berhasil disimpan.',
             'data' => [
                 'id' => $invoice->getKey(),
                 'invoice_number' => $invoice->invoice_number,
                 'status' => $invoice->status,
+                'sent_at' => $invoice->sent_at?->toISOString(),
                 'production_status' => $invoice->production_status,
                 'production_status_label' => $invoice->productionStatusLabel(),
                 'subtotal' => $invoice->subtotal,

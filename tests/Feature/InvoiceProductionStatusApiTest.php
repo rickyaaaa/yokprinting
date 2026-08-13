@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\Payment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -41,6 +42,15 @@ class InvoiceProductionStatusApiTest extends TestCase
     public function test_authorized_user_can_update_status_and_change_is_audited(): void
     {
         $invoice = $this->createInvoice();
+        $invoice->payments()->create([
+            'payment_number' => 'PAY-DP-AUDIT-0001',
+            'payment_date' => now()->toDateString(),
+            'method' => Payment::METHOD_TRANSFER_BCA,
+            'amount' => 500000,
+            'status' => Payment::STATUS_VERIFIED,
+            'currency' => 'IDR',
+            'verified_at' => now(),
+        ]);
         $owner = User::factory()->create();
 
         $this->actingAs($owner)
@@ -94,9 +104,46 @@ class InvoiceProductionStatusApiTest extends TestCase
         $this->assertDatabaseMissing('activity_logs', ['action' => 'production_status_updated']);
     }
 
+    public function test_minimum_dp_is_required_before_production_or_delivery_can_progress(): void
+    {
+        $invoice = $this->createInvoice(paymentStatus: Invoice::PAYMENT_UNPAID);
+
+        $this->actingAs(User::factory()->create())
+            ->patchJson($this->updateUrl($invoice), [
+                'production_status' => Invoice::PRODUCTION_IN_PRODUCTION,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('production_status');
+
+        $invoice->payments()->create([
+            'payment_number' => 'PAY-DP-0001',
+            'payment_date' => now()->toDateString(),
+            'method' => Payment::METHOD_TRANSFER_BCA,
+            'amount' => 500000,
+            'status' => Payment::STATUS_VERIFIED,
+            'currency' => 'IDR',
+            'verified_at' => now(),
+        ]);
+
+        $this->patchJson($this->updateUrl($invoice), [
+            'production_status' => Invoice::PRODUCTION_READY_FOR_PICKUP,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.production_status', Invoice::PRODUCTION_READY_FOR_PICKUP);
+    }
+
     public function test_paid_invoice_can_be_marked_completed(): void
     {
         $invoice = $this->createInvoice(paymentStatus: Invoice::PAYMENT_PAID);
+        $invoice->payments()->create([
+            'payment_number' => 'PAY-LUNAS-0001',
+            'payment_date' => now()->toDateString(),
+            'method' => Payment::METHOD_TRANSFER_BCA,
+            'amount' => 1000000,
+            'status' => Payment::STATUS_VERIFIED,
+            'currency' => 'IDR',
+            'verified_at' => now(),
+        ]);
 
         $this->actingAs(User::factory()->create())
             ->patchJson($this->updateUrl($invoice), [

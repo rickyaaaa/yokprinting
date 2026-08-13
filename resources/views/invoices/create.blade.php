@@ -63,7 +63,7 @@
                     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <div class="mb-2 flex items-center gap-2">
-                                <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Draft baru</span>
+                                <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Invoice baru</span>
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Buat invoice baru</h1>
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Lengkapi detail tagihan, item, dan jatuh tempo. Kamu bisa meninjau ulang sebelum mengirimkannya.</p>
@@ -173,7 +173,7 @@
 
                             <section class="rounded-xl bg-white p-5 border border-line sm:p-6" aria-labelledby="additional-info-heading">
                                 <h2 id="additional-info-heading" class="font-semibold text-ink">Informasi tambahan</h2>
-                                <div class="mt-5 grid gap-5 md:grid-cols-3">
+                                <div class="mt-5 grid gap-5 md:grid-cols-2">
                                     <div>
                                         <label for="production-status" class="mb-2 block text-sm font-medium text-ink">Status produksi</label>
                                         <select id="production-status" name="production_status" class="form-control">
@@ -204,10 +204,6 @@
                                         </div>
                                         <p x-show="fieldErrors.dp_required_percent" x-text="fieldErrors.dp_required_percent" class="mt-1.5 text-xs font-medium text-red-700"></p>
                                     </div>
-                                    <div>
-                                        <label for="mockup-url" class="mb-2 block text-sm font-medium text-ink">Link mockup</label>
-                                        <input id="mockup-url" name="mockup_url" type="url" class="form-control" placeholder="https://drive.google.com/...">
-                                    </div>
                                 </div>
                                 <div class="mt-5 grid gap-5 md:grid-cols-3">
                                     <div>
@@ -234,7 +230,7 @@
                                     <circle cx="12" cy="12" r="9"/>
                                     <path d="M12 10v6M12 7h.01" stroke-linecap="round"/>
                                 </svg>
-                                <p class="leading-5">Draft invoice akan disimpan ke backend, termasuk spesifikasi cup, DP, dan catatan produksi.</p>
+                                <p class="leading-5">Invoice akan disimpan ke backend, termasuk spesifikasi cup, DP, dan catatan produksi.</p>
                             </div>
                         </aside>
 
@@ -263,7 +259,7 @@
                                 </svg>
                             </span>
                             <div class="min-w-0 flex-1">
-                                <p class="text-sm font-semibold" x-text="errorMessage ? (errorTitle || 'Draft gagal disimpan') : 'Draft tersimpan via API'"></p>
+                                <p class="text-sm font-semibold" x-text="errorMessage ? (errorTitle || 'Invoice gagal disimpan') : 'Invoice tersimpan via API'"></p>
                                 <p
                                     class="mt-1 text-xs leading-5 text-white/80"
                                     x-text="errorMessage || `ID ${savedDraftId} · disimpan pukul ${savedAt}`"

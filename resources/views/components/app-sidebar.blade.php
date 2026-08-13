@@ -29,6 +29,12 @@
             && $currentRole->status !== \App\Models\Role::STATUS_DISABLED
             && $currentRole->permissions->contains('code', 'report.view'))
     );
+    $canViewCashBank = $currentUser?->isActive() && (
+        $currentUser->role === \App\Models\User::ROLE_OWNER
+        || ($currentRole
+            && $currentRole->status !== \App\Models\Role::STATUS_DISABLED
+            && $currentRole->permissions->contains('code', 'cash_bank.view'))
+    );
 
     $navGroups = [
         [
@@ -39,6 +45,7 @@
                 ['label' => 'Daftar Invoice', 'route' => 'invoices.index', 'active' => ['invoices.index'], 'icon' => 'invoice-list'],
                 ['label' => 'Pembayaran', 'route' => 'payments.receivables.index', 'active' => ['payments.*'], 'icon' => 'payment'],
                 ['label' => 'Pengeluaran', 'route' => 'expenses.index', 'active' => ['expenses.*'], 'icon' => 'expenses', 'visible' => $canViewExpenses],
+                ['label' => 'Kas & Bank', 'route' => 'cash-bank.index', 'active' => ['cash-bank.*'], 'icon' => 'cash-bank', 'visible' => $canViewCashBank],
                 ['label' => 'Peran & akses', 'route' => 'roles.index', 'active' => ['roles.*'], 'icon' => 'roles'],
                 ['label' => 'Log aktivitas', 'route' => 'activity-logs.index', 'active' => ['activity-logs.*'], 'icon' => 'logs'],
             ],
@@ -68,7 +75,7 @@
     :class="{ 'translate-x-0': sidebarOpen }"
     aria-label="Navigasi utama"
 >
-    <div class="flex h-18 items-center gap-3 border-b border-line px-5">
+    <div class="flex h-16 items-center gap-3 border-b border-line px-5">
         <div class="min-w-0 flex-1">
             <img src="{{ $yokPrintingLogo }}" alt="YokPrinting.ID" class="h-8 w-auto max-w-[170px] object-contain object-left">
             <p class="mt-0.5 text-xs text-muted">Ruang kerja keuangan</p>
@@ -125,6 +132,10 @@
 
                                 @case('expenses')
                                     <path d="M4 7h16v12H4zM7 4h10v3M8 12h8M8 16h5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    @break
+
+                                @case('cash-bank')
+                                    <path d="M3 9h18M5 9v9m4-9v9m6-9v9m4-9v9M3 18h18M12 3l9 4H3l9-4Z" stroke-linecap="round" stroke-linejoin="round"/>
                                     @break
 
                                 @case('roles')

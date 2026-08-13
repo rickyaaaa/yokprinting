@@ -62,7 +62,7 @@
                 $item->screen_printing_color ? "Tinta {$item->screen_printing_color}" : null,
                 $item->jenis_cetak,
             ])->filter()->implode(' · '),
-            'quantity' => trim("{$quantity} {$item->unit}"),
+            'quantity' => trim("{$quantity} Pcs"),
             'price' => $formatRupiah((float) $item->unit_price),
             'total' => $formatRupiah((float) $item->total_amount),
         ];
@@ -72,23 +72,7 @@
     $currentProductionIndex = collect($productionSteps)
         ->search(fn (array $step): bool => $step['key'] === $invoice['production_status_key']);
 
-    $waMessage = implode("\n", [
-        "Halo {$invoice['customer']},",
-        '',
-        'Berikut invoice dari YokPrinting.ID:',
-        "Invoice: {$invoice['number']}",
-        "Total tagihan: {$invoice['total']}",
-        "DP/pembayaran diterima: {$invoice['paid']}",
-        "Sisa pelunasan: {$invoice['remaining']}",
-        '',
-        'Mohon konfirmasi pembayaran/ACC desain agar produksi bisa kami lanjutkan. Terima kasih.',
-    ]);
-
-    $waNumber = preg_replace('/\D+/', '', $invoice['phone'] ?? '') ?: '';
-    $waNumber = str_starts_with($waNumber, '0') ? '62'.substr($waNumber, 1) : $waNumber;
-    $waLink = ! $isPaid && $waNumber !== ''
-        ? 'https://wa.me/'.$waNumber.'?text='.rawurlencode($waMessage)
-        : null;
+    $deliveryNoteAvailable = $invoiceModel->canGenerateDeliveryNote();
 
     $payments = $invoiceModel->payments->map(static fn ($payment): array => [
         'date' => $formatDate($payment->payment_date),
@@ -183,32 +167,50 @@
                                 {{ $invoice['is_paid'] ? 'Invoice telah lunas dan tidak memiliki sisa tagihan.' : 'Pantau rincian tagihan, pembayaran masuk, dan sisa outstanding untuk invoice ini.' }}
                             </p>
                         </div>
-                        <div class="flex flex-wrap items-center gap-2">
+                        <div
+                            class="flex flex-wrap items-center gap-2"
+                            x-data="{ deliveryNoteAvailable: @js($deliveryNoteAvailable) }"
+                            @invoice-production-status-updated.window="deliveryNoteAvailable = ['ready_for_pickup', 'completed'].includes($event.detail)"
+                        >
                             <a href="{{ route('api.invoices.pdf.download', ['invoice' => $invoiceModel]) }}" class="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
                                 <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                                     <path d="M7 3h7l4 4v14H7zM14 3v5h4M10 13h5M10 17h3" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
                                 Lihat invoice
                             </a>
-                            @if ($invoiceModel->canGenerateDeliveryNote())
-                                <a href="{{ route('api.invoices.delivery-note.pdf.download', ['invoice' => $invoiceModel]) }}" class="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
+                            <a
+                                href="{{ route('api.invoices.delivery-note.pdf.download', ['invoice' => $invoiceModel]) }}"
+                                x-cloak
+                                x-show="deliveryNoteAvailable"
+                                class="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800"
+                            >
                                     <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                                         <path d="M9 17h6m-6-4h6m2 8H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" stroke-linecap="round" stroke-linejoin="round"/>
                                     </svg>
                                     Surat jalan
-                                </a>
-                            @endif
+                            </a>
                             @unless ($invoice['is_paid'])
-                                <a
-                                    href="{{ $waLink ?? '#' }}"
-                                    @if ($waLink) target="_blank" rel="noopener" @else aria-disabled="true" @endif
-                                    class="inline-flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3.5 py-2 text-sm font-semibold text-green-800 hover:bg-green-100 {{ $waLink ? '' : 'pointer-events-none opacity-50' }}"
+                                <div
+                                    class="relative"
+                                    x-data="invoiceWhatsAppDelivery"
+                                    data-endpoint="{{ route('api.invoices.send-whatsapp', ['invoice' => $invoiceModel]) }}"
+                                    data-sent="{{ $invoiceModel->status === \App\Models\Invoice::STATUS_SENT ? 'true' : 'false' }}"
+                                    data-purpose="invoice"
                                 >
-                                    <svg class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                        <path d="M12.04 3.5a8.45 8.45 0 0 0-7.3 12.7L3.75 20l3.9-1.02A8.44 8.44 0 1 0 12.04 3.5Zm0 1.45a6.99 6.99 0 0 1 5.92 10.72 6.99 6.99 0 0 1-9.98 1.86l-.28-.17-2.31.61.62-2.25-.18-.29a7 7 0 0 1 6.21-10.48Zm-2.2 3.48c-.15-.34-.31-.35-.46-.36h-.4c-.14 0-.36.05-.55.26-.19.21-.72.7-.72 1.7s.74 1.98.84 2.12c.1.14 1.43 2.29 3.55 3.12 1.76.7 2.12.56 2.5.52.38-.03 1.23-.5 1.4-.99.18-.48.18-.9.13-.99-.05-.09-.19-.14-.4-.24-.2-.1-1.23-.61-1.42-.68-.19-.07-.33-.1-.47.1-.14.21-.54.68-.66.82-.12.14-.24.16-.45.05-.2-.1-.87-.32-1.66-1.02-.61-.55-1.03-1.23-1.15-1.43-.12-.21-.01-.32.09-.42.09-.09.2-.24.31-.36.1-.12.14-.21.2-.35.07-.14.04-.26-.02-.36-.05-.1-.46-1.12-.64-1.52Z"/>
-                                    </svg>
-                                    Kirim via WA
-                                </a>
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3.5 py-2 text-sm font-semibold text-green-800 hover:bg-green-100 disabled:cursor-wait disabled:opacity-70"
+                                        :disabled="sending"
+                                        :aria-busy="sending"
+                                        @click="send()"
+                                    >
+                                        <svg class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                            <path d="M12.04 3.5a8.45 8.45 0 0 0-7.3 12.7L3.75 20l3.9-1.02A8.44 8.44 0 1 0 12.04 3.5Zm0 1.45a6.99 6.99 0 0 1 5.92 10.72 6.99 6.99 0 0 1-9.98 1.86l-.28-.17-2.31.61.62-2.25-.18-.29a7 7 0 0 1 6.21-10.48Z"/>
+                                        </svg>
+                                        <span x-text="sending ? 'Membuka WA…' : (sent ? 'Ingatkan via WA' : 'Kirim via WA')">Kirim via WA</span>
+                                    </button>
+                                    <p x-cloak x-show="message" x-text="message" class="absolute right-0 top-full z-10 mt-2 w-64 rounded-lg border px-3 py-2 text-xs shadow-sm" :class="messageType === 'success' ? 'border-green-200 bg-green-50 text-green-900' : 'border-red-200 bg-red-50 text-red-900'" role="status"></p>
+                                </div>
                                 <a href="#record-payment" class="inline-flex items-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800">
                                     <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                                         <path d="M12 5v14M5 12h14" stroke-linecap="round"/>
@@ -537,7 +539,7 @@
                                         </div>
 
                                         <div>
-                                            <label for="payment-reference" class="mb-2 block text-sm font-medium text-ink">Nomor referensi</label>
+                                            <label for="payment-reference" class="mb-2 block text-sm font-medium text-ink">Nomor referensi <span class="font-normal text-muted">(opsional)</span></label>
                                             <input
                                                 id="payment-reference"
                                                 name="reference"
@@ -548,7 +550,6 @@
                                                 @input="clearFieldError('reference')"
                                                 aria-describedby="payment-reference-error"
                                             >
-                                            <p id="payment-reference-error" x-show="fieldErrors.reference" x-text="fieldErrors.reference" class="mt-1.5 text-xs font-medium text-red-700"></p>
                                         </div>
                                     </div>
 
@@ -631,12 +632,20 @@
                                             </svg>
                                             Catat pembayaran
                                         </a>
-                                        <button type="button" class="inline-flex items-center justify-center gap-2 rounded-lg border border-brand-300 bg-white px-3.5 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-50">
-                                            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                                <path d="M4 5h16v14H4zM4 7l8 6 8-6" stroke-linejoin="round"/>
-                                            </svg>
-                                            Kirim pengingat
-                                        </button>
+                                        <div
+                                            x-data="invoiceWhatsAppDelivery"
+                                            data-endpoint="{{ route('api.invoices.send-whatsapp', ['invoice' => $invoiceModel]) }}"
+                                            data-sent="{{ $invoiceModel->status === \App\Models\Invoice::STATUS_SENT ? 'true' : 'false' }}"
+                                            data-purpose="reminder"
+                                        >
+                                            <button type="button" class="inline-flex items-center justify-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3.5 py-2 text-sm font-semibold text-green-800 hover:bg-green-100 disabled:cursor-wait disabled:opacity-70" :disabled="sending" :aria-busy="sending" @click="send()">
+                                                <svg class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                                    <path d="M12.04 3.5a8.45 8.45 0 0 0-7.3 12.7L3.75 20l3.9-1.02A8.44 8.44 0 1 0 12.04 3.5Z"/>
+                                                </svg>
+                                                <span x-text="sending ? 'Membuka WA…' : 'Kirim pengingat WA'">Kirim pengingat WA</span>
+                                            </button>
+                                            <p x-cloak x-show="message" x-text="message" class="mt-2 max-w-sm rounded-lg border px-3 py-2 text-xs" :class="messageType === 'success' ? 'border-green-200 bg-green-50 text-green-900' : 'border-red-200 bg-red-50 text-red-900'" role="status"></p>
+                                        </div>
                                     </div>
                                 @endunless
                             </section>

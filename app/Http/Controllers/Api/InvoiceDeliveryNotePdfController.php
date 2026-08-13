@@ -17,7 +17,7 @@ class InvoiceDeliveryNotePdfController extends Controller
         GenerateDeliveryNotePdf $generateDeliveryNotePdf,
     ): Response {
         if (! $invoice->canGenerateDeliveryNote()) {
-            abort(403, 'Surat jalan hanya dapat diunduh jika status produksi Siap Diambil/Kirim atau Lunas & Selesai.');
+            abort(403, 'Surat jalan dapat diunduh setelah status produksi Siap Diambil/Kirim.');
         }
 
         $pdf = $generateDeliveryNotePdf->generate($invoice);

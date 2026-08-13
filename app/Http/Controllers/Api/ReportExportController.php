@@ -24,8 +24,7 @@ class ReportExportController extends Controller
                 'payments as verified_paid_amount' => fn ($query) => $query
                     ->where('status', Payment::STATUS_VERIFIED),
             ], 'amount')
-            ->where('status', '!=', Invoice::STATUS_CANCELLED)
-            ->where('payment_status', '!=', Invoice::PAYMENT_PAID)
+            ->receivable()
             ->orderBy('due_date')
             ->get()
             ->map(fn (Invoice $invoice): array => [

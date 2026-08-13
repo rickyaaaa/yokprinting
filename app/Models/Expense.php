@@ -6,6 +6,7 @@ use Database\Factories\ExpenseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Expense extends Model
@@ -69,6 +70,12 @@ class Expense extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function cashBankTransaction(): HasOne
+    {
+        return $this->hasOne(CashBankTransaction::class, 'source_id')
+            ->where('source_type', CashBankTransaction::SOURCE_EXPENSE);
     }
 
     /**

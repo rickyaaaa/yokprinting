@@ -4,7 +4,6 @@ use App\Jobs\CleanupTemporaryReportFilesJob;
 use App\Jobs\MarkOverdueInvoicesJob;
 use App\Jobs\PurgeExpiredExpensesJob;
 use App\Jobs\RetryExpenseProofCleanupJob;
-use App\Jobs\SendDueInvoiceReminderEmailsJob;
 use App\Jobs\UpdateCustomerFollowUpStatusesJob;
 use App\Services\Operations\OperationalHealth;
 use Illuminate\Foundation\Inspiring;
@@ -25,12 +24,6 @@ Schedule::job(new MarkOverdueInvoicesJob)
     ->timezone(config('app.timezone'))
     ->withoutOverlapping()
     ->name('mark-overdue-invoices');
-
-Schedule::job(new SendDueInvoiceReminderEmailsJob)
-    ->dailyAt('08:00')
-    ->timezone(config('app.timezone'))
-    ->withoutOverlapping()
-    ->name('send-due-invoice-reminders');
 
 Schedule::job(new UpdateCustomerFollowUpStatusesJob)
     ->dailyAt('08:30')

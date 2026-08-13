@@ -11,6 +11,7 @@ use App\Http\Requests\UpdateExpenseRequest;
 use App\Models\ActivityLog;
 use App\Models\Expense;
 use App\Models\ExpenseProofCleanupTask;
+use App\Services\CashBank\CashBankService;
 use App\Services\Expenses\ExpenseProofCleanup;
 use App\Services\Security\ActivityLogger;
 use Illuminate\Database\Eloquent\Builder;
@@ -86,6 +87,7 @@ class ExpenseController extends Controller
         StoreExpenseRequest $request,
         ActivityLogger $activityLogger,
         ExpenseProofCleanup $proofCleanup,
+        CashBankService $cashBank,
     ): JsonResponse {
         $proof = $request->file('proof_payment');
         $proofPath = $proof->store('expense-proofs', $this->proofDisk());
@@ -95,7 +97,7 @@ class ExpenseController extends Controller
         }
 
         try {
-            $expense = DB::transaction(function () use ($request, $activityLogger, $proof, $proofPath): Expense {
+            $expense = DB::transaction(function () use ($request, $activityLogger, $cashBank, $proof, $proofPath): Expense {
                 $payload = $request->safe()->except('proof_payment');
                 $payload['subcategory'] = $payload['category'] === Expense::CATEGORY_EMPLOYEE
                     ? $payload['subcategory']
@@ -106,6 +108,7 @@ class ExpenseController extends Controller
                 $payload['created_by'] = $request->user()->getAuthIdentifier();
 
                 $expense = Expense::query()->create($payload);
+                $cashBank->recordExpense($expense);
 
                 $activityLogger->record(
                     module: 'expense',
@@ -144,6 +147,7 @@ class ExpenseController extends Controller
         Expense $expense,
         ActivityLogger $activityLogger,
         ExpenseProofCleanup $proofCleanup,
+        CashBankService $cashBank,
     ): JsonResponse {
         $proof = $request->file('proof_payment');
         $newProofPath = $proof?->store('expense-proofs', $this->proofDisk());
@@ -161,6 +165,7 @@ class ExpenseController extends Controller
                 $expense,
                 $activityLogger,
                 $proofCleanup,
+                $cashBank,
                 $proof,
                 $newProofPath,
                 &$cleanupTask,
@@ -195,6 +200,7 @@ class ExpenseController extends Controller
                 $payload['version'] = $locked->version + 1;
                 $locked->update($payload);
                 $locked->refresh();
+                $cashBank->syncExpense($locked);
 
                 $activityLogger->record(
                     module: 'expense',
@@ -238,9 +244,9 @@ class ExpenseController extends Controller
         ]);
     }
 
-    public function destroy(Expense $expense, ActivityLogger $activityLogger): JsonResponse
+    public function destroy(Expense $expense, ActivityLogger $activityLogger, CashBankService $cashBank): JsonResponse
     {
-        DB::transaction(function () use ($expense, $activityLogger): void {
+        DB::transaction(function () use ($expense, $activityLogger, $cashBank): void {
             $locked = Expense::query()->lockForUpdate()->findOrFail($expense->getKey());
             $before = $this->auditSnapshot($locked);
 
@@ -255,6 +261,7 @@ class ExpenseController extends Controller
             );
 
             $locked->delete();
+            $cashBank->cancelExpenseTransaction($locked, auth()->id());
         });
 
         return response()->json(status: 204);

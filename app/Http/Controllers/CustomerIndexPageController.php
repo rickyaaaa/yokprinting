@@ -30,7 +30,10 @@ class CustomerIndexPageController extends Controller
         $customers = $customerModels->map(function (Customer $customer): array {
             $invoices = $customer->invoices;
             $totalSales = (float) $invoices->sum('total_amount');
-            $outstanding = (float) $invoices->sum(
+            $outstanding = (float) $invoices
+                ->where('status', Invoice::STATUS_SENT)
+                ->where('payment_status', '!=', Invoice::PAYMENT_PAID)
+                ->sum(
                 fn (Invoice $invoice): float => max(
                     0,
                     (float) $invoice->total_amount - (float) $invoice->payments->sum('amount'),

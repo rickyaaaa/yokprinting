@@ -31,14 +31,15 @@ class InvoiceIndexPageController extends Controller
             ];
         })->values();
 
-        $outstanding = $invoices
-            ->where('status', '!=', Invoice::STATUS_CANCELLED)
+        $receivables = $invoices
+            ->where('status', Invoice::STATUS_SENT)
+            ->where('payment_status', '!=', Invoice::PAYMENT_PAID);
+        $outstanding = $receivables
             ->sum(fn (Invoice $invoice): float => max(
                 0,
                 (float) $invoice->total_amount - (float) ($invoice->verified_paid_amount ?? 0),
             ));
-        $overdueCount = $invoices->filter(fn (Invoice $invoice): bool => $invoice->status !== Invoice::STATUS_CANCELLED
-            && $invoice->payment_status !== Invoice::PAYMENT_PAID
+        $overdueCount = $receivables->filter(fn (Invoice $invoice): bool => $invoice->payment_status !== Invoice::PAYMENT_PAID
             && $invoice->due_date->isPast()
         )->count();
 
@@ -57,10 +58,10 @@ class InvoiceIndexPageController extends Controller
     {
         return match (true) {
             $invoice->status === Invoice::STATUS_CANCELLED => ['Dibatalkan', 'danger'],
-            $invoice->status === Invoice::STATUS_DRAFT => ['Draft', 'brand'],
             $invoice->payment_status === Invoice::PAYMENT_PAID => ['Lunas', 'success'],
             $invoice->due_date->isPast() => ['Overdue', 'danger'],
             $invoice->payment_status === Invoice::PAYMENT_PARTIAL => ['Parsial', 'info'],
+            $invoice->status === Invoice::STATUS_DRAFT => ['Draft', 'brand'],
             default => ['Menunggu', 'warning'],
         };
     }

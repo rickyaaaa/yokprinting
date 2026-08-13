@@ -1,0 +1,186 @@
+@php
+    $user = auth()->user();
+    $config = [
+        'canCreate' => $user?->hasPermission('cash_bank.create') ?? false,
+        'canUpdate' => $user?->hasPermission('cash_bank.update') ?? false,
+        'canDelete' => $user?->hasPermission('cash_bank.delete') ?? false,
+    ];
+@endphp
+
+<!DOCTYPE html>
+<html lang="id">
+    <head>
+        <meta charset="utf-8">
+        <meta name="csrf-token" content="{{ csrf_token() }}">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description" content="Ledger dan mutasi rekening utama usaha">
+        <title>Kas & Bank - YokPrinting.ID</title>
+        @vite(['resources/css/app.css', 'resources/js/app.js'])
+    </head>
+    <body>
+        <div class="min-h-screen lg:flex" x-data="{ sidebarOpen: false }" @keydown.escape.window="sidebarOpen = false">
+            <div class="fixed inset-0 z-30 bg-ink/45 lg:hidden" x-cloak x-show="sidebarOpen" @click="sidebarOpen = false"></div>
+            <x-app-sidebar />
+
+            <div class="min-w-0 flex-1">
+                <header class="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
+                    <button type="button" class="mr-3 rounded-lg p-2 text-muted hover:bg-brand-50 hover:text-brand-800 lg:hidden" @click="sidebarOpen = true" aria-label="Buka navigasi">
+                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg>
+                    </button>
+                    <div class="flex items-center gap-2 text-sm">
+                        <a href="{{ route('dashboard') }}" class="hidden text-muted hover:text-ink sm:inline">Dashboard</a>
+                        <span class="hidden text-line sm:inline">/</span>
+                        <span class="font-medium text-ink">Kas & Bank</span>
+                    </div>
+                </header>
+
+                <main class="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8" x-data='cashBankPage(@json($config))' x-init="init()">
+                    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Keuangan</span>
+                            <h1 class="mt-3 text-2xl font-semibold text-ink sm:text-[1.75rem]">Kas & Bank</h1>
+                            <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Pantau saldo dan seluruh uang masuk atau keluar dari rekening utama usaha.</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button x-show="config.canUpdate" type="button" class="rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:bg-canvas" @click="openAccountSettings()">Atur Rekening</button>
+                            <button x-show="config.canCreate" type="button" class="rounded-lg border border-green-200 bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-800 hover:bg-green-100" @click="openCreate('income')">+ Tambah Uang Masuk</button>
+                            <button x-show="config.canCreate" type="button" class="rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800" @click="openCreate('expense')">+ Tambah Uang Keluar</button>
+                        </div>
+                    </div>
+
+                    <section class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Ringkasan Kas dan Bank">
+                        <article class="rounded-xl border border-line bg-white p-5">
+                            <p class="text-sm font-medium text-muted">Saldo Bank</p>
+                            <p class="mt-2 text-2xl font-semibold" :class="summary.has_negative_balance ? 'text-red-700' : 'text-ink'" x-text="formatRupiah(summary.current_balance)"></p>
+                            <p class="mt-3 text-xs text-muted"><span x-text="summary.bank_name"></span> - <span x-text="summary.account_name"></span></p>
+                        </article>
+                        <article class="rounded-xl border border-line bg-white p-5">
+                            <p class="text-sm font-medium text-muted">Pemasukan Bulan Ini</p>
+                            <p class="mt-2 text-2xl font-semibold text-green-700" x-text="formatRupiah(summary.income_this_month)"></p>
+                            <p class="mt-3 text-xs text-muted">Uang masuk berstatus tercatat</p>
+                        </article>
+                        <article class="rounded-xl border border-line bg-white p-5">
+                            <p class="text-sm font-medium text-muted">Pengeluaran Bulan Ini</p>
+                            <p class="mt-2 text-2xl font-semibold text-red-700" x-text="formatRupiah(summary.expense_this_month)"></p>
+                            <p class="mt-3 text-xs text-muted">Uang keluar berstatus tercatat</p>
+                        </article>
+                        <article class="rounded-xl border border-line bg-white p-5">
+                            <p class="text-sm font-medium text-muted">Arus Kas Bersih</p>
+                            <p class="mt-2 text-2xl font-semibold" :class="summary.net_cash_flow < 0 ? 'text-red-700' : 'text-ink'" x-text="formatRupiah(summary.net_cash_flow)"></p>
+                            <p class="mt-3 text-xs text-muted">Pemasukan dikurangi pengeluaran</p>
+                        </article>
+                    </section>
+
+                    <div x-cloak x-show="summary.has_negative_balance" class="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900" role="status">
+                        Saldo rekening sedang negatif. Transaksi tetap dicatat agar histori keuangan tetap utuh.
+                    </div>
+
+                    <section x-ref="accountForm" x-cloak x-show="accountSettingsOpen" class="mt-6 rounded-xl border border-line bg-white" aria-labelledby="bank-account-heading">
+                        <div class="flex items-start justify-between gap-4 border-b border-line px-5 py-4 sm:px-6">
+                            <div>
+                                <h2 id="bank-account-heading" class="font-semibold text-ink">Pengaturan rekening utama</h2>
+                                <p class="mt-1 text-sm text-muted">Perubahan saldo awal memengaruhi seluruh saldo berjalan.</p>
+                            </div>
+                            <button type="button" class="rounded-lg px-2 py-1 text-sm font-semibold text-muted hover:bg-canvas" @click="accountSettingsOpen = false">Tutup</button>
+                        </div>
+                        <form class="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,1fr)_minmax(10rem,1fr)_minmax(12rem,1fr)_minmax(12rem,1fr)_auto] sm:p-6" @submit.prevent="saveAccount()">
+                            <label><span class="mb-1.5 block text-xs font-semibold text-muted">Nama rekening</span><input type="text" maxlength="255" class="form-control" x-model="accountForm.name" required></label>
+                            <label><span class="mb-1.5 block text-xs font-semibold text-muted">Nama bank</span><input type="text" maxlength="255" class="form-control" x-model="accountForm.bank_name" required></label>
+                            <label><span class="mb-1.5 block text-xs font-semibold text-muted">Nomor rekening</span><input type="text" maxlength="100" class="form-control" x-model="accountForm.account_number"></label>
+                            <label><span class="mb-1.5 block text-xs font-semibold text-muted">Saldo awal</span><input type="number" step="0.01" class="form-control" x-model="accountForm.opening_balance" required></label>
+                            <button type="submit" class="self-end rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-wait disabled:opacity-60" :disabled="savingAccount" x-text="savingAccount ? 'Menyimpan...' : 'Simpan Rekening'"></button>
+                        </form>
+                    </section>
+
+                    <section x-ref="manualForm" x-cloak x-show="formOpen" class="mt-6 rounded-xl border border-line bg-white" aria-labelledby="manual-transaction-heading">
+                        <div class="flex items-start justify-between gap-4 border-b border-line px-5 py-4 sm:px-6">
+                            <div>
+                                <h2 id="manual-transaction-heading" class="font-semibold text-ink" x-text="editingId ? 'Edit transaksi manual' : (form.type === 'income' ? 'Tambah Uang Masuk' : 'Tambah Uang Keluar')"></h2>
+                                <p class="mt-1 text-sm text-muted">Gunakan form ini hanya untuk transaksi yang tidak berasal dari invoice atau pengeluaran.</p>
+                            </div>
+                            <button type="button" class="rounded-lg px-2 py-1 text-sm font-semibold text-muted hover:bg-canvas" @click="formOpen = false">Tutup</button>
+                        </div>
+                        <form class="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-[10rem_12rem_minmax(12rem,1fr)_12rem_minmax(16rem,1.5fr)_auto] sm:p-6" @submit.prevent="save()">
+                            <label>
+                                <span class="mb-1.5 block text-xs font-semibold text-muted">Tanggal</span>
+                                <input type="date" class="form-control" x-model="form.transaction_date" required>
+                            </label>
+                            <label>
+                                <span class="mb-1.5 block text-xs font-semibold text-muted">Jenis transaksi</span>
+                                <select class="form-control" x-model="form.type" @change="typeChanged()" required>
+                                    <option value="income">Uang Masuk</option>
+                                    <option value="expense">Uang Keluar</option>
+                                </select>
+                            </label>
+                            <label>
+                                <span class="mb-1.5 block text-xs font-semibold text-muted">Kategori</span>
+                                <select class="form-control" x-model="form.category" required>
+                                    <template x-for="(label, value) in categories" :key="value"><option :value="value" x-text="label"></option></template>
+                                </select>
+                            </label>
+                            <label>
+                                <span class="mb-1.5 block text-xs font-semibold text-muted">Nominal</span>
+                                <input type="number" min="0.01" step="0.01" class="form-control" x-model="form.amount" placeholder="0" required>
+                            </label>
+                            <label>
+                                <span class="mb-1.5 block text-xs font-semibold text-muted">Keterangan</span>
+                                <input type="text" maxlength="2000" class="form-control" x-model="form.description" placeholder="Jelaskan transaksi" required>
+                            </label>
+                            <button type="submit" class="self-end rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-wait disabled:opacity-60" :disabled="saving" x-text="saving ? 'Menyimpan...' : 'Simpan'"></button>
+                        </form>
+                    </section>
+
+                    <div x-cloak x-show="notice" class="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900" x-text="notice" role="status"></div>
+                    <div x-cloak x-show="error" class="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900" x-text="error" role="alert"></div>
+
+                    <section class="mt-6 rounded-xl border border-line bg-white" aria-labelledby="cash-bank-history-heading">
+                        <div class="border-b border-line px-5 py-4 sm:px-6">
+                            <h2 id="cash-bank-history-heading" class="font-semibold text-ink">Histori transaksi</h2>
+                            <p class="mt-1 text-sm text-muted">Saldo berjalan dihitung dari saldo awal dan seluruh transaksi tercatat sebelumnya.</p>
+                        </div>
+                        <form class="grid gap-3 border-b border-line p-5 md:grid-cols-2 xl:grid-cols-[minmax(13rem,1fr)_10rem_10rem_12rem_auto_auto]" @submit.prevent="loadTransactions()">
+                            <label><span class="mb-1.5 block text-xs font-semibold text-muted">Pencarian</span><input type="search" class="form-control" x-model="filters.search" placeholder="Nomor, kategori, keterangan"></label>
+                            <label><span class="mb-1.5 block text-xs font-semibold text-muted">Dari tanggal</span><input type="date" class="form-control" x-model="filters.date_from"></label>
+                            <label><span class="mb-1.5 block text-xs font-semibold text-muted">Sampai tanggal</span><input type="date" class="form-control" x-model="filters.date_to"></label>
+                            <label><span class="mb-1.5 block text-xs font-semibold text-muted">Jenis</span><select class="form-control" x-model="filters.type"><option value="">Semua transaksi</option><option value="income">Uang Masuk</option><option value="expense">Uang Keluar</option></select></label>
+                            <button type="submit" class="self-end rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800">Terapkan</button>
+                            <button type="button" class="self-end rounded-lg border border-line px-4 py-2.5 text-sm font-semibold text-muted hover:bg-canvas" @click="resetFilters()">Reset</button>
+                        </form>
+
+                        <div x-show="loading" class="p-10 text-center text-sm text-muted">Memuat mutasi rekening...</div>
+                        <div x-show="!loading" class="overflow-x-auto">
+                            <table class="w-full min-w-[1100px] text-left text-sm">
+                                <thead><tr class="border-b border-line text-xs font-semibold text-muted">
+                                    <th class="px-5 py-3 sm:px-6">Tanggal / Nomor</th><th class="px-5 py-3">Keterangan</th><th class="px-5 py-3">Sumber</th>
+                                    <th class="px-5 py-3 text-right">Masuk</th><th class="px-5 py-3 text-right">Keluar</th><th class="px-5 py-3 text-right">Saldo</th><th class="px-5 py-3">Status</th><th class="px-5 py-3 text-right sm:px-6">Aksi</th>
+                                </tr></thead>
+                                <tbody class="divide-y divide-line">
+                                    <template x-for="transaction in transactions" :key="transaction.id">
+                                        <tr class="align-top" :class="transaction.status === 'cancelled' ? 'bg-canvas opacity-70' : 'hover:bg-brand-50/40'">
+                                            <td class="whitespace-nowrap px-5 py-4 sm:px-6"><span class="block font-medium text-ink" x-text="formatDate(transaction.transaction_date)"></span><span class="mt-1 block font-mono text-xs text-muted" x-text="transaction.transaction_number"></span></td>
+                                            <td class="max-w-sm px-5 py-4"><span class="block font-medium text-ink" x-text="transaction.category_label"></span><span class="mt-1 block text-xs leading-5 text-muted" x-text="transaction.description"></span></td>
+                                            <td class="px-5 py-4 text-muted" x-text="transaction.source_label"></td>
+                                            <td class="whitespace-nowrap px-5 py-4 text-right font-semibold text-green-700" x-text="transaction.income ? formatRupiah(transaction.income) : '-' "></td>
+                                            <td class="whitespace-nowrap px-5 py-4 text-right font-semibold text-red-700" x-text="transaction.expense ? formatRupiah(transaction.expense) : '-' "></td>
+                                            <td class="whitespace-nowrap px-5 py-4 text-right font-semibold text-ink" x-text="formatRupiah(transaction.running_balance)"></td>
+                                            <td class="px-5 py-4"><span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="transaction.status === 'posted' ? 'bg-green-100 text-green-800' : 'bg-surface-high text-muted'" x-text="transaction.status_label"></span></td>
+                                            <td class="px-5 py-4 text-right sm:px-6"><div class="flex justify-end gap-2" x-show="transaction.is_manual && transaction.status === 'posted'">
+                                                <button x-show="config.canUpdate" type="button" class="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-canvas" @click="edit(transaction)">Edit</button>
+                                                <button x-show="config.canDelete" type="button" class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50" @click="cancel(transaction)">Batalkan</button>
+                                            </div></td>
+                                        </tr>
+                                    </template>
+                                    <tr x-show="transactions.length === 0"><td colspan="8" class="px-5 py-12 text-center text-muted">Belum ada transaksi yang sesuai filter.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <footer class="flex flex-col gap-3 border-t border-line px-5 py-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+                            <p class="text-muted">Saldo awal periode: <strong class="text-ink" x-text="formatRupiah(meta.beginning_balance)"></strong></p>
+                            <div class="flex items-center gap-2"><button type="button" class="rounded-lg border border-line px-3 py-2 font-semibold disabled:opacity-40" :disabled="meta.current_page <= 1" @click="loadTransactions(meta.current_page - 1)">Sebelumnya</button><span class="text-muted" x-text="`Halaman ${meta.current_page} dari ${meta.last_page}`"></span><button type="button" class="rounded-lg border border-line px-3 py-2 font-semibold disabled:opacity-40" :disabled="meta.current_page >= meta.last_page" @click="loadTransactions(meta.current_page + 1)">Berikutnya</button></div>
+                        </footer>
+                    </section>
+                </main>
+            </div>
+        </div>
+    </body>
+</html>

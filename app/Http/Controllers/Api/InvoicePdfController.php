@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Services\Invoices\GenerateInvoicePdf;
-use App\Services\Invoices\MarkInvoiceDelivered;
 use Illuminate\Http\Response;
 
 class InvoicePdfController extends Controller
@@ -16,13 +15,8 @@ class InvoicePdfController extends Controller
     public function download(
         Invoice $invoice,
         GenerateInvoicePdf $generateInvoicePdf,
-        MarkInvoiceDelivered $markInvoiceDelivered,
     ): Response {
         $pdf = $generateInvoicePdf->generate($invoice);
-        $markInvoiceDelivered->handle(
-            $invoice,
-            MarkInvoiceDelivered::CHANNEL_PDF_DOWNLOAD,
-        );
 
         return response($pdf->contents, Response::HTTP_OK, [
             'Content-Type' => 'application/pdf',

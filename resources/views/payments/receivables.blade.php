@@ -81,12 +81,9 @@
                                 </svg>
                                 {{ now(config('app.timezone'))->locale('id')->translatedFormat('F Y') }}
                             </button>
-                            <button type="button" class="inline-flex items-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800">
-                                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                    <path d="M4 5h16v14H4zM4 7l8 6 8-6" stroke-linejoin="round"/>
-                                </svg>
-                                Kirim pengingat
-                            </button>
+                            <a href="{{ route('notifications.due-invoices.index') }}" class="inline-flex items-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800">
+                                Lihat prioritas reminder
+                            </a>
                         </div>
                     </div>
 

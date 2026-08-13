@@ -15,7 +15,7 @@ import {
     Tooltip,
 } from 'chart.js';
 import { createCustomer, deleteCustomer, listCustomers, updateCustomer } from './services/customer-api';
-import { sendInvoiceEmail } from './services/invoice-delivery-api';
+import { sendInvoiceWhatsApp } from './services/invoice-delivery-api';
 import { persistInvoiceDraft, saveInvoiceDraft } from './services/invoice-api';
 import { downloadInvoicePdf, downloadInvoicePreviewPdf } from './services/invoice-pdf-api';
 import {
@@ -35,11 +35,13 @@ import {
 } from './support/minimum-stock';
 import { registerExpenseComponents } from './expenses';
 import { registerProfitLossComponents } from './profit-loss';
+import { registerCashBankComponents } from './cash-bank';
 
 window.Alpine = Alpine;
 
 registerExpenseComponents(Alpine);
 registerProfitLossComponents(Alpine);
+registerCashBankComponents(Alpine);
 
 Chart.register(BarController, BarElement, CategoryScale, Filler, LinearScale, LineController, LineElement, PointElement, Legend, Tooltip);
 
@@ -154,7 +156,6 @@ const buildInvoiceDraftPayload = (form) => {
         is_free_shipping: form.querySelector('[name="is_free_shipping"]')?.checked ?? false,
         order_process_status: form.querySelector('[name="order_process_status"]')?.value ?? 'draft',
         design_notes: form.querySelector('[name="design_notes"]')?.value ?? '',
-        mockup_url: form.querySelector('[name="mockup_url"]')?.value ?? '',
         dp_required_percent: Number(form.querySelector('[name="dp_required_percent"]')?.value) || 50,
     };
 };
@@ -177,7 +178,7 @@ const buildInvoicePreviewSnapshot = (payload) => {
     const dpPercent = clampNumber(payload.dp_required_percent, 0, 100);
 
     return {
-        invoice_number: payload.invoice_number || 'Draft belum disimpan',
+        invoice_number: payload.invoice_number || 'Belum disimpan',
         issue_date: payload.issue_date,
         issue_date_label: formatLongDate(payload.issue_date),
         currency: 'IDR',
@@ -190,7 +191,7 @@ const buildInvoicePreviewSnapshot = (payload) => {
         items: payload.items.map((item, index) => {
             const quantity = Math.max(0, Number(item.quantity) || 0);
             const price = Math.max(0, Number(item.price) || 0);
-            const unit = item.packaging_unit || 'Pcs';
+            const unit = 'Pcs';
             const orderIncrement = Number(item.order_increment) || null;
             const sku = item.sku || '';
             const note = [
@@ -325,7 +326,7 @@ Alpine.data('invoiceDraftForm', () => ({
 
             this.savingDraft = false;
             this.errorTitle = 'Form perlu diperiksa';
-            this.errorMessage = 'Perbaiki field bertanda merah sebelum menyimpan draft.';
+            this.errorMessage = 'Perbaiki field bertanda merah sebelum menyimpan invoice.';
             this.$nextTick(() => {
                 form
                     .querySelector(`[data-validation-field="${firstField}"]`)
@@ -353,8 +354,8 @@ Alpine.data('invoiceDraftForm', () => ({
                 }));
             }
         } catch (error) {
-            this.errorTitle = 'Draft gagal disimpan';
-            this.errorMessage = error?.message ?? 'Draft belum dapat disimpan. Coba lagi.';
+            this.errorTitle = 'Invoice gagal disimpan';
+            this.errorMessage = error?.message ?? 'Invoice belum dapat disimpan. Coba lagi.';
             this.fieldErrors = error?.errors ?? {};
         } finally {
             this.savingDraft = false;
@@ -395,7 +396,6 @@ Alpine.data('invoiceDraftForm', () => ({
                 due_date: payload.due_date,
                 production_status: payload.production_status,
                 dp_required_percent: payload.dp_required_percent,
-                mockup_url: payload.mockup_url,
                 notes: payload.notes,
                 terms: payload.terms,
                 design_notes: payload.design_notes,
@@ -687,6 +687,7 @@ Alpine.data('productionStatusForm', () => ({
     currentStatus: '',
     selectedStatus: '',
     endpoint: '',
+    purpose: 'invoice',
     steps: [],
     saving: false,
     message: '',
@@ -773,11 +774,77 @@ Alpine.data('productionStatusForm', () => ({
             this.selectedStatus = payload.data.production_status;
             this.message = payload.message;
             this.messageType = 'success';
+            window.dispatchEvent(new CustomEvent('invoice-production-status-updated', {
+                detail: payload.data.production_status,
+            }));
         } catch (error) {
             this.message = error instanceof Error ? error.message : 'Status produksi gagal diperbarui.';
             this.messageType = 'error';
         } finally {
             this.saving = false;
+        }
+    },
+}));
+
+Alpine.data('invoiceWhatsAppDelivery', () => ({
+    endpoint: '',
+    sending: false,
+    sent: false,
+    message: '',
+    messageType: 'success',
+
+    init() {
+        this.endpoint = this.$el.dataset.endpoint;
+        this.sent = this.$el.dataset.sent === 'true';
+        this.purpose = this.$el.dataset.purpose ?? 'invoice';
+    },
+
+    async send() {
+        if (this.sending || !this.endpoint) {
+            return;
+        }
+
+        const popup = window.open('', '_blank');
+
+        if (popup) {
+            popup.opener = null;
+        }
+
+        this.sending = true;
+        this.message = '';
+
+        try {
+            const response = await fetch(this.endpoint, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                },
+                body: JSON.stringify({ purpose: this.purpose }),
+            });
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(payload.message ?? 'Invoice belum dapat dikirim via WhatsApp.');
+            }
+
+            this.sent = payload.data?.status === 'sent';
+            this.message = 'WhatsApp dibuka dan invoice ditandai terkirim.';
+            this.messageType = 'success';
+
+            if (popup) {
+                popup.location.assign(payload.data.whatsapp_url);
+            } else {
+                window.location.assign(payload.data.whatsapp_url);
+            }
+        } catch (error) {
+            popup?.close();
+            this.message = error instanceof Error ? error.message : 'Invoice belum dapat dikirim via WhatsApp.';
+            this.messageType = 'error';
+        } finally {
+            this.sending = false;
         }
     },
 }));
@@ -847,10 +914,6 @@ Alpine.data('recordPaymentForm', (config = {}) => ({
             errors.method = 'Pilih metode pembayaran.';
         }
 
-        if (!this.form.reference.trim()) {
-            errors.reference = 'Nomor referensi wajib diisi.';
-        }
-
         return errors;
     },
 
@@ -907,7 +970,7 @@ Alpine.data('recordPaymentForm', (config = {}) => ({
             this.form.amount = '';
 
             if (this.isPaid) {
-                window.location.reload();
+                window.dispatchEvent(new CustomEvent('invoice-paid'));
             }
         } catch (error) {
             if (this.validationMessages.length === 0) {
@@ -1267,7 +1330,7 @@ Alpine.data('invoiceItems', () => ({
             return;
         }
 
-        const defaults = this.products.slice(0, 2);
+        const defaults = this.products.slice(0, 1);
 
         this.items = defaults.map((product) => this.createItem(product));
     },
@@ -1485,7 +1548,7 @@ Alpine.data('invoiceItems', () => ({
 
 Alpine.data('invoicePreviewActions', () => ({
     preview: {
-        invoice_number: 'Draft belum disimpan',
+        invoice_number: 'Belum disimpan',
         issue_date_label: '-',
         currency: 'IDR',
         customer: {
@@ -1512,7 +1575,7 @@ Alpine.data('invoicePreviewActions', () => ({
     },
     savingDraft: false,
     draftSaved: false,
-    sendingEmail: false,
+    sendingWhatsApp: false,
     downloadingPdf: false,
     pdfDownloaded: false,
     invoiceStatus: 'Draft',
@@ -1568,7 +1631,7 @@ Alpine.data('invoicePreviewActions', () => ({
         return this.preview.invoice_number;
     },
 
-    get canSendEmail() {
+    get canSendWhatsApp() {
         return this.persistedInvoiceId !== null;
     },
 
@@ -1600,7 +1663,7 @@ Alpine.data('invoicePreviewActions', () => ({
             return;
         }
 
-        if (this.canSendEmail) {
+        if (this.canSendWhatsApp) {
             this.notice = {
                 type: 'success',
                 title: 'Draft sudah tersimpan',
@@ -1624,7 +1687,7 @@ Alpine.data('invoicePreviewActions', () => ({
 
             this.persistedInvoiceId = response.data.id;
             this.preview.invoice_number = response.data.invoice_number;
-            this.invoiceStatus = response.data.status === 'sent' ? 'Terkirim' : 'Draft';
+            this.invoiceStatus = response.data.sent_at ? 'Terkirim' : 'Tersimpan';
             window.sessionStorage.setItem(persistedInvoiceDraftStorageKey, JSON.stringify({
                 id: response.data.id,
                 invoice_number: response.data.invoice_number,
@@ -1633,31 +1696,31 @@ Alpine.data('invoicePreviewActions', () => ({
             this.draftSaved = true;
             this.notice = {
                 type: 'success',
-                title: 'Draft berhasil disimpan',
+                title: 'Invoice berhasil disimpan',
                 description: `Invoice ${response.data.invoice_number} tersimpan dan siap dikirim.`,
             };
         } catch (error) {
             window.sessionStorage.removeItem(persistedInvoiceDraftStorageKey);
             this.notice = {
                 type: 'error',
-                title: 'Draft gagal disimpan',
-                description: error?.message ?? 'Draft belum dapat disimpan. Coba lagi.',
+                title: 'Invoice gagal disimpan',
+                description: error?.message ?? 'Invoice belum dapat disimpan. Coba lagi.',
             };
         } finally {
             this.savingDraft = false;
         }
     },
 
-    async sendEmail() {
-        if (this.sendingEmail) {
+    async sendWhatsApp() {
+        if (this.sendingWhatsApp) {
             return;
         }
 
-        if (!this.canSendEmail) {
+        if (!this.canSendWhatsApp) {
             this.notice = {
                 type: 'error',
-                title: 'Simpan draft terlebih dahulu',
-                description: 'Email hanya dapat dikirim dari invoice yang sudah tersimpan di database.',
+                title: 'Simpan invoice terlebih dahulu',
+                description: 'WhatsApp hanya dapat dikirim dari invoice yang sudah tersimpan di database.',
             };
             return;
         }
@@ -1666,33 +1729,43 @@ Alpine.data('invoicePreviewActions', () => ({
             this.notice = {
                 type: 'success',
                 title: 'Invoice sudah berstatus terkirim',
-                description: 'Invoice tersimpan ini sudah dikirim menggunakan data database.',
+                description: 'Invoice tersimpan ini sudah dikirim via WhatsApp.',
             };
             return;
         }
 
-        this.sendingEmail = true;
+        const popup = window.open('', '_blank');
+
+        if (popup) {
+            popup.opener = null;
+        }
+
+        this.sendingWhatsApp = true;
         this.notice = null;
 
         try {
-            const response = await sendInvoiceEmail({
-                invoiceId: this.invoiceId,
-            });
+            const response = await sendInvoiceWhatsApp({ invoiceId: this.invoiceId });
 
             this.invoiceStatus = response.data.status === 'sent' ? 'Terkirim' : 'Draft';
             this.notice = {
                 type: 'success',
                 title: 'Invoice berhasil dikirim',
-                description: `Email terkirim via API ke ${response.data.recipient}.`,
+                description: 'WhatsApp dibuka dan invoice ditandai terkirim.',
             };
+            if (popup) {
+                popup.location.assign(response.data.whatsapp_url);
+            } else {
+                window.location.assign(response.data.whatsapp_url);
+            }
         } catch (error) {
+            popup?.close();
             this.notice = {
                 type: 'error',
                 title: 'Invoice gagal dikirim',
-                description: error?.message ?? 'Periksa koneksi lalu coba kirim kembali.',
+                description: error?.message ?? 'Periksa nomor WhatsApp pelanggan lalu coba lagi.',
             };
         } finally {
-            this.sendingEmail = false;
+            this.sendingWhatsApp = false;
         }
     },
 
@@ -1706,7 +1779,7 @@ Alpine.data('invoicePreviewActions', () => ({
         this.notice = null;
 
         try {
-            const response = this.canSendEmail
+            const response = this.canSendWhatsApp
                 ? await downloadInvoicePdf(this.invoiceId)
                 : await downloadInvoicePreviewPdf(this.preview);
             const downloadUrl = URL.createObjectURL(response.blob);

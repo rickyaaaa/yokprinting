@@ -22,7 +22,7 @@ class MarkOverdueInvoicesJob implements ShouldQueue
     {
         $invoiceIds = Invoice::query()
             ->whereDate('due_date', '<', today())
-            ->where('status', '!=', Invoice::STATUS_CANCELLED)
+            ->where('status', Invoice::STATUS_SENT)
             ->whereIn('payment_status', [Invoice::PAYMENT_UNPAID, Invoice::PAYMENT_PARTIAL])
             ->pluck('id')
             ->all();

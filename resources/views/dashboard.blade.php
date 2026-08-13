@@ -226,7 +226,7 @@
                                         <div>
                                             <p class="rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-800">Notifikasi jatuh tempo</p>
                                             <h2 id="due-notification-heading" class="mt-3 font-semibold text-ink">Invoice perlu ditindaklanjuti</h2>
-                                            <p class="mt-1 text-sm leading-6 text-muted">3 invoice masuk prioritas reminder pembayaran.</p>
+                                            <p class="mt-1 text-sm leading-6 text-muted">{{ count($dueNotifications) }} invoice masuk prioritas reminder pembayaran.</p>
                                         </div>
                                         <span class="grid size-10 place-items-center rounded-lg bg-red-50 text-red-800" aria-hidden="true">
                                             <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -254,12 +254,13 @@
                                                 </div>
                                                 <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $toneClass }}">{{ $notification['title'] }}</span>
                                             </div>
-                                            <div class="mt-4 flex items-center justify-between gap-3">
+                                            <div class="mt-4 flex items-center justify-between gap-3" x-data="invoiceWhatsAppDelivery" data-endpoint="{{ $notification['whatsapp_endpoint'] }}" data-purpose="reminder" data-sent="true">
                                                 <span class="text-sm font-semibold text-ink">{{ $notification['amount'] }}</span>
-                                                <button type="button" class="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
-                                                    {{ $notification['action'] }}
+                                                <button type="button" class="rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-800 hover:bg-green-100 disabled:cursor-wait disabled:opacity-70" :disabled="sending" :aria-busy="sending" @click="send()">
+                                                    <span x-text="sending ? 'Membuka WA…' : 'Ingatkan via WA'">Ingatkan via WA</span>
                                                 </button>
                                             </div>
+                                            <p x-cloak x-show="message" x-text="message" class="mt-3 rounded-lg border px-3 py-2 text-xs" :class="messageType === 'success' ? 'border-green-200 bg-green-50 text-green-900' : 'border-red-200 bg-red-50 text-red-900'" role="status"></p>
                                         </article>
                                     @endforeach
                                 </div>

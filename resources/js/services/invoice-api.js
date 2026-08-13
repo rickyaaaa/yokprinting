@@ -23,7 +23,7 @@ export async function persistInvoiceDraft(payload) {
 
     if (!response.ok) {
         throw new InvoiceApiError(
-            body.message ?? 'Draft belum dapat disimpan. Coba lagi.',
+            body.message ?? 'Invoice belum dapat disimpan. Coba lagi.',
             response.status,
             body.errors ?? {},
         );

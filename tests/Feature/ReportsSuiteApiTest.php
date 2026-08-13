@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\Permission;
 use App\Models\Product;
+use App\Models\Role;
 use App\Models\StockMovement;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -55,6 +57,7 @@ class ReportsSuiteApiTest extends TestCase
             'invoice_number' => 'INV-2026-0102',
             'issue_date' => '2026-06-01',
             'due_date' => '2026-06-15',
+            'status' => Invoice::STATUS_SENT,
             'payment_status' => Invoice::PAYMENT_PARTIAL,
             'subtotal' => 1000000,
             'total_amount' => 1000000,
@@ -161,6 +164,59 @@ class ReportsSuiteApiTest extends TestCase
             $this->assertStringContainsString('.csv', (string) $response->headers->get('Content-Disposition'));
             $this->assertNotEmpty($response->getContent());
         }
+    }
+
+    public function test_legacy_report_exports_require_report_export_permission(): void
+    {
+        foreach ($this->exportRoutes() as $route) {
+            $this->getJson(route($route))->assertUnauthorized();
+        }
+
+        $this->actingAs($this->userWithPermissions([]));
+
+        foreach ($this->exportRoutes() as $route) {
+            $this->getJson(route($route))->assertForbidden();
+        }
+
+        $this->actingAs($this->userWithPermissions(['report.export']));
+
+        foreach ($this->exportRoutes() as $route) {
+            $this->get(route($route))->assertOk();
+        }
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function exportRoutes(): array
+    {
+        return [
+            'api.reports.gross-profit.export',
+            'api.reports.outstanding-payments.export',
+            'api.reports.inactive-customers.export',
+            'api.reports.low-stock.export',
+            'api.reports.stock-mutations.export',
+        ];
+    }
+
+    /**
+     * @param  list<string>  $permissionCodes
+     */
+    private function userWithPermissions(array $permissionCodes): User
+    {
+        $role = Role::factory()->create();
+
+        foreach ($permissionCodes as $permissionCode) {
+            [$module, $action] = explode('.', $permissionCode, 2);
+            $permission = Permission::factory()->create([
+                'code' => $permissionCode,
+                'module' => $module,
+                'action' => $action,
+            ]);
+            $role->permissions()->attach($permission);
+        }
+
+        return User::factory()->create(['role' => $role->code]);
     }
 
     private function movement(Product $product, string $type, int|float $quantity, string $createdAt): void

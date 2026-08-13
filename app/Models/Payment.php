@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Payment extends Model
@@ -99,6 +100,12 @@ class Payment extends Model
     public function verifier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'verified_by');
+    }
+
+    public function cashBankTransaction(): HasOne
+    {
+        return $this->hasOne(CashBankTransaction::class, 'source_id')
+            ->where('source_type', CashBankTransaction::SOURCE_PAYMENT);
     }
 
     /**

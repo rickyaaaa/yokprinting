@@ -14,7 +14,7 @@ class InvoiceItem extends Model
      */
     protected $attributes = [
         'quantity' => 1,
-        'unit' => 'item',
+        'unit' => 'Pcs',
         'unit_price' => 0,
         'discount_value' => 0,
         'discount_amount' => 0,

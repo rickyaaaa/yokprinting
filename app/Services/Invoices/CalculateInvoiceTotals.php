@@ -58,6 +58,7 @@ class CalculateInvoiceTotals
                     'packaging_unit' => $item['packaging_unit'] ?? null,
                     'description' => $item['description'] ?? null,
                     'quantity' => $quantity,
+                    'unit' => 'Pcs',
                     'unit_price' => $unitPrice,
                     'purchase_cost_snapshot' => $purchaseCostSnapshot,
                     'subtotal' => $subtotal,

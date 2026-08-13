@@ -35,6 +35,8 @@ class Permission extends Model
 
     public const MODULE_EXPENSE = 'expense';
 
+    public const MODULE_CASH_BANK = 'cash_bank';
+
     public const MODULE_SETTING = 'setting';
 
     public const MODULE_ROLE = 'role';

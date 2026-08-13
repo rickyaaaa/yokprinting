@@ -176,18 +176,6 @@
                 font-size: 8px;
             }
 
-            .notes-box {
-                margin-top: 20px;
-                padding: 12px 14px;
-                border: 1px solid #deded5;
-                background: #fbfbf7;
-                page-break-inside: avoid;
-            }
-
-            .notes-box p {
-                margin: 0;
-            }
-
             .signatures {
                 width: 100%;
                 margin-top: 40px;
@@ -310,22 +298,11 @@
                             @endif
                         </td>
                         <td class="numeric">{{ rtrim(rtrim(number_format((float) $item->quantity, 4, ',', '.'), '0'), ',') }}</td>
-                        <td class="numeric">{{ $item->unit }}</td>
+                        <td class="numeric">Pcs</td>
                     </tr>
                 @endforeach
             </tbody>
         </table>
-
-        @if ($invoice->design_notes || $invoice->notes)
-            <div class="notes-box">
-                @if ($invoice->design_notes)
-                    <p><strong>Catatan Produksi / Pengiriman:</strong> {{ $invoice->design_notes }}</p>
-                @endif
-                @if ($invoice->notes)
-                    <p style="{{ $invoice->design_notes ? 'margin-top: 4px;' : '' }}"><strong>Catatan:</strong> {{ $invoice->notes }}</p>
-                @endif
-            </div>
-        @endif
 
         <table class="signatures">
             <tr>

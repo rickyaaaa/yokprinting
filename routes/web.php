@@ -71,6 +71,9 @@ Route::middleware('auth')->group(function () {
     Route::view('/invoices/preview', 'invoices.preview')->name('invoices.preview');
     Route::get('/payments/receivables', ReceivablePageController::class)->name('payments.receivables.index');
     Route::get('/payments/history', PaymentHistoryPageController::class)->name('payments.history.index');
+    Route::view('/cash-bank', 'cash-bank.index')
+        ->middleware('permission:cash_bank.view')
+        ->name('cash-bank.index');
     Route::get('/payments/invoices/{invoice:invoice_number}', InvoicePaymentPageController::class)
         ->middleware('permission:invoice.view')
         ->name('payments.invoices.show');

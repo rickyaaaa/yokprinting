@@ -31,6 +31,20 @@ class UpdateInvoiceProductionStatus
             }
 
             if (
+                in_array($productionStatus, [
+                    Invoice::PRODUCTION_DESIGN_ACC,
+                    Invoice::PRODUCTION_IN_PRODUCTION,
+                    Invoice::PRODUCTION_READY_FOR_PICKUP,
+                    Invoice::PRODUCTION_COMPLETED,
+                ], true)
+                && $lockedInvoice->verifiedPaidAmount() < $lockedInvoice->requiredDpAmount()
+            ) {
+                throw ValidationException::withMessages([
+                    'production_status' => 'Minimal DP harus diterima sebelum produksi atau pengiriman dapat dilanjutkan.',
+                ]);
+            }
+
+            if (
                 $productionStatus === Invoice::PRODUCTION_COMPLETED
                 && $lockedInvoice->payment_status !== Invoice::PAYMENT_PAID
             ) {

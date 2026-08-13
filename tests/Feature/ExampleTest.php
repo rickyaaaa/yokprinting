@@ -45,7 +45,7 @@ class ExampleTest extends TestCase
             ->assertSee('invoice-validation-summary')
             ->assertSee('data-validation-field="due_date"', escape: false)
             ->assertSee('data-validation-field="items"', escape: false)
-            ->assertSee('Draft tersimpan via API')
+            ->assertSee('Invoice tersimpan via API')
             ->assertSee('Pratinjau invoice')
             ->assertSee(route('invoices.preview'))
             ->assertSee('Peran &amp; akses', escape: false)
@@ -648,12 +648,12 @@ class ExampleTest extends TestCase
             ->assertDontSee('Sablon Cup 16 Oz Oval')
             ->assertDontSee('Rp19.980.000')
             ->assertSee('Kembali ke editor')
-            ->assertSee('Simpan draft')
-            ->assertSee('Kirim email')
+            ->assertSee('Simpan invoice')
+            ->assertSee('Kirim via WA')
             ->assertSee('Unduh PDF')
             ->assertSee('preview-action-notice')
             ->assertSee('invoicePreviewActions')
-            ->assertSee('!canSendEmail')
+            ->assertSee('!canSendWhatsApp')
             ->assertDontSee('finance@sinarnusantara.co.id');
     }
 }

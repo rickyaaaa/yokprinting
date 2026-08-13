@@ -12,8 +12,7 @@ class ReceivablePageController extends Controller
         $invoices = Invoice::query()
             ->with('customer')
             ->withSum(['payments as verified_paid_amount' => fn ($query) => $query->verified()], 'amount')
-            ->where('status', '!=', Invoice::STATUS_CANCELLED)
-            ->where('payment_status', '!=', Invoice::PAYMENT_PAID)
+            ->receivable()
             ->orderBy('due_date')
             ->get();
 

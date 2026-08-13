@@ -116,7 +116,7 @@
                                         <th class="px-5 py-3 sm:px-6">Tanggal</th>
                                         <th class="px-5 py-3 sm:px-6">Jatuh tempo</th>
                                         <th class="px-5 py-3 text-right sm:px-6">Total</th>
-                                        <th class="px-5 py-3 sm:px-6">Status</th>
+                                        <th class="px-5 py-3 sm:px-6">Status pembayaran</th>
                                         <th class="px-5 py-3 text-right sm:px-6">Aksi</th>
                                     </tr>
                                 </thead>

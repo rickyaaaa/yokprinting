@@ -81,6 +81,51 @@ class SendInvoiceEmailApiTest extends TestCase
         );
     }
 
+    public function test_saved_invoice_is_marked_sent_when_whatsapp_is_opened(): void
+    {
+        $this->actingAsUserWithInvoiceUpdatePermission();
+        $customer = $this->createCustomer();
+        $customer->update(['phone' => '0812-9900-1188']);
+        $invoice = $this->createInvoice(
+            customer: $customer,
+            invoiceNumber: 'INV-WA-0001',
+            totalAmount: 1250000,
+        );
+
+        $this->postJson(route('api.invoices.send-whatsapp', ['invoice' => $invoice]), [
+            'purpose' => 'invoice',
+        ])
+            ->assertOk()
+            ->assertJsonPath('message', 'Invoice ditandai terkirim via WhatsApp.')
+            ->assertJsonPath('data.status', Invoice::STATUS_SENT)
+            ->assertJsonPath('data.recipient', '081299001188')
+            ->assertJsonPath('data.purpose', 'invoice')
+            ->assertJsonPath('data.whatsapp_url', fn (string $url): bool => str_starts_with($url, 'https://wa.me/6281299001188?text='));
+
+        $invoice->refresh();
+
+        $this->assertSame(Invoice::STATUS_SENT, $invoice->status);
+        $this->assertNotNull($invoice->sent_at);
+        $this->assertSame(MarkInvoiceDelivered::CHANNEL_WHATSAPP, $invoice->metadata['delivery']['last_channel']);
+        $this->assertSame('081299001188', $invoice->metadata['delivery']['last_recipient']);
+    }
+
+    public function test_whatsapp_delivery_requires_a_valid_customer_phone_number(): void
+    {
+        $this->actingAsUserWithInvoiceUpdatePermission();
+        $invoice = $this->createInvoice(
+            customer: $this->createCustomer(),
+            invoiceNumber: 'INV-WA-NO-PHONE',
+            totalAmount: 500000,
+        );
+
+        $this->postJson(route('api.invoices.send-whatsapp', ['invoice' => $invoice]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['recipient']);
+
+        $this->assertSame(Invoice::STATUS_DRAFT, $invoice->refresh()->status);
+    }
+
     public function test_unsaved_preview_number_cannot_select_an_old_database_invoice(): void
     {
         Mail::fake();
@@ -102,18 +147,19 @@ class SendInvoiceEmailApiTest extends TestCase
         $this->assertNull($oldInvoice->sent_at);
     }
 
-    public function test_unsaved_new_invoice_flow_requires_a_persisted_id_before_email_or_stored_pdf(): void
+    public function test_unsaved_new_invoice_flow_requires_a_persisted_id_before_whatsapp_or_stored_pdf(): void
     {
         $script = file_get_contents(resource_path('js/app.js'));
         $view = file_get_contents(resource_path('views/invoices/preview.blade.php'));
         $deliveryApi = file_get_contents(resource_path('js/services/invoice-delivery-api.js'));
 
         $this->assertStringContainsString('this.persistedInvoiceId !== null', $script);
-        $this->assertStringContainsString('if (!this.canSendEmail)', $script);
+        $this->assertStringContainsString('if (!this.canSendWhatsApp)', $script);
         $this->assertStringContainsString('invoiceId: this.invoiceId', $script);
+        $this->assertStringContainsString('sendInvoiceWhatsApp', $script);
         $this->assertStringContainsString('downloadInvoicePdf(this.invoiceId)', $script);
         $this->assertStringContainsString('downloadInvoicePreviewPdf(this.preview)', $script);
-        $this->assertStringContainsString('sendingEmail || !canSendEmail', $view);
+        $this->assertStringContainsString('sendingWhatsApp || !canSendWhatsApp', $view);
         $this->assertStringNotContainsString('recipient: this.recipient', $script);
         $this->assertStringNotContainsString('JSON.stringify({ recipient })', $deliveryApi);
     }
