@@ -20,11 +20,13 @@ class CancelPurchaseOrder
             $locked = PurchaseOrder::query()->lockForUpdate()->findOrFail($purchaseOrder->getKey());
 
             if (! $locked->canBeCancelled()) {
-                throw ValidationException::withMessages([
-                    'status' => $locked->status === PurchaseOrder::STATUS_CANCELLED
-                        ? 'PO ini sudah dibatalkan sebelumnya.'
-                        : 'PO yang sudah ditutup tidak bisa dibatalkan.',
-                ]);
+                $message = match (true) {
+                    $locked->status === PurchaseOrder::STATUS_CANCELLED => 'PO ini sudah dibatalkan sebelumnya.',
+                    $locked->hasPostedGoodsReceipt() => 'PO ini sudah punya penerimaan barang yang diposting, tidak bisa dibatalkan.',
+                    default => 'PO yang sudah ditutup tidak bisa dibatalkan.',
+                };
+
+                throw ValidationException::withMessages(['status' => $message]);
             }
 
             $previousStatus = $locked->status;

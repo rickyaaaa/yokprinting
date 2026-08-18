@@ -10,6 +10,9 @@ use App\Http\Controllers\Api\CustomerStatementController;
 use App\Http\Controllers\Api\CustomerTransactionHistoryController;
 use App\Http\Controllers\Api\DueInvoiceNotificationController;
 use App\Http\Controllers\Api\FinancialSummaryController;
+use App\Http\Controllers\Api\GoodsReceiptCancellationController;
+use App\Http\Controllers\Api\GoodsReceiptController;
+use App\Http\Controllers\Api\GoodsReceiptPostingController;
 use App\Http\Controllers\Api\GrossProfitReportController;
 use App\Http\Controllers\Api\InvoiceCancellationController;
 use App\Http\Controllers\Api\InvoiceDeliveryController;
@@ -204,6 +207,26 @@ Route::middleware(['web', 'auth'])->group(function (): void {
     Route::post('/purchase-orders/{purchase_order}/cancel', [PurchaseOrderCancellationController::class, 'store'])
         ->middleware('permission:purchase_order.cancel')
         ->name('api.purchase-orders.cancel');
+
+    Route::post('/purchase-orders/{purchase_order}/goods-receipts', [GoodsReceiptController::class, 'store'])
+        ->middleware('permission:goods_receipt.create')
+        ->name('api.purchase-orders.goods-receipts.store');
+
+    Route::get('/goods-receipts', [GoodsReceiptController::class, 'index'])
+        ->middleware('permission:goods_receipt.view')
+        ->name('api.goods-receipts.index');
+
+    Route::get('/goods-receipts/{goods_receipt}', [GoodsReceiptController::class, 'show'])
+        ->middleware('permission:goods_receipt.view')
+        ->name('api.goods-receipts.show');
+
+    Route::post('/goods-receipts/{goods_receipt}/post', [GoodsReceiptPostingController::class, 'store'])
+        ->middleware('permission:goods_receipt.post')
+        ->name('api.goods-receipts.post');
+
+    Route::post('/goods-receipts/{goods_receipt}/cancel', [GoodsReceiptCancellationController::class, 'store'])
+        ->middleware('permission:goods_receipt.cancel')
+        ->name('api.goods-receipts.cancel');
 
     Route::get('/roles', [RoleController::class, 'index'])
         ->middleware('permission:role.view')

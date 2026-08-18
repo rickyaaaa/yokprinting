@@ -96,6 +96,16 @@ class PurchaseOrder extends Model
         return $this->hasMany(PurchaseOrderItem::class);
     }
 
+    public function goodsReceipts(): HasMany
+    {
+        return $this->hasMany(GoodsReceipt::class);
+    }
+
+    public function hasPostedGoodsReceipt(): bool
+    {
+        return $this->goodsReceipts()->where('status', GoodsReceipt::STATUS_POSTED)->exists();
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -127,7 +137,8 @@ class PurchaseOrder extends Model
 
     public function canBeCancelled(): bool
     {
-        return ! in_array($this->status, [self::STATUS_CANCELLED, self::STATUS_CLOSED], true);
+        return ! in_array($this->status, [self::STATUS_CANCELLED, self::STATUS_CLOSED], true)
+            && ! $this->hasPostedGoodsReceipt();
     }
 
     /**

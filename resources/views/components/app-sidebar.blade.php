@@ -41,6 +41,12 @@
             && $currentRole->status !== \App\Models\Role::STATUS_DISABLED
             && $currentRole->permissions->contains('code', 'purchase_order.view'))
     );
+    $canViewGoodsReceipts = $currentUser?->isActive() && (
+        $currentUser->role === \App\Models\User::ROLE_OWNER
+        || ($currentRole
+            && $currentRole->status !== \App\Models\Role::STATUS_DISABLED
+            && $currentRole->permissions->contains('code', 'goods_receipt.view'))
+    );
 
     $navGroups = [
         [
@@ -62,6 +68,7 @@
                 ['label' => 'Pelanggan', 'route' => 'customers.index', 'active' => ['customers.*'], 'icon' => 'customers'],
                 ['label' => 'Produk', 'route' => 'products.index', 'active' => ['products.*'], 'icon' => 'products'],
                 ['label' => 'Purchase Order', 'route' => 'purchase-orders.index', 'active' => ['purchase-orders.*'], 'icon' => 'purchase-order', 'visible' => $canViewPurchaseOrders],
+                ['label' => 'Penerimaan Barang', 'route' => 'goods-receipts.index', 'active' => ['goods-receipts.*'], 'icon' => 'goods-receipt', 'visible' => $canViewGoodsReceipts],
                 ['label' => 'Laporan penjualan', 'route' => 'reports.sales.index', 'active' => ['reports.sales.*'], 'icon' => 'reports', 'visible' => $canViewReports],
                 ['label' => 'Laba rugi', 'route' => 'reports.profit-loss.index', 'active' => ['reports.profit-loss.*'], 'icon' => 'profit-loss', 'visible' => $canViewReports],
                 ['label' => 'Pengaturan', 'route' => 'settings.company-profile.edit', 'active' => ['settings.*'], 'icon' => 'settings'],
@@ -165,6 +172,11 @@
                                 @case('purchase-order')
                                     <path d="M3 4h2l1.6 10.2A2 2 0 0 0 8.6 16h8.3a2 2 0 0 0 2-1.7L20 7H6" stroke-linecap="round" stroke-linejoin="round"/>
                                     <path d="M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2ZM17 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
+                                    @break
+
+                                @case('goods-receipt')
+                                    <path d="M21 8 12 3 3 8m18 0-9 5m9-5v9l-9 5m0-9L3 8m9 5v9M3 8v9l9 5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="m8 10.5 8-4.5" stroke-linecap="round"/>
                                     @break
 
                                 @case('reports')

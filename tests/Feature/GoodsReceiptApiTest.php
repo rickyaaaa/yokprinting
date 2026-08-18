@@ -1,0 +1,283 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\GoodsReceipt;
+use App\Models\Product;
+use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderItem;
+use App\Models\Role;
+use App\Models\Supplier;
+use App\Models\User;
+use Database\Seeders\RolePermissionSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ActsAsOwner;
+use Tests\TestCase;
+
+class GoodsReceiptApiTest extends TestCase
+{
+    use ActsAsOwner;
+    use RefreshDatabase;
+
+    public function test_goods_receipt_can_be_created_as_draft_against_an_approved_po(): void
+    {
+        $po = $this->createApprovedPo(quantity: 10000, unitPrice: 700);
+        $poItem = $po->items->first();
+
+        $response = $this->postJson(route('api.purchase-orders.goods-receipts.store', $po), [
+            'receipt_date' => '2026-08-18',
+            'items' => [
+                ['purchase_order_item_id' => $poItem->id, 'quantity_received' => 8000],
+            ],
+        ])->assertCreated();
+
+        $response
+            ->assertJsonPath('data.status', GoodsReceipt::STATUS_DRAFT)
+            ->assertJsonPath('data.items.0.quantity_received', 8000)
+            ->assertJsonPath('data.items.0.unit_price', 700);
+
+        $this->assertMatchesRegularExpression('/^GR-\d{6}-\d{4}$/', $response->json('data.receipt_number'));
+
+        // Draft receipt must not touch stock yet.
+        $this->assertSame('0.0000', $poItem->product->refresh()->stock);
+    }
+
+    public function test_goods_receipt_cannot_be_created_against_a_draft_po(): void
+    {
+        $po = $this->createDraftPo();
+        $poItem = $po->items->first();
+
+        $this->postJson(route('api.purchase-orders.goods-receipts.store', $po), [
+            'receipt_date' => '2026-08-18',
+            'items' => [['purchase_order_item_id' => $poItem->id, 'quantity_received' => 10]],
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('purchase_order');
+    }
+
+    public function test_over_receipt_is_rejected(): void
+    {
+        $po = $this->createApprovedPo(quantity: 100, unitPrice: 700);
+        $poItem = $po->items->first();
+
+        $this->postJson(route('api.purchase-orders.goods-receipts.store', $po), [
+            'receipt_date' => '2026-08-18',
+            'items' => [['purchase_order_item_id' => $poItem->id, 'quantity_received' => 150]],
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('items');
+    }
+
+    public function test_posting_updates_stock_average_cost_and_last_price(): void
+    {
+        $po = $this->createApprovedPo(quantity: 10000, unitPrice: 700);
+        $poItem = $po->items->first();
+        $product = $poItem->product;
+
+        $receipt = $this->createGoodsReceipt($po, $poItem, 8000);
+
+        $this->postJson(route('api.goods-receipts.post', $receipt))
+            ->assertOk()
+            ->assertJsonPath('data.status', GoodsReceipt::STATUS_POSTED);
+
+        $product->refresh();
+        $this->assertSame('8000.0000', $product->stock);
+        $this->assertSame('700.00', $product->average_purchase_cost);
+        $this->assertSame('700.00', $product->last_purchase_price);
+
+        $this->assertDatabaseHas('stock_movements', [
+            'product_id' => $product->id,
+            'type' => 'purchase',
+            'quantity' => '8000.0000',
+            'reference_number' => $receipt->receipt_number,
+        ]);
+
+        $this->assertSame(
+            PurchaseOrder::STATUS_PARTIALLY_RECEIVED,
+            $po->refresh()->status,
+        );
+        $this->assertSame('8000.0000', $poItem->refresh()->received_quantity);
+    }
+
+    public function test_weighted_average_cost_across_two_receipts_at_different_prices(): void
+    {
+        $product = $this->createProduct(purchasePrice: 0);
+        $supplier = $this->createSupplier();
+
+        // PO 1: 10,000 pcs @700
+        $po1 = $this->createApprovedPoForProduct($supplier, $product, quantity: 10000, unitPrice: 700);
+        $receipt1 = $this->createGoodsReceipt($po1, $po1->items->first(), 10000);
+        $this->postJson(route('api.goods-receipts.post', $receipt1))->assertOk();
+
+        $product->refresh();
+        $this->assertSame('10000.0000', $product->stock);
+        $this->assertSame('700.00', $product->average_purchase_cost);
+
+        // PO 2: 10,000 pcs @730 -> new average = (10000*700 + 10000*730) / 20000 = 715
+        $po2 = $this->createApprovedPoForProduct($supplier, $product, quantity: 10000, unitPrice: 730);
+        $receipt2 = $this->createGoodsReceipt($po2, $po2->items->first(), 10000);
+        $this->postJson(route('api.goods-receipts.post', $receipt2))->assertOk();
+
+        $product->refresh();
+        $this->assertSame('20000.0000', $product->stock);
+        $this->assertSame('715.00', $product->average_purchase_cost);
+        $this->assertSame('730.00', $product->last_purchase_price);
+    }
+
+    public function test_posting_a_non_stock_tracked_product_only_updates_last_price(): void
+    {
+        $product = $this->createProduct(purchasePrice: 700, trackStock: false);
+        $supplier = $this->createSupplier();
+        $po = $this->createApprovedPoForProduct($supplier, $product, quantity: 100, unitPrice: 750);
+        $receipt = $this->createGoodsReceipt($po, $po->items->first(), 100);
+
+        $this->postJson(route('api.goods-receipts.post', $receipt))->assertOk();
+
+        $product->refresh();
+        $this->assertNull($product->stock);
+        $this->assertNull($product->average_purchase_cost);
+        $this->assertSame('750.00', $product->last_purchase_price);
+        $this->assertDatabaseMissing('stock_movements', ['product_id' => $product->id]);
+    }
+
+    public function test_posted_receipt_cannot_be_posted_again(): void
+    {
+        $po = $this->createApprovedPo(quantity: 100, unitPrice: 700);
+        $receipt = $this->createGoodsReceipt($po, $po->items->first(), 100);
+
+        $this->postJson(route('api.goods-receipts.post', $receipt))->assertOk();
+
+        $this->postJson(route('api.goods-receipts.post', $receipt))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
+    }
+
+    public function test_draft_receipt_can_be_cancelled_but_posted_receipt_cannot(): void
+    {
+        $po = $this->createApprovedPo(quantity: 200, unitPrice: 700);
+        $poItem = $po->items->first();
+
+        $draftReceipt = $this->createGoodsReceipt($po, $poItem, 50);
+        $this->postJson(route('api.goods-receipts.cancel', $draftReceipt))
+            ->assertOk()
+            ->assertJsonPath('data.status', GoodsReceipt::STATUS_CANCELLED);
+
+        $postedReceipt = $this->createGoodsReceipt($po, $poItem, 50);
+        $this->postJson(route('api.goods-receipts.post', $postedReceipt))->assertOk();
+
+        $this->postJson(route('api.goods-receipts.cancel', $postedReceipt))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
+    }
+
+    public function test_fully_received_po_status_transitions_correctly(): void
+    {
+        $po = $this->createApprovedPo(quantity: 100, unitPrice: 700);
+        $poItem = $po->items->first();
+
+        $receipt = $this->createGoodsReceipt($po, $poItem, 100);
+        $this->postJson(route('api.goods-receipts.post', $receipt))->assertOk();
+
+        $this->assertSame(PurchaseOrder::STATUS_FULLY_RECEIVED, $po->refresh()->status);
+    }
+
+    public function test_purchase_order_cannot_be_cancelled_after_a_posted_receipt(): void
+    {
+        $po = $this->createApprovedPo(quantity: 100, unitPrice: 700);
+        $receipt = $this->createGoodsReceipt($po, $po->items->first(), 50);
+        $this->postJson(route('api.goods-receipts.post', $receipt))->assertOk();
+
+        $this->postJson(route('api.purchase-orders.cancel', $po))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
+    }
+
+    public function test_guest_cannot_post_a_goods_receipt(): void
+    {
+        $po = $this->createApprovedPo(quantity: 100, unitPrice: 700);
+        $receipt = $this->createGoodsReceipt($po, $po->items->first(), 100);
+        auth()->logout();
+
+        $this->postJson(route('api.goods-receipts.post', $receipt))->assertUnauthorized();
+        $this->assertSame(GoodsReceipt::STATUS_DRAFT, $receipt->refresh()->status);
+    }
+
+    public function test_operations_role_can_post_but_not_cancel_a_posted_flow_confirms_permission_boundary(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+        $po = $this->createApprovedPo(quantity: 100, unitPrice: 700);
+        $receipt = $this->createGoodsReceipt($po, $po->items->first(), 100);
+
+        $this->actingAs(User::factory()->create(['role' => Role::CODE_OPERATIONS]));
+
+        $this->postJson(route('api.goods-receipts.post', $receipt))->assertOk();
+    }
+
+    private function createSupplier(): Supplier
+    {
+        return Supplier::query()->create([
+            'code' => 'SUP-'.random_int(10000, 99999),
+            'name' => 'PT ABC Supplier',
+        ]);
+    }
+
+    private function createProduct(float $purchasePrice = 700, bool $trackStock = true): Product
+    {
+        return Product::query()->create([
+            'sku' => 'CUP-'.random_int(100000, 999999),
+            'name' => 'PP Cup 16oz Datar',
+            'unit' => 'Pcs',
+            'purchase_price' => $purchasePrice,
+            'track_stock' => $trackStock,
+            'stock' => $trackStock ? 0 : null,
+        ]);
+    }
+
+    private function createDraftPo(): PurchaseOrder
+    {
+        $supplier = $this->createSupplier();
+        $product = $this->createProduct();
+
+        $response = $this->postJson(route('api.purchase-orders.store'), [
+            'supplier_id' => $supplier->id,
+            'order_date' => '2026-08-18',
+            'items' => [['product_id' => $product->id, 'quantity' => 100, 'unit_price' => 700]],
+        ])->assertCreated();
+
+        return PurchaseOrder::query()->with('items.product')->findOrFail($response->json('data.id'));
+    }
+
+    private function createApprovedPo(float $quantity, float $unitPrice): PurchaseOrder
+    {
+        $supplier = $this->createSupplier();
+        $product = $this->createProduct(purchasePrice: 0);
+
+        return $this->createApprovedPoForProduct($supplier, $product, $quantity, $unitPrice);
+    }
+
+    private function createApprovedPoForProduct(Supplier $supplier, Product $product, float $quantity, float $unitPrice): PurchaseOrder
+    {
+        $response = $this->postJson(route('api.purchase-orders.store'), [
+            'supplier_id' => $supplier->id,
+            'order_date' => '2026-08-18',
+            'items' => [['product_id' => $product->id, 'quantity' => $quantity, 'unit_price' => $unitPrice]],
+        ])->assertCreated();
+
+        $po = PurchaseOrder::query()->with('items.product')->findOrFail($response->json('data.id'));
+
+        $this->postJson(route('api.purchase-orders.submit', $po))->assertOk();
+        $this->postJson(route('api.purchase-orders.approve', $po))->assertOk();
+
+        return $po->refresh()->load('items.product');
+    }
+
+    private function createGoodsReceipt(PurchaseOrder $po, PurchaseOrderItem $poItem, float $quantityReceived): GoodsReceipt
+    {
+        $response = $this->postJson(route('api.purchase-orders.goods-receipts.store', $po), [
+            'receipt_date' => '2026-08-18',
+            'items' => [['purchase_order_item_id' => $poItem->id, 'quantity_received' => $quantityReceived]],
+        ])->assertCreated();
+
+        return GoodsReceipt::query()->findOrFail($response->json('data.id'));
+    }
+}

@@ -25,6 +25,7 @@ class RolePermissionSeeder extends Seeder
             Permission::MODULE_SETTING => 'Pengaturan',
             Permission::MODULE_ROLE => 'Role',
             Permission::MODULE_PURCHASE_ORDER => 'Purchase Order',
+            Permission::MODULE_GOODS_RECEIPT => 'Penerimaan Barang',
         ];
 
         $actions = [
@@ -36,6 +37,7 @@ class RolePermissionSeeder extends Seeder
             'submit' => ['label' => 'Ajukan', 'risk' => Permission::RISK_MEDIUM],
             'approve' => ['label' => 'Setujui', 'risk' => Permission::RISK_HIGH],
             'cancel' => ['label' => 'Batalkan', 'risk' => Permission::RISK_HIGH],
+            'post' => ['label' => 'Posting', 'risk' => Permission::RISK_HIGH],
         ];
 
         $sort = 10;
@@ -44,6 +46,7 @@ class RolePermissionSeeder extends Seeder
             $moduleActions = match ($module) {
                 Permission::MODULE_EXPENSE, Permission::MODULE_CASH_BANK => ['view', 'create', 'update', 'delete'],
                 Permission::MODULE_PURCHASE_ORDER => ['view', 'create', 'update', 'submit', 'approve', 'cancel'],
+                Permission::MODULE_GOODS_RECEIPT => ['view', 'create', 'post', 'cancel'],
                 default => ['view', 'create', 'update', 'delete', 'export'],
             };
 
@@ -107,6 +110,10 @@ class RolePermissionSeeder extends Seeder
                     'purchase_order.submit',
                     'purchase_order.approve',
                     'purchase_order.cancel',
+                    'goods_receipt.view',
+                    'goods_receipt.create',
+                    'goods_receipt.post',
+                    'goods_receipt.cancel',
                 ],
             ],
             Role::CODE_OPERATIONS => [
@@ -126,6 +133,9 @@ class RolePermissionSeeder extends Seeder
                     'purchase_order.create',
                     'purchase_order.update',
                     'purchase_order.submit',
+                    'goods_receipt.view',
+                    'goods_receipt.create',
+                    'goods_receipt.post',
                 ],
             ],
             Role::CODE_VIEWER => [
@@ -141,6 +151,7 @@ class RolePermissionSeeder extends Seeder
                     'payment.view',
                     'report.view',
                     'purchase_order.view',
+                    'goods_receipt.view',
                 ],
             ],
         ];

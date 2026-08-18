@@ -43,6 +43,8 @@ class Permission extends Model
 
     public const MODULE_PURCHASE_ORDER = 'purchase_order';
 
+    public const MODULE_GOODS_RECEIPT = 'goods_receipt';
+
     /**
      * The model's default values for attributes.
      *
