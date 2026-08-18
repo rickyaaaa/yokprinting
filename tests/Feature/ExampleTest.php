@@ -447,7 +447,7 @@ class ExampleTest extends TestCase
             ->assertOk()
             ->assertSee('Tambah produk baru')
             ->assertSee('Informasi produk')
-            ->assertSee('Harga beli & stok', escape: false)
+            ->assertSee('Informasi biaya & stok', escape: false)
             ->assertSee('Satuan master produk dikunci ke Pcs')
             ->assertSee('Preview katalog')
             ->assertSee('productForm')

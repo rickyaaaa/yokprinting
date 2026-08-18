@@ -20,6 +20,12 @@ class UpdateProductRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
+     * `purchase_price` is intentionally not accepted here - it's a legacy
+     * flat field kept only for backward compatibility. New purchase cost
+     * only ever comes from PurchaseOrderItem.unit_price via Goods Receipt,
+     * which updates Product.last_purchase_price/average_purchase_cost
+     * directly (see App\Services\Purchasing\PostGoodsReceipt).
+     *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
@@ -42,7 +48,6 @@ class UpdateProductRequest extends FormRequest
             'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'short_description' => ['sometimes', 'nullable', 'string', 'max:500'],
             'unit' => ['sometimes', 'required', Rule::in([Product::UNIT_PCS])],
-            'purchase_price' => ['sometimes', 'numeric', 'min:0'],
             'stock' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'minimum_stock' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'minimum_order_qty' => ['sometimes', 'integer', 'min:1'],

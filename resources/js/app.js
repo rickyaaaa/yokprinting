@@ -2639,8 +2639,10 @@ Alpine.data('productIndexTable', (initialProducts = []) => ({
             category: product.category ?? 'Lainnya',
             brand: product.brand ?? '',
             unit: product.unit ?? 'Pcs',
-            purchasePrice: formatRupiah(Number(product.purchase_price) || 0),
-            purchasePriceValue: Number(product.purchase_price) || 0,
+            // Prefer the purchasing-module cost basis over the legacy flat
+            // field, which nothing writes to anymore (see productForm).
+            purchasePrice: formatRupiah(Number(product.average_purchase_cost ?? product.last_purchase_price ?? product.purchase_price) || 0),
+            purchasePriceValue: Number(product.average_purchase_cost ?? product.last_purchase_price ?? product.purchase_price) || 0,
             stock: product.track_stock === false ? 'Tidak dilacak' : `${stockValue} ${product.unit ?? 'Pcs'}`,
             stockValue: product.track_stock === false ? 999999 : stockValue,
             currentStock: stockValue,
@@ -2866,6 +2868,10 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
     loading: false,
     error: '',
     fieldErrors: {},
+    // Read-only, system-managed cost reference - never part of the submitted
+    // payload. Only PostGoodsReceipt (Goods Receipt posting) ever writes these.
+    lastPurchasePrice: initialForm.lastPurchasePrice ?? initialForm.last_purchase_price ?? null,
+    averagePurchaseCost: initialForm.averagePurchaseCost ?? initialForm.average_purchase_cost ?? null,
     form: {
         id: initialForm.id ?? null,
         sku: initialForm.sku ?? 'PRN-NEW-01',
@@ -2873,7 +2879,6 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
         category: initialForm.category ?? 'Cetak premium',
         brand: initialForm.brand ?? '',
         unit: initialForm.unit ?? 'Pcs',
-        purchasePrice: initialForm.purchasePrice ?? initialForm.purchase_price ?? 0,
         stock: initialForm.stock ?? 10,
         minimumStock: minimumStockForForm(initialForm),
         minimumOrderQty: initialForm.minimumOrderQty ?? initialForm.minimum_order_qty ?? 500,
@@ -2898,6 +2903,8 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
             const response = await getProduct(this.form.id);
 
             this.form = this.normalizeProduct(response.data);
+            this.lastPurchasePrice = response.data.last_purchase_price ?? null;
+            this.averagePurchaseCost = response.data.average_purchase_cost ?? null;
         } catch (error) {
             this.error = error?.message ?? 'Detail produk belum dapat dimuat.';
         } finally {
@@ -2913,7 +2920,6 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
             category: product.category ?? 'Cup PP',
             brand: product.brand ?? '',
             unit: product.unit ?? 'Pcs',
-            purchasePrice: Number(product.purchase_price) || 0,
             stock: Number(product.stock) || 0,
             minimumStock: minimumStockForForm(product),
             minimumOrderQty: Number(product.minimum_order_qty) || 500,
@@ -2929,8 +2935,12 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
         return Object.values(this.fieldErrors);
     },
 
-    get formattedPurchasePrice() {
-        return formatRupiah(Number(this.form.purchasePrice) || 0);
+    get formattedLastPurchasePrice() {
+        return this.lastPurchasePrice === null ? 'Belum ada data' : formatRupiah(Number(this.lastPurchasePrice));
+    },
+
+    get formattedAveragePurchaseCost() {
+        return this.averagePurchaseCost === null ? 'Belum ada data' : formatRupiah(Number(this.averagePurchaseCost));
     },
 
     get stockLabel() {
@@ -2956,10 +2966,6 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
 
         if (!this.form.name.trim()) {
             errors.name = 'Nama produk wajib diisi.';
-        }
-
-        if ((Number(this.form.purchasePrice) || 0) < 0) {
-            errors.purchasePrice = 'Harga beli tidak boleh bernilai negatif.';
         }
 
         if (this.form.trackStock) {
@@ -2990,7 +2996,6 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
             category: this.form.category,
             brand: this.form.brand || null,
             unit: 'Pcs',
-            purchase_price: Number(this.form.purchasePrice) || 0,
             stock: this.form.trackStock ? Number(this.form.stock) || 0 : null,
             minimum_stock: minimumStockForPayload(this.form.minimumStock, this.form.trackStock),
             minimum_order_qty: Number(this.form.minimumOrderQty) || 500,

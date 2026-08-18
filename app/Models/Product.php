@@ -53,6 +53,11 @@ class Product extends Model
      * `last_purchase_price` and `average_purchase_cost` are deliberately
      * excluded: they're system-managed reference costs meant to be updated
      * only by purchasing/goods-receipt flows, never by direct user input.
+     * `purchase_price` is also excluded as of the purchasing module rollout:
+     * it's a legacy flat field kept in the schema only for backward
+     * compatibility with old records/reports, and must never be written to
+     * again through create/update - new cost only flows in from
+     * PurchaseOrderItem.unit_price via PostGoodsReceipt.
      *
      * @var list<string>
      */
@@ -70,7 +75,6 @@ class Product extends Model
         'description',
         'short_description',
         'unit',
-        'purchase_price',
         'stock',
         'minimum_stock',
         'minimum_order_qty',

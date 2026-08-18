@@ -10,7 +10,8 @@ class ProductIndexPageController extends Controller
     public function __invoke(): View
     {
         $models = Product::query()->withCount('invoiceItems')->orderBy('sku')->get();
-        $products = $models->map(function (Product $product): array {
+        $costBasis = fn (Product $product): float => (float) ($product->average_purchase_cost ?? $product->last_purchase_price ?? $product->purchase_price);
+        $products = $models->map(function (Product $product) use ($costBasis): array {
             $stock = (float) ($product->stock ?? 0);
             $minimum = $product->minimumStockValue();
             $lowStock = $product->track_stock && $stock <= $minimum;
@@ -21,8 +22,8 @@ class ProductIndexPageController extends Controller
                 'name' => $product->name,
                 'category' => $product->category ?: '-',
                 'unit' => strtoupper($product->unit),
-                'purchasePrice' => $this->rupiah((float) $product->purchase_price),
-                'purchasePriceValue' => (float) $product->purchase_price,
+                'purchasePrice' => $this->rupiah($costBasis($product)),
+                'purchasePriceValue' => $costBasis($product),
                 'stock' => $product->track_stock ? number_format($stock, 0, ',', '.').' '.strtoupper($product->unit) : 'Tidak dilacak',
                 'stockValue' => $product->track_stock ? $stock : PHP_INT_MAX,
                 'minimumStock' => $minimum,
@@ -34,7 +35,7 @@ class ProductIndexPageController extends Controller
         $active = $models->where('status', Product::STATUS_ACTIVE);
         $lowStock = $active->filter(fn (Product $product): bool => $product->track_stock && (float) ($product->stock ?? 0) <= $product->minimumStockValue()
         );
-        $inventoryValue = $models->sum(fn (Product $product): float => $product->track_stock ? (float) ($product->stock ?? 0) * (float) $product->purchase_price : 0
+        $inventoryValue = $models->sum(fn (Product $product): float => $product->track_stock ? (float) ($product->stock ?? 0) * $costBasis($product) : 0
         );
         $bestSeller = $models->sortByDesc('invoice_items_count')->first();
 
@@ -43,7 +44,7 @@ class ProductIndexPageController extends Controller
             'summaryCards' => [
                 ['label' => 'Total produk', 'value' => (string) $models->count(), 'caption' => $active->count().' aktif dijual', 'tone' => 'brand'],
                 ['label' => 'Stok menipis', 'value' => (string) $lowStock->count(), 'caption' => 'Di bawah minimum', 'tone' => 'warning'],
-                ['label' => 'Nilai persediaan', 'value' => $this->rupiah($inventoryValue), 'caption' => 'Estimasi harga beli stok', 'tone' => 'success'],
+                ['label' => 'Nilai persediaan', 'value' => $this->rupiah($inventoryValue), 'caption' => 'Berdasarkan biaya rata-rata stok', 'tone' => 'success'],
                 ['label' => 'Produk terlaris', 'value' => $bestSeller?->name ?? '-', 'caption' => ($bestSeller?->invoice_items_count ?? 0).' transaksi', 'tone' => 'brand'],
             ],
         ]);

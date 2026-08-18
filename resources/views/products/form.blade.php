@@ -8,7 +8,6 @@
         'category' => 'Cup PP',
         'brand' => '',
         'unit' => 'Pcs',
-        'purchasePrice' => 0,
         'stock' => 0,
         'minimumStock' => 500,
         'minimumOrderQty' => 500,
@@ -74,7 +73,7 @@
                                 <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Data produk</span>
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">{{ $title }}</h1>
-                            <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Tambahkan katalog produk cetak, harga beli, supplier, dan ambang stok minimum. Harga jual tetap diisi per item invoice.</p>
+                            <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Tambahkan katalog produk cetak, supplier, dan ambang stok minimum. Harga jual tetap diisi per item invoice; harga beli mengikuti Purchase Order &amp; Penerimaan Barang.</p>
                         </div>
                         <a href="{{ route('products.index') }}" class="inline-flex w-fit items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
                             <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -170,13 +169,17 @@
                             </section>
 
                             <section class="rounded-xl bg-white p-5 border border-line sm:p-6" aria-labelledby="product-pricing-heading">
-                                <h2 id="product-pricing-heading" class="font-semibold text-ink">Harga beli & stok</h2>
+                                <h2 id="product-pricing-heading" class="font-semibold text-ink">Informasi biaya & stok</h2>
+                                <p class="mt-1 text-sm text-muted">Harga beli tidak lagi diisi manual di sini - nilainya berasal otomatis dari Purchase Order &amp; Penerimaan Barang.</p>
                                 <div class="mt-5 grid gap-4 md:grid-cols-2">
-                                    <label class="block">
-                                        <span class="text-sm font-medium text-ink">Harga beli</span>
-                                        <input type="number" min="0" step="1000" class="form-control mt-1.5" x-model.number="form.purchasePrice" data-validation-field="purchasePrice" :aria-invalid="Boolean(fieldErrors.purchasePrice)" @input="clearFieldError('purchasePrice')">
-                                        <span class="mt-1 block text-xs text-red-700" x-show="fieldErrors.purchasePrice" x-text="fieldErrors.purchasePrice"></span>
-                                    </label>
+                                    <div class="block rounded-lg border border-line bg-canvas p-3">
+                                        <span class="text-sm font-medium text-muted">Harga pembelian terakhir</span>
+                                        <p class="mt-1 font-semibold text-ink" x-text="formattedLastPurchasePrice"></p>
+                                    </div>
+                                    <div class="block rounded-lg border border-line bg-canvas p-3">
+                                        <span class="text-sm font-medium text-muted">Rata-rata biaya (average cost)</span>
+                                        <p class="mt-1 font-semibold text-ink" x-text="formattedAveragePurchaseCost"></p>
+                                    </div>
                                     <label class="block">
                                         <span class="text-sm font-medium text-ink">Status katalog</span>
                                         <select class="form-control mt-1.5" x-model="form.status">
@@ -236,8 +239,8 @@
                                             <dd class="font-medium text-ink" x-text="form.category"></dd>
                                         </div>
                                         <div class="flex justify-between gap-3">
-                                            <dt class="text-muted">Harga beli</dt>
-                                            <dd class="font-semibold text-ink" x-text="formattedPurchasePrice"></dd>
+                                            <dt class="text-muted">Rata-rata biaya</dt>
+                                            <dd class="font-semibold text-ink" x-text="formattedAveragePurchaseCost"></dd>
                                         </div>
                                         <div class="flex justify-between gap-3">
                                             <dt class="text-muted">Stok</dt>

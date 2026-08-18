@@ -180,6 +180,8 @@ class ProductController extends Controller
             'short_description' => $product->short_description,
             'unit' => $product->unit,
             'purchase_price' => (float) $product->purchase_price,
+            'last_purchase_price' => $product->last_purchase_price === null ? null : (float) $product->last_purchase_price,
+            'average_purchase_cost' => $product->average_purchase_cost === null ? null : (float) $product->average_purchase_cost,
             'stock' => $product->stock === null ? null : (float) $product->stock,
             'minimum_stock' => $product->minimumStockValue(),
             'minimum_order_qty' => $product->minimum_order_qty,

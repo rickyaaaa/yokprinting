@@ -19,21 +19,19 @@ class ListProductOptionsApiTest extends TestCase
             'name' => 'Website Company Profile',
             'category' => 'Pengembangan web',
             'brand' => 'YokPrinting',
-            'purchase_price' => 5750000,
             'stock' => null,
         ]);
-        Product::query()->create([
+        $brand = Product::query()->create([
             'sku' => 'JSA-BRAND-01',
             'name' => 'Paket Desain Identitas Brand',
             'category' => 'Jasa kreatif',
-            'purchase_price' => 6500000,
             'stock' => 4,
             'track_stock' => true,
         ]);
+        $brand->forceFill(['last_purchase_price' => 6500000, 'average_purchase_cost' => 6500000])->save();
         Product::query()->create([
             'sku' => 'JSA-OLD-01',
             'name' => 'Produk Nonaktif',
-            'purchase_price' => 100000,
             'status' => Product::STATUS_INACTIVE,
         ]);
 
@@ -43,7 +41,9 @@ class ListProductOptionsApiTest extends TestCase
             ->assertJsonPath('data.0.name', 'Paket Desain Identitas Brand')
             ->assertJsonPath('data.0.sku', 'JSA-BRAND-01')
             ->assertJsonMissingPath('data.0.price')
-            ->assertJsonPath('data.0.purchase_price', 6500000)
+            ->assertJsonPath('data.0.purchase_price', 0)
+            ->assertJsonPath('data.0.last_purchase_price', 6500000)
+            ->assertJsonPath('data.0.average_purchase_cost', 6500000)
             ->assertJsonPath('data.0.stock', 4)
             ->assertJsonPath('data.0.unit', Product::UNIT_PCS)
             ->assertJsonPath('data.1.name', 'Website Company Profile')
@@ -58,13 +58,11 @@ class ListProductOptionsApiTest extends TestCase
             'sku' => 'JSA-BRAND-01',
             'name' => 'Paket Desain Identitas Brand',
             'category' => 'Jasa kreatif',
-            'purchase_price' => 6500000,
         ]);
         $website = Product::query()->create([
             'sku' => 'JSA-WEB-03',
             'name' => 'Website Company Profile',
             'category' => 'Pengembangan web',
-            'purchase_price' => 5750000,
         ]);
 
         $this->getJson(route('api.products.options.index', ['search' => 'pengembangan']))

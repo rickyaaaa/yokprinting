@@ -121,7 +121,13 @@ class CreateInvoiceDraft
                     $item['order_increment'] = $product->package_conversion ?: $product->order_increment ?: 500;
                     $item['moq_quantity'] = $item['order_increment'];
                     $item['packaging_unit'] = $product->unit ?: Product::UNIT_PCS;
-                    $item['purchase_cost_snapshot'] = $product->purchase_price;
+                    // Prefer the purchasing-module cost basis (built from real
+                    // PO/Goods Receipt prices) over the legacy flat field,
+                    // which nothing writes to anymore. Once written, this
+                    // snapshot never changes even if the product's cost does.
+                    $item['purchase_cost_snapshot'] = $product->average_purchase_cost
+                        ?? $product->last_purchase_price
+                        ?? $product->purchase_price;
                 }
 
                 return $item;

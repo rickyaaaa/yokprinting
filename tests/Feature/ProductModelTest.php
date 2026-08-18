@@ -47,7 +47,6 @@ class ProductModelTest extends TestCase
             'grammage' => '8gr',
             'screen_printing_color' => 'Hitam',
             'sides' => 2,
-            'purchase_price' => 650,
             'minimum_order_qty' => 500,
             'package_conversion' => 500,
             'packaging_unit' => 'pcs',

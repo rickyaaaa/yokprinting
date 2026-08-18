@@ -23,7 +23,6 @@ class ProductCrudApiTest extends TestCase
             'name' => 'Cetak katalog premium',
             'category_id' => $premium->id,
             'category' => $premium->name,
-            'purchase_price' => 4200000,
             'stock' => 42,
         ]);
         Product::query()->create([
@@ -31,7 +30,6 @@ class ProductCrudApiTest extends TestCase
             'name' => 'Paket desain brand refresh',
             'category_id' => $design->id,
             'category' => $design->name,
-            'purchase_price' => 2500000,
             'stock' => null,
         ]);
         Product::query()->create([
@@ -39,7 +37,6 @@ class ProductCrudApiTest extends TestCase
             'name' => 'Produk nonaktif',
             'category_id' => $premium->id,
             'category' => $premium->name,
-            'purchase_price' => 100000,
             'status' => Product::STATUS_INACTIVE,
         ]);
 
@@ -73,6 +70,8 @@ class ProductCrudApiTest extends TestCase
             'unit' => Product::UNIT_PCS,
             'brand' => 'YokPrinting',
             'short_description' => 'Flyer promo untuk kampanye bulanan.',
+            // purchase_price is intentionally sent here to prove the API
+            // silently ignores it - it's no longer an accepted input field.
             'purchase_price' => 4900000,
             'stock' => 6,
             'minimum_stock' => 12,
@@ -89,7 +88,9 @@ class ProductCrudApiTest extends TestCase
             ->assertJsonPath('data.unit', Product::UNIT_PCS)
             ->assertJsonPath('data.category', 'Materi promosi')
             ->assertJsonPath('data.brand', 'YokPrinting')
-            ->assertJsonPath('data.purchase_price', 4900000)
+            ->assertJsonPath('data.purchase_price', 0)
+            ->assertJsonPath('data.last_purchase_price', null)
+            ->assertJsonPath('data.average_purchase_cost', null)
             ->assertJsonPath('data.package_conversion', 500)
             ->assertJsonPath('data.track_stock', true);
 
@@ -104,7 +105,7 @@ class ProductCrudApiTest extends TestCase
             'status' => Product::STATUS_INACTIVE,
         ])
             ->assertOk()
-            ->assertJsonPath('data.purchase_price', 5100000)
+            ->assertJsonPath('data.purchase_price', 0)
             ->assertJsonPath('data.status', Product::STATUS_INACTIVE);
 
         $this->deleteJson(route('api.products.destroy', $productId))
@@ -118,18 +119,16 @@ class ProductCrudApiTest extends TestCase
         Product::query()->create([
             'sku' => 'PRN-CATALOG-01',
             'name' => 'Cetak katalog premium',
-            'purchase_price' => 6000000,
         ]);
 
         $this->postJson(route('api.products.store'), [
             'sku' => 'PRN-CATALOG-01',
             'name' => '',
             'unit' => 'dus',
-            'purchase_price' => -1,
             'status' => 'archived',
         ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['sku', 'name', 'unit', 'purchase_price', 'status']);
+            ->assertJsonValidationErrors(['sku', 'name', 'unit', 'status']);
 
         $this->getJson(route('api.products.index', [
             'status' => 'archived',

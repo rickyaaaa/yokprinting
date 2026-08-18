@@ -239,7 +239,10 @@ export const registerPurchaseOrderComponents = (Alpine) => {
             const product = this.products.find((candidate) => String(candidate.id) === String(item.product_id));
 
             if (product && (item.unit_price === '' || item.unit_price === null)) {
-                item.unit_price = product.purchase_price || '';
+                // Suggest from real purchase history first; the legacy flat
+                // field is only a last-resort fallback for products that have
+                // never been through a Goods Receipt yet.
+                item.unit_price = product.last_purchase_price || product.average_purchase_cost || product.purchase_price || '';
             }
         },
 

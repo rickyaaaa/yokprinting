@@ -244,18 +244,20 @@ class StoreInvoiceDraftApiTest extends TestCase
             'name' => 'Paket Desain Identitas Brand',
             'sku' => 'JSA-BRAND-01',
             'category' => 'Jasa kreatif',
-            'purchase_price' => 6000000,
             'minimum_order_qty' => 1,
             'package_conversion' => 1,
         ]);
+        // Cost basis is now set the way PostGoodsReceipt actually sets it
+        // (forceFill, not mass assignment) rather than the legacy flat field.
+        $brandPackage->forceFill(['average_purchase_cost' => 6000000])->save();
         $websitePackage = Product::query()->create([
             'name' => 'Website Company Profile',
             'sku' => 'JSA-WEB-03',
             'category' => 'Jasa kreatif',
-            'purchase_price' => 4250000,
             'minimum_order_qty' => 1,
             'package_conversion' => 1,
         ]);
+        $websitePackage->forceFill(['average_purchase_cost' => 4250000])->save();
 
         return [
             'customer_id' => $customer->id,
