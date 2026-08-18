@@ -1,23 +1,33 @@
 ---
-# cPanel Git Version Control auto-deploy tasks.
-# Runs automatically when you click "Deploy HEAD Commit" in cPanel > Git Version Control.
+# cPanel/hPanel Git Version Control auto-deploy tasks.
+# Runs automatically when you click "Deploy HEAD Commit" in Git Version Control.
 #
-# BEFORE FIRST USE: replace USERNAME and yokprinting_app below to match your
-# actual cPanel username and the folder you chose for the app (kept OUTSIDE
-# public_html so .env and app code are never web-accessible).
+# Live paths for yoksystem.id on this Hostinger account (u433850416):
+#   app:         /home/u433850416/domains/yoksystem.id/yokprinting_app
+#   public_html: /home/u433850416/domains/yoksystem.id/public_html
 #
-# This does NOT touch public_html/index.php or .env — those are set up once
-# manually (see docs/deployment-cpanel.md) and left alone on every deploy.
+# NOTE: storage:link is NOT run here — PHP's symlink()/exec() are disabled on
+# this host, so `php artisan storage:link` always fails. The link
+# (public/storage -> storage/app/public) was created once by hand over SSH
+# with `ln -s` (shell-level symlinks still work, just not PHP's). It's a
+# symlink using an absolute path, so it survives every rsync below and never
+# needs to be recreated.
+#
+# public_html/index.php is also NOT touched here — it's a one-time hand-edited
+# copy pointing at yokprinting_app (see docs/deployment-cpanel.md §5).
+#
+# Asset build: this host has no Node/npm, so `public/build` must be built
+# locally (`npm run build`) and `git add -f public/build` before pushing —
+# otherwise this deploy will ship without CSS/JS.
 
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/USERNAME/yokprinting_app/
-    - export PUBLICPATH=/home/USERNAME/public_html/
+    - export DEPLOYPATH=/home/u433850416/domains/yoksystem.id/yokprinting_app/
+    - export PUBLICPATH=/home/u433850416/domains/yoksystem.id/public_html/
     - /bin/cp -R * $DEPLOYPATH
-    - /usr/local/bin/php -d memory_limit=-1 /opt/cpanel/composer/bin/composer install --no-dev --optimize-autoloader --working-dir=$DEPLOYPATH
-    - /bin/rsync -a --delete --exclude='index.php' $DEPLOYPATH/public/ $PUBLICPATH
-    - /usr/local/bin/php $DEPLOYPATH/artisan migrate --force
-    - /usr/local/bin/php $DEPLOYPATH/artisan storage:link
-    - /usr/local/bin/php $DEPLOYPATH/artisan config:cache
-    - /usr/local/bin/php $DEPLOYPATH/artisan route:cache
-    - /usr/local/bin/php $DEPLOYPATH/artisan view:cache
+    - /usr/local/bin/composer install --no-dev --optimize-autoloader --working-dir=$DEPLOYPATH
+    - /usr/bin/rsync -a --exclude='index.php' $DEPLOYPATH/public/ $PUBLICPATH
+    - /usr/bin/php $DEPLOYPATH/artisan migrate --force
+    - /usr/bin/php $DEPLOYPATH/artisan config:cache
+    - /usr/bin/php $DEPLOYPATH/artisan route:cache
+    - /usr/bin/php $DEPLOYPATH/artisan view:cache
