@@ -2541,7 +2541,7 @@ Alpine.data('customerForm', (initialForm = {}, isEditMode = false, customerId = 
             this.saved = true;
             window.location.assign(response.redirect_url ?? '/customers');
         } catch (error) {
-            if (error?.errors) {
+            if (error?.errors && Object.keys(error.errors).length > 0) {
                 this.applyApiErrors(error.errors);
             } else {
                 this.fieldErrors = {

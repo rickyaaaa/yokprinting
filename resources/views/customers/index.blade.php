@@ -4,6 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="description" content="Indeks pelanggan YokPrinting.ID">
+        <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <title>Data Pelanggan - YokPrinting.ID</title>
 
