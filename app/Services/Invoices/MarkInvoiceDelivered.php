@@ -8,10 +8,6 @@ use InvalidArgumentException;
 
 class MarkInvoiceDelivered
 {
-    public const CHANNEL_EMAIL = 'email';
-
-    public const CHANNEL_PDF_DOWNLOAD = 'pdf_download';
-
     public const CHANNEL_WHATSAPP = 'whatsapp';
 
     /**
@@ -22,11 +18,7 @@ class MarkInvoiceDelivered
         string $channel,
         ?string $recipient = null,
     ): Invoice {
-        if (! in_array($channel, [
-            self::CHANNEL_EMAIL,
-            self::CHANNEL_PDF_DOWNLOAD,
-            self::CHANNEL_WHATSAPP,
-        ], true)) {
+        if ($channel !== self::CHANNEL_WHATSAPP) {
             throw new InvalidArgumentException("Kanal delivery [{$channel}] tidak didukung.");
         }
 

@@ -7,10 +7,12 @@ use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ActsAsOwner;
 use Tests\TestCase;
 
 class CustomerInvoiceFlowTest extends TestCase
 {
+    use ActsAsOwner;
     use RefreshDatabase;
 
     public function test_new_customer_flows_from_create_through_options_search_and_invoice_draft(): void

@@ -6,10 +6,12 @@ use App\Models\Product;
 use App\Models\Supplier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
+use Tests\Concerns\ActsAsOwner;
 use Tests\TestCase;
 
 class SupplierCrudApiTest extends TestCase
 {
+    use ActsAsOwner;
     use RefreshDatabase;
 
     public function test_suppliers_table_and_product_supplier_pivot_are_available(): void

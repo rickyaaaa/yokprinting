@@ -100,6 +100,29 @@ class SalesReportExportApiTest extends TestCase
             ]);
     }
 
+    public function test_sales_report_export_escapes_spreadsheet_formula_cells(): void
+    {
+        $customer = $this->createCustomer('=HYPERLINK("https://evil.test","click")');
+        $product = $this->createProduct('FORMULA-01', '+SUM(1,1)', 'Jasa desain');
+        $invoice = $this->createInvoice(
+            customer: $customer,
+            invoiceNumber: 'INV-FORMULA-001',
+            issueDate: '2026-07-23',
+            dueDate: '2026-07-30',
+            totalAmount: 100000,
+            paymentStatus: Invoice::PAYMENT_UNPAID,
+        );
+        $this->createItem($invoice, $product, 100000);
+
+        $content = $this->get(route('api.reports.sales.export', [
+            'date_from' => '2026-07-01',
+            'date_to' => '2026-07-31',
+        ]))->assertOk()->getContent();
+
+        $this->assertStringContainsString("'=HYPERLINK", $content);
+        $this->assertStringContainsString("'+SUM(1,1)", $content);
+    }
+
     private function createCustomer(string $name): Customer
     {
         return Customer::query()->create([

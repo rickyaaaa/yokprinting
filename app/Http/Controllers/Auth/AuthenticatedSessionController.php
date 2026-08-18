@@ -11,7 +11,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class AuthenticatedSessionController extends Controller
@@ -26,37 +25,6 @@ class AuthenticatedSessionController extends Controller
         $credentials = $request->only('username', 'password');
         $remember = $request->boolean('remember');
 
-        if ($request->expectsJson()) {
-            try {
-                $user = $this->validateApiCredentials($credentials['username'], $credentials['password']);
-            } catch (ValidationException $exception) {
-                $this->recordFailedLogin($activityLogger, $credentials['username']);
-
-                throw $exception;
-            }
-
-            $this->recordSuccessfulLogin($user, $request->ip());
-            $this->recordLoginActivity($activityLogger, $user, $remember);
-
-            return response()->json([
-                'status' => 'success',
-                'data' => [
-                    'id' => $user->getKey(),
-                    'name' => $user->name,
-                    'username' => $user->username,
-                    'email' => $user->email,
-                    'company_name' => $user->company_name,
-                    'role' => $user->role,
-                    'status' => $user->status,
-                ],
-                'auth' => [
-                    'type' => 'session',
-                    'remember' => $remember,
-                ],
-                'message' => 'Logged in successfully.',
-            ]);
-        }
-
         if (! Auth::attempt($credentials, $remember)) {
             $this->recordFailedLogin($activityLogger, $credentials['username']);
 
@@ -69,7 +37,7 @@ class AuthenticatedSessionController extends Controller
         $user = Auth::user();
 
         if (! $user->isActive()) {
-            Auth::logout();
+            Auth::guard('web')->logout();
             $activityLogger->record(
                 module: 'auth',
                 action: 'login_blocked',
@@ -88,6 +56,26 @@ class AuthenticatedSessionController extends Controller
         $this->recordSuccessfulLogin($user, $request->ip());
         $this->recordLoginActivity($activityLogger, $user, $remember);
         $request->session()->regenerate();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'id' => $user->getKey(),
+                    'name' => $user->name,
+                    'username' => $user->username,
+                    'email' => $user->email,
+                    'company_name' => $user->company_name,
+                    'role' => $user->role,
+                    'status' => $user->status,
+                ],
+                'auth' => [
+                    'type' => 'session',
+                    'remember' => $remember,
+                ],
+                'message' => 'Logged in successfully.',
+            ]);
+        }
 
         return redirect()->intended(route('dashboard'));
     }
@@ -110,6 +98,11 @@ class AuthenticatedSessionController extends Controller
             );
         }
 
+        Auth::guard('web')->logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
         if ($request->expectsJson()) {
             return response()->json([
                 'status' => 'success',
@@ -117,38 +110,9 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
-        Auth::guard('web')->logout();
-
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
         return redirect()
             ->route('login')
             ->with('status', 'Anda sudah keluar.');
-    }
-
-    /**
-     * Resolve and validate API credentials without requiring API session middleware.
-     *
-     * @throws ValidationException
-     */
-    private function validateApiCredentials(string $username, string $password): User
-    {
-        $user = User::query()->where('username', $username)->first();
-
-        if (! $user || ! Hash::check($password, $user->password)) {
-            throw ValidationException::withMessages([
-                'username' => __('auth.failed'),
-            ]);
-        }
-
-        if (! $user->isActive()) {
-            throw ValidationException::withMessages([
-                'username' => 'Akun ini belum aktif atau sedang dinonaktifkan.',
-            ]);
-        }
-
-        return $user;
     }
 
     /**
@@ -189,6 +153,7 @@ class AuthenticatedSessionController extends Controller
             description: 'Percobaan login gagal.',
             metadata: ['username' => $username],
             riskLevel: ActivityLog::RISK_HIGH,
+            inferActor: false,
         );
     }
 }

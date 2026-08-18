@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Payment;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 
@@ -16,32 +17,29 @@ class CustomerIndexPageController extends Controller
     public function __invoke(): View
     {
         $customerModels = Customer::query()
-            ->with([
-                'invoices' => fn ($query) => $query
-                    ->where('status', '!=', Invoice::STATUS_CANCELLED)
-                    ->with([
-                        'payments' => fn ($paymentQuery) => $paymentQuery
-                            ->where('status', Payment::STATUS_VERIFIED),
-                    ]),
+            ->withCount([
+                'invoices as finalized_invoice_count' => fn ($query) => $query->finalized(),
             ])
+            ->withSum([
+                'invoices as finalized_sales_total' => fn ($query) => $query->finalized(),
+            ], 'total_amount')
+            ->withSum([
+                'payments as verified_paid_total' => fn ($query) => $query
+                    ->where('invoices.status', Invoice::STATUS_SENT)
+                    ->where('payments.status', Payment::STATUS_VERIFIED),
+            ], 'amount')
+            ->withMax([
+                'invoices as finalized_last_order_at' => fn ($query) => $query->finalized(),
+            ], 'issue_date')
             ->orderBy('name')
             ->get();
 
         $customers = $customerModels->map(function (Customer $customer): array {
-            $invoices = $customer->invoices;
-            $totalSales = (float) $invoices->sum('total_amount');
-            $outstanding = (float) $invoices
-                ->where('status', Invoice::STATUS_SENT)
-                ->where('payment_status', '!=', Invoice::PAYMENT_PAID)
-                ->sum(
-                fn (Invoice $invoice): float => max(
-                    0,
-                    (float) $invoice->total_amount - (float) $invoice->payments->sum('amount'),
-                ),
-            );
-            $lastOrder = $invoices
-                ->sortByDesc(fn (Invoice $invoice): string => $invoice->issue_date?->toDateString() ?? '')
-                ->first()?->issue_date;
+            $totalSales = (float) ($customer->finalized_sales_total ?? 0);
+            $outstanding = max(0, $totalSales - (float) ($customer->verified_paid_total ?? 0));
+            $lastOrder = $customer->finalized_last_order_at
+                ? CarbonImmutable::parse($customer->finalized_last_order_at)
+                : null;
 
             return [
                 'id' => $customer->getKey(),
@@ -59,7 +57,7 @@ class CustomerIndexPageController extends Controller
                 'outstanding' => $this->formatRupiah($outstanding),
                 'outstandingValue' => $outstanding,
                 'status' => $this->statusLabel($customer),
-                'invoiceCount' => $invoices->count(),
+                'invoiceCount' => (int) ($customer->finalized_invoice_count ?? 0),
             ];
         })->values();
 
@@ -83,7 +81,7 @@ class CustomerIndexPageController extends Controller
             ->count();
         $totalSales = (float) $customers->sum('totalSalesValue');
         $outstanding = (float) $customers->sum('outstandingValue');
-        $invoiceCount = $customerModels->sum(fn (Customer $customer): int => $customer->invoices->count());
+        $invoiceCount = (int) $customers->sum('invoiceCount');
         $averageTransaction = $invoiceCount > 0 ? $totalSales / $invoiceCount : 0;
 
         return [

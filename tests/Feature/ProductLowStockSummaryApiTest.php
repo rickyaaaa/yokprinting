@@ -5,10 +5,12 @@ namespace Tests\Feature;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ActsAsOwner;
 use Tests\TestCase;
 
 class ProductLowStockSummaryApiTest extends TestCase
 {
+    use ActsAsOwner;
     use RefreshDatabase;
 
     public function test_low_stock_summary_returns_only_active_tracked_products_below_minimum(): void

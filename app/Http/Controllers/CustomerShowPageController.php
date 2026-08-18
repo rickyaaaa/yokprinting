@@ -36,8 +36,8 @@ class CustomerShowPageController extends Controller
             'totalSales' => $this->rupiah($totalSales),
             'outstanding' => $this->rupiah($outstanding),
             'paid' => $this->rupiah($verifiedPaid),
-            'invoiceCount' => $invoices->count().' invoice',
-            'averageInvoice' => $this->rupiah($invoices->count() > 0 ? $totalSales / $invoices->count() : 0),
+            'invoiceCount' => $sentInvoices->count().' invoice final',
+            'averageInvoice' => $this->rupiah($sentInvoices->count() > 0 ? $totalSales / $sentInvoices->count() : 0),
         ];
 
         $invoiceRows = $invoices->map(function (Invoice $invoice): array {

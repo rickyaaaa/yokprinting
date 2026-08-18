@@ -208,8 +208,16 @@ class Invoice extends Model
     public function scopeReceivable(Builder $query): Builder
     {
         return $query
-            ->where('status', self::STATUS_SENT)
+            ->finalized()
             ->where('payment_status', '!=', self::PAYMENT_PAID);
+    }
+
+    /**
+     * Scope invoices that have been issued to the customer and count as business transactions.
+     */
+    public function scopeFinalized(Builder $query): Builder
+    {
+        return $query->where('status', self::STATUS_SENT);
     }
 
     /**

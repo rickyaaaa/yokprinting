@@ -23,9 +23,18 @@ class LogoutEndpointTest extends TestCase
 
     public function test_logout_api_endpoint_returns_success_response(): void
     {
-        $this->postJson(route('api.auth.logout'))
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->postJson(route('api.auth.logout'))
             ->assertOk()
             ->assertJsonPath('status', 'success')
             ->assertJsonPath('message', 'Logged out successfully.');
+
+        $this->assertGuest();
+    }
+
+    public function test_guest_cannot_call_logout_api(): void
+    {
+        $this->postJson(route('api.auth.logout'))->assertUnauthorized();
     }
 }

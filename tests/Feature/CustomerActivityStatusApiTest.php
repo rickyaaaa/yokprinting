@@ -8,10 +8,12 @@ use App\Models\Invoice;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
+use Tests\Concerns\ActsAsOwner;
 use Tests\TestCase;
 
 class CustomerActivityStatusApiTest extends TestCase
 {
+    use ActsAsOwner;
     use RefreshDatabase;
 
     public function test_customer_activity_status_is_computed_from_latest_paid_invoice(): void

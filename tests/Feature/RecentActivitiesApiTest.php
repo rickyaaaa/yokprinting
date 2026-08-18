@@ -6,10 +6,12 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Payment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ActsAsOwner;
 use Tests\TestCase;
 
 class RecentActivitiesApiTest extends TestCase
 {
+    use ActsAsOwner;
     use RefreshDatabase;
 
     public function test_recent_activities_are_empty_instead_of_using_demo_records(): void

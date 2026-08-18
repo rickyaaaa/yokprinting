@@ -29,7 +29,7 @@ class SalesReportRevenueChartController extends Controller
                 'payments as verified_paid_amount' => fn ($query) => $query
                     ->where('status', Payment::STATUS_VERIFIED),
             ], 'amount')
-            ->where('status', '!=', Invoice::STATUS_CANCELLED)
+            ->finalized()
             ->where('issue_date', '>=', $dateFrom->toDateString())
             ->where('issue_date', '<', $dateTo->addDay()->toDateString())
             ->get();

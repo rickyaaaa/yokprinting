@@ -1,13 +1,13 @@
 <?php
 
 use App\Http\Controllers\Api\ActivityLogController;
+use App\Http\Controllers\Api\CashBankController;
 use App\Http\Controllers\Api\CompanyProfileController;
 use App\Http\Controllers\Api\CustomerActivityAlertController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\CustomerOptionController;
 use App\Http\Controllers\Api\CustomerStatementController;
 use App\Http\Controllers\Api\CustomerTransactionHistoryController;
-use App\Http\Controllers\Api\CashBankController;
 use App\Http\Controllers\Api\DueInvoiceNotificationController;
 use App\Http\Controllers\Api\FinancialSummaryController;
 use App\Http\Controllers\Api\GrossProfitReportController;
@@ -46,236 +46,273 @@ Route::post('/auth/register', fn () => response()->json([
 ], 403));
 
 Route::post('/auth/login', [AuthenticatedSessionController::class, 'store'])
+    ->middleware(['web', 'throttle:login'])
     ->name('api.auth.login');
 
 Route::post('/auth/logout', [AuthenticatedSessionController::class, 'destroy'])
+    ->middleware(['web', 'auth'])
     ->name('api.auth.logout');
 
-Route::get('/dashboard/financial-summary', FinancialSummaryController::class)
-    ->name('api.dashboard.financial-summary');
+Route::middleware(['web', 'auth'])->group(function (): void {
+    Route::get('/dashboard/financial-summary', FinancialSummaryController::class)
+        ->middleware('permission:dashboard.view')
+        ->name('api.dashboard.financial-summary');
 
-Route::get('/dashboard/revenue-chart', RevenueChartController::class)
-    ->name('api.dashboard.revenue-chart');
+    Route::get('/dashboard/revenue-chart', RevenueChartController::class)
+        ->middleware('permission:dashboard.view')
+        ->name('api.dashboard.revenue-chart');
 
-Route::get('/dashboard/activities', RecentActivitiesController::class)
-    ->name('api.dashboard.activities');
+    Route::get('/dashboard/activities', RecentActivitiesController::class)
+        ->middleware('permission:dashboard.view')
+        ->name('api.dashboard.activities');
 
-Route::get('/dashboard/customer-activity-alerts', CustomerActivityAlertController::class)
-    ->name('api.dashboard.customer-activity-alerts');
+    Route::get('/dashboard/customer-activity-alerts', CustomerActivityAlertController::class)
+        ->middleware('permission:dashboard.view')
+        ->name('api.dashboard.customer-activity-alerts');
 
-Route::get('/cash-bank/summary', [CashBankController::class, 'summary'])
-    ->middleware(['web', 'auth', 'permission:cash_bank.view'])
-    ->name('api.cash-bank.summary');
-Route::get('/cash-bank/transactions', [CashBankController::class, 'index'])
-    ->middleware(['web', 'auth', 'permission:cash_bank.view'])
-    ->name('api.cash-bank.transactions.index');
-Route::post('/cash-bank/transactions', [CashBankController::class, 'store'])
-    ->middleware(['web', 'auth', 'permission:cash_bank.create'])
-    ->name('api.cash-bank.transactions.store');
-Route::match(['put', 'patch'], '/cash-bank/transactions/{transaction}', [CashBankController::class, 'update'])
-    ->middleware(['web', 'auth', 'permission:cash_bank.update'])
-    ->name('api.cash-bank.transactions.update');
-Route::delete('/cash-bank/transactions/{transaction}', [CashBankController::class, 'destroy'])
-    ->middleware(['web', 'auth', 'permission:cash_bank.delete'])
-    ->name('api.cash-bank.transactions.destroy');
-Route::patch('/cash-bank/account', [CashBankController::class, 'updateAccount'])
-    ->middleware(['web', 'auth', 'permission:cash_bank.update'])
-    ->name('api.cash-bank.account.update');
+    Route::get('/cash-bank/summary', [CashBankController::class, 'summary'])
+        ->middleware('permission:cash_bank.view')
+        ->name('api.cash-bank.summary');
+    Route::get('/cash-bank/transactions', [CashBankController::class, 'index'])
+        ->middleware('permission:cash_bank.view')
+        ->name('api.cash-bank.transactions.index');
+    Route::post('/cash-bank/transactions', [CashBankController::class, 'store'])
+        ->middleware('permission:cash_bank.create')
+        ->name('api.cash-bank.transactions.store');
+    Route::match(['put', 'patch'], '/cash-bank/transactions/{transaction}', [CashBankController::class, 'update'])
+        ->middleware('permission:cash_bank.update')
+        ->name('api.cash-bank.transactions.update');
+    Route::delete('/cash-bank/transactions/{transaction}', [CashBankController::class, 'destroy'])
+        ->middleware('permission:cash_bank.delete')
+        ->name('api.cash-bank.transactions.destroy');
+    Route::patch('/cash-bank/account', [CashBankController::class, 'updateAccount'])
+        ->middleware('permission:cash_bank.update')
+        ->name('api.cash-bank.account.update');
 
-Route::get('/company-profile', [CompanyProfileController::class, 'show'])
-    ->name('api.company-profile.show');
+    Route::get('/company-profile', [CompanyProfileController::class, 'show'])
+        ->middleware('permission:setting.view')
+        ->name('api.company-profile.show');
 
-Route::match(['put', 'patch'], '/company-profile', [CompanyProfileController::class, 'update'])
-    ->name('api.company-profile.update');
+    Route::match(['put', 'patch'], '/company-profile', [CompanyProfileController::class, 'update'])
+        ->middleware('permission:setting.update')
+        ->name('api.company-profile.update');
 
-Route::post('/company-profile/logo', [CompanyProfileController::class, 'uploadLogo'])
-    ->name('api.company-profile.logo.store');
+    Route::post('/company-profile/logo', [CompanyProfileController::class, 'uploadLogo'])
+        ->middleware('permission:setting.update')
+        ->name('api.company-profile.logo.store');
 
-Route::get('/settings/theme-defaults', [ThemeDefaultSettingController::class, 'show'])
-    ->name('api.settings.theme-defaults.show');
+    Route::get('/settings/theme-defaults', [ThemeDefaultSettingController::class, 'show'])
+        ->middleware('permission:setting.view')
+        ->name('api.settings.theme-defaults.show');
 
-Route::match(['put', 'patch'], '/settings/theme-defaults', [ThemeDefaultSettingController::class, 'update'])
-    ->name('api.settings.theme-defaults.update');
+    Route::match(['put', 'patch'], '/settings/theme-defaults', [ThemeDefaultSettingController::class, 'update'])
+        ->middleware('permission:setting.update')
+        ->name('api.settings.theme-defaults.update');
 
-Route::get('/customers', [CustomerOptionController::class, 'index'])
-    ->name('api.customers.index');
+    Route::get('/customers', [CustomerOptionController::class, 'index'])
+        ->middleware('permission:customer.view')
+        ->name('api.customers.index');
 
-Route::post('/customers', [CustomerController::class, 'store'])
-    ->name('api.customers.store');
+    Route::post('/customers', [CustomerController::class, 'store'])
+        ->middleware('permission:customer.create')
+        ->name('api.customers.store');
 
-Route::get('/customers/{customer}', [CustomerController::class, 'show'])
-    ->name('api.customers.show');
+    Route::get('/customers/{customer}', [CustomerController::class, 'show'])
+        ->middleware('permission:customer.view')
+        ->name('api.customers.show');
 
-Route::get('/customers/{customer}/transactions', [CustomerTransactionHistoryController::class, 'index'])
-    ->name('api.customers.transactions.index');
+    Route::get('/customers/{customer}/transactions', [CustomerTransactionHistoryController::class, 'index'])
+        ->middleware('permission:customer.view')
+        ->name('api.customers.transactions.index');
 
-Route::get('/customers/{customer}/statement', CustomerStatementController::class)
-    ->middleware(['web', 'auth'])
-    ->name('api.customers.statement.show');
+    Route::get('/customers/{customer}/statement', CustomerStatementController::class)
+        ->middleware('permission:customer.view')
+        ->name('api.customers.statement.show');
 
-Route::match(['put', 'patch'], '/customers/{customer}', [CustomerController::class, 'update'])
-    ->name('api.customers.update');
+    Route::match(['put', 'patch'], '/customers/{customer}', [CustomerController::class, 'update'])
+        ->middleware('permission:customer.update')
+        ->name('api.customers.update');
 
-Route::delete('/customers/{customer}', [CustomerController::class, 'destroy'])
-    ->middleware(['web', 'auth', 'permission:customer.delete'])
-    ->name('api.customers.destroy');
+    Route::delete('/customers/{customer}', [CustomerController::class, 'destroy'])
+        ->middleware('permission:customer.delete')
+        ->name('api.customers.destroy');
 
-Route::get('/products', [ProductController::class, 'index'])
-    ->name('api.products.index');
+    Route::get('/products', [ProductController::class, 'index'])
+        ->middleware('permission:product.view')
+        ->name('api.products.index');
 
-Route::post('/products', [ProductController::class, 'store'])
-    ->name('api.products.store');
+    Route::post('/products', [ProductController::class, 'store'])
+        ->middleware('permission:product.create')
+        ->name('api.products.store');
 
-Route::get('/products/low-stock-summary', ProductLowStockSummaryController::class)
-    ->name('api.products.low-stock-summary');
+    Route::get('/products/low-stock-summary', ProductLowStockSummaryController::class)
+        ->middleware('permission:product.view')
+        ->name('api.products.low-stock-summary');
 
-Route::get('/products/options', [ProductOptionController::class, 'index'])
-    ->name('api.products.options.index');
+    Route::get('/products/options', [ProductOptionController::class, 'index'])
+        ->middleware('permission:product.view')
+        ->name('api.products.options.index');
 
-Route::patch('/products/bulk-stock', ProductBulkStockController::class)
-    ->middleware(['web', 'auth', 'permission:product.update'])
-    ->name('api.products.bulk-stock.update');
+    Route::patch('/products/bulk-stock', ProductBulkStockController::class)
+        ->middleware('permission:product.update')
+        ->name('api.products.bulk-stock.update');
 
-Route::get('/products/{product}', [ProductController::class, 'show'])
-    ->name('api.products.show');
+    Route::get('/products/{product}', [ProductController::class, 'show'])
+        ->middleware('permission:product.view')
+        ->name('api.products.show');
 
-Route::match(['put', 'patch'], '/products/{product}', [ProductController::class, 'update'])
-    ->name('api.products.update');
+    Route::match(['put', 'patch'], '/products/{product}', [ProductController::class, 'update'])
+        ->middleware('permission:product.update')
+        ->name('api.products.update');
 
-Route::delete('/products/{product}', [ProductController::class, 'destroy'])
-    ->name('api.products.destroy');
+    Route::delete('/products/{product}', [ProductController::class, 'destroy'])
+        ->middleware('permission:product.delete')
+        ->name('api.products.destroy');
 
-Route::get('/product-categories', [ProductCategoryController::class, 'index'])
-    ->name('api.product-categories.index');
+    Route::get('/product-categories', [ProductCategoryController::class, 'index'])
+        ->middleware('permission:product.view')
+        ->name('api.product-categories.index');
 
-Route::apiResource('suppliers', SupplierController::class)
-    ->names('api.suppliers');
+    Route::apiResource('suppliers', SupplierController::class)
+        ->middlewareFor(['index', 'show'], 'permission:product.view')
+        ->middlewareFor('store', 'permission:product.create')
+        ->middlewareFor('update', 'permission:product.update')
+        ->middlewareFor('destroy', 'permission:product.delete')
+        ->names('api.suppliers');
 
-Route::get('/roles', [RoleController::class, 'index'])
-    ->middleware(['web', 'auth', 'permission:role.view'])
-    ->name('api.roles.index');
+    Route::get('/roles', [RoleController::class, 'index'])
+        ->middleware('permission:role.view')
+        ->name('api.roles.index');
 
-Route::post('/roles', [RoleController::class, 'store'])
-    ->middleware(['web', 'auth', 'permission:role.create'])
-    ->name('api.roles.store');
+    Route::post('/roles', [RoleController::class, 'store'])
+        ->middleware('permission:role.create')
+        ->name('api.roles.store');
 
-Route::get('/roles/{role:code}', [RoleController::class, 'show'])
-    ->middleware(['web', 'auth', 'permission:role.view'])
-    ->name('api.roles.show');
+    Route::get('/roles/{role:code}', [RoleController::class, 'show'])
+        ->middleware('permission:role.view')
+        ->name('api.roles.show');
 
-Route::match(['put', 'patch'], '/roles/{role:code}', [RoleController::class, 'update'])
-    ->middleware(['web', 'auth', 'permission:role.update'])
-    ->name('api.roles.update');
+    Route::match(['put', 'patch'], '/roles/{role:code}', [RoleController::class, 'update'])
+        ->middleware('permission:role.update')
+        ->name('api.roles.update');
 
-Route::delete('/roles/{role:code}', [RoleController::class, 'destroy'])
-    ->middleware(['web', 'auth', 'permission:role.delete'])
-    ->name('api.roles.destroy');
+    Route::delete('/roles/{role:code}', [RoleController::class, 'destroy'])
+        ->middleware('permission:role.delete')
+        ->name('api.roles.destroy');
 
-Route::get('/roles/{role:code}/permissions', [RolePermissionController::class, 'show'])
-    ->middleware(['web', 'auth', 'permission:role.view'])
-    ->name('api.roles.permissions.show');
+    Route::get('/roles/{role:code}/permissions', [RolePermissionController::class, 'show'])
+        ->middleware('permission:role.view')
+        ->name('api.roles.permissions.show');
 
-Route::match(['put', 'patch'], '/roles/{role:code}/permissions', [RolePermissionController::class, 'update'])
-    ->middleware(['web', 'auth', 'permission:role.update'])
-    ->name('api.roles.permissions.update');
+    Route::match(['put', 'patch'], '/roles/{role:code}/permissions', [RolePermissionController::class, 'update'])
+        ->middleware('permission:role.update')
+        ->name('api.roles.permissions.update');
 
-Route::get('/activity-logs', [ActivityLogController::class, 'index'])
-    ->middleware(['web', 'auth', 'permission:activity_log.view'])
-    ->name('api.activity-logs.index');
+    Route::get('/activity-logs', [ActivityLogController::class, 'index'])
+        ->middleware('permission:activity_log.view')
+        ->name('api.activity-logs.index');
 
-Route::get('/notifications/due-invoices', [DueInvoiceNotificationController::class, 'index'])
-    ->middleware(['web', 'auth'])
-    ->name('api.notifications.due-invoices.index');
+    Route::get('/notifications/due-invoices', [DueInvoiceNotificationController::class, 'index'])
+        ->middleware('permission:payment.view')
+        ->name('api.notifications.due-invoices.index');
 
-Route::post('/invoices/drafts', [InvoiceDraftController::class, 'store'])
-    ->name('api.invoices.drafts.store');
+    Route::post('/invoices/drafts', [InvoiceDraftController::class, 'store'])
+        ->middleware('permission:invoice.create')
+        ->name('api.invoices.drafts.store');
 
-Route::post('/stock-movements', [StockMovementController::class, 'store'])
-    ->middleware(['web', 'auth'])
-    ->name('api.stock-movements.store');
+    Route::post('/stock-movements', [StockMovementController::class, 'store'])
+        ->middleware('permission:product.update')
+        ->name('api.stock-movements.store');
 
-Route::post('/invoices/{invoice}/send', [InvoiceDeliveryController::class, 'send'])
-    ->middleware(['web', 'auth', 'permission:invoice.update'])
-    ->name('api.invoices.send');
+    Route::post('/invoices/{invoice}/send-whatsapp', [InvoiceDeliveryController::class, 'sendWhatsApp'])
+        ->middleware('permission:invoice.update')
+        ->name('api.invoices.send-whatsapp');
 
-Route::post('/invoices/{invoice}/send-whatsapp', [InvoiceDeliveryController::class, 'sendWhatsApp'])
-    ->middleware(['web', 'auth', 'permission:invoice.update'])
-    ->name('api.invoices.send-whatsapp');
+    Route::post('/invoices/{invoice:invoice_number}/payments', [InvoicePaymentController::class, 'store'])
+        ->middleware('permission:payment.create')
+        ->name('api.invoices.payments.store');
 
-Route::post('/invoices/{invoice:invoice_number}/payments', [InvoicePaymentController::class, 'store'])
-    ->name('api.invoices.payments.store');
+    Route::get('/invoices/{invoice:invoice_number}/payment-detail', [InvoicePaymentDetailController::class, 'show'])
+        ->middleware('permission:invoice.view')
+        ->name('api.invoices.payment-detail.show');
 
-Route::get('/invoices/{invoice:invoice_number}/payment-detail', [InvoicePaymentDetailController::class, 'show'])
-    ->name('api.invoices.payment-detail.show');
+    Route::get('/invoices/{invoice}/pdf', [InvoicePdfController::class, 'download'])
+        ->middleware(['permission:invoice.export', 'throttle:invoice-pdf'])
+        ->name('api.invoices.pdf.download');
 
-Route::get('/invoices/{invoice}/pdf', [InvoicePdfController::class, 'download'])
-    ->middleware(['web', 'auth', 'permission:invoice.export', 'throttle:invoice-pdf'])
-    ->name('api.invoices.pdf.download');
+    Route::get('/invoices/{invoice}/delivery-note/pdf', [InvoiceDeliveryNotePdfController::class, 'download'])
+        ->middleware(['permission:invoice.export', 'throttle:invoice-pdf'])
+        ->name('api.invoices.delivery-note.pdf.download');
 
-Route::get('/invoices/{invoice}/delivery-note/pdf', [InvoiceDeliveryNotePdfController::class, 'download'])
-    ->middleware(['web', 'auth', 'permission:invoice.export', 'throttle:invoice-pdf'])
-    ->name('api.invoices.delivery-note.pdf.download');
+    Route::post('/invoices/preview/pdf', InvoicePreviewPdfController::class)
+        ->middleware(['permission:invoice.export', 'throttle:invoice-pdf'])
+        ->name('api.invoices.preview.pdf.download');
 
-Route::post('/invoices/preview/pdf', InvoicePreviewPdfController::class)
-    ->middleware(['web', 'auth', 'permission:invoice.export', 'throttle:invoice-pdf'])
-    ->name('api.invoices.preview.pdf.download');
+    Route::get('/payments/receivables', [ReceivableController::class, 'index'])
+        ->middleware('permission:payment.view')
+        ->name('api.payments.receivables.index');
 
-Route::get('/payments/receivables', [ReceivableController::class, 'index'])
-    ->name('api.payments.receivables.index');
+    Route::get('/payments/history', [PaymentHistoryController::class, 'index'])
+        ->middleware('permission:payment.view')
+        ->name('api.payments.history.index');
 
-Route::get('/payments/history', [PaymentHistoryController::class, 'index'])
-    ->name('api.payments.history.index');
+    Route::get('/reports/sales/summary', SalesReportSummaryController::class)
+        ->middleware('permission:report.view')
+        ->name('api.reports.sales.summary');
 
-Route::get('/reports/sales/summary', SalesReportSummaryController::class)
-    ->middleware(['web', 'auth', 'permission:report.view'])
-    ->name('api.reports.sales.summary');
+    Route::get('/reports/sales/invoices', [SalesReportInvoiceController::class, 'index'])
+        ->middleware('permission:report.view')
+        ->name('api.reports.sales.invoices.index');
 
-Route::get('/reports/sales/invoices', [SalesReportInvoiceController::class, 'index'])
-    ->middleware(['web', 'auth', 'permission:report.view'])
-    ->name('api.reports.sales.invoices.index');
+    Route::get('/reports/sales/revenue-chart', SalesReportRevenueChartController::class)
+        ->middleware('permission:report.view')
+        ->name('api.reports.sales.revenue-chart');
 
-Route::get('/reports/sales/revenue-chart', SalesReportRevenueChartController::class)
-    ->middleware(['web', 'auth', 'permission:report.view'])
-    ->name('api.reports.sales.revenue-chart');
+    Route::get('/reports/sales/export', SalesReportExportController::class)
+        ->middleware(['permission:report.export', 'throttle:report-export'])
+        ->name('api.reports.sales.export');
 
-Route::get('/reports/sales/export', SalesReportExportController::class)
-    ->middleware(['web', 'auth', 'permission:report.export', 'throttle:report-export'])
-    ->name('api.reports.sales.export');
+    Route::get('/reports/gross-profit', [GrossProfitReportController::class, 'index'])
+        ->middleware('permission:report.view')
+        ->name('api.reports.gross-profit.index');
 
-Route::get('/reports/gross-profit', [GrossProfitReportController::class, 'index'])
-    ->name('api.reports.gross-profit.index');
+    Route::get('/reports/gross-profit/export', [GrossProfitReportController::class, 'export'])
+        ->middleware(['permission:report.export', 'throttle:report-export'])
+        ->name('api.reports.gross-profit.export');
 
-Route::get('/reports/gross-profit/export', [GrossProfitReportController::class, 'export'])
-    ->middleware(['web', 'auth', 'permission:report.export', 'throttle:report-export'])
-    ->name('api.reports.gross-profit.export');
+    Route::get('/reports/outstanding-payments', [ReceivableController::class, 'index'])
+        ->middleware('permission:report.view')
+        ->name('api.reports.outstanding-payments.index');
 
-Route::get('/reports/outstanding-payments', [ReceivableController::class, 'index'])
-    ->name('api.reports.outstanding-payments.index');
+    Route::get('/reports/outstanding-payments/export', [ReportExportController::class, 'outstandingPayments'])
+        ->middleware(['permission:report.export', 'throttle:report-export'])
+        ->name('api.reports.outstanding-payments.export');
 
-Route::get('/reports/outstanding-payments/export', [ReportExportController::class, 'outstandingPayments'])
-    ->middleware(['web', 'auth', 'permission:report.export', 'throttle:report-export'])
-    ->name('api.reports.outstanding-payments.export');
+    Route::get('/reports/inactive-customers', CustomerActivityAlertController::class)
+        ->middleware('permission:report.view')
+        ->name('api.reports.inactive-customers.index');
 
-Route::get('/reports/inactive-customers', CustomerActivityAlertController::class)
-    ->name('api.reports.inactive-customers.index');
+    Route::get('/reports/inactive-customers/export', [ReportExportController::class, 'inactiveCustomers'])
+        ->middleware(['permission:report.export', 'throttle:report-export'])
+        ->name('api.reports.inactive-customers.export');
 
-Route::get('/reports/inactive-customers/export', [ReportExportController::class, 'inactiveCustomers'])
-    ->middleware(['web', 'auth', 'permission:report.export', 'throttle:report-export'])
-    ->name('api.reports.inactive-customers.export');
+    Route::get('/reports/low-stock', ProductLowStockSummaryController::class)
+        ->middleware('permission:report.view')
+        ->name('api.reports.low-stock.index');
 
-Route::get('/reports/low-stock', ProductLowStockSummaryController::class)
-    ->name('api.reports.low-stock.index');
+    Route::get('/reports/low-stock/export', [ReportExportController::class, 'lowStock'])
+        ->middleware(['permission:report.export', 'throttle:report-export'])
+        ->name('api.reports.low-stock.export');
 
-Route::get('/reports/low-stock/export', [ReportExportController::class, 'lowStock'])
-    ->middleware(['web', 'auth', 'permission:report.export', 'throttle:report-export'])
-    ->name('api.reports.low-stock.export');
+    Route::get('/reports/stock-movements', StockMovementReportController::class)
+        ->middleware('permission:report.view')
+        ->name('api.reports.stock-movements.index');
 
-Route::get('/reports/stock-movements', StockMovementReportController::class)
-    ->name('api.reports.stock-movements.index');
+    Route::get('/reports/stock-mutations', StockMovementReportController::class)
+        ->middleware('permission:report.view')
+        ->name('api.reports.stock-mutations.index');
 
-Route::get('/reports/stock-mutations', StockMovementReportController::class)
-    ->name('api.reports.stock-mutations.index');
-
-Route::get('/reports/stock-mutations/export', [ReportExportController::class, 'stockMutations'])
-    ->middleware(['web', 'auth', 'permission:report.export', 'throttle:report-export'])
-    ->name('api.reports.stock-mutations.export');
+    Route::get('/reports/stock-mutations/export', [ReportExportController::class, 'stockMutations'])
+        ->middleware(['permission:report.export', 'throttle:report-export'])
+        ->name('api.reports.stock-mutations.export');
+});

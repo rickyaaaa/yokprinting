@@ -100,7 +100,7 @@ class BuildCustomerStatement
     private function transactions(Customer $customer, ?CarbonInterface $periodEnd): Collection
     {
         $invoices = $customer->invoices()
-            ->where('status', '!=', Invoice::STATUS_CANCELLED)
+            ->finalized()
             ->when($periodEnd, fn ($query) => $query->where('created_at', '<=', $periodEnd))
             ->get()
             ->map(fn (Invoice $invoice): array => [
@@ -121,7 +121,7 @@ class BuildCustomerStatement
             ->verified()
             ->whereHas('invoice', fn ($query) => $query
                 ->where('customer_id', $customer->getKey())
-                ->where('status', '!=', Invoice::STATUS_CANCELLED))
+                ->finalized())
             ->when($periodEnd, fn ($query) => $query->whereDate('payment_date', '<=', $periodEnd->toDateString()))
             ->get()
             ->map(fn (Payment $payment): array => [

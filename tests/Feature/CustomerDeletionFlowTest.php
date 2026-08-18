@@ -17,7 +17,7 @@ class CustomerDeletionFlowTest extends TestCase
 
     public function test_authorized_user_soft_deletes_customer_and_preserves_invoice_history(): void
     {
-        $user = $this->userWithPermissions(['customer.delete']);
+        $user = $this->userWithPermissions(['customer.view', 'customer.delete']);
         $customer = Customer::query()->create([
             'code' => 'CUS-DEL-001',
             'name' => 'PT Pelanggan Berinvoice',
@@ -99,14 +99,14 @@ class CustomerDeletionFlowTest extends TestCase
             'email' => 'button@example.test',
         ]);
 
-        $this->actingAs($this->userWithPermissions(['customer.delete']))
+        $this->actingAs($this->userWithPermissions(['customer.view', 'customer.delete']))
             ->get(route('customers.index'))
             ->assertOk()
             ->assertSee('delete-customer-button')
             ->assertSee('confirm-delete-customer')
             ->assertSee('Invoice, pembayaran, dan relasi historis tidak akan dihapus.');
 
-        $this->actingAs($this->userWithPermissions([]))
+        $this->actingAs($this->userWithPermissions(['customer.view']))
             ->get(route('customers.index'))
             ->assertOk()
             ->assertDontSee('delete-customer-button')

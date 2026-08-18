@@ -4,10 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ActsAsOwner;
 use Tests\TestCase;
 
 class ListCustomerOptionsApiTest extends TestCase
 {
+    use ActsAsOwner;
     use RefreshDatabase;
 
     public function test_only_active_non_deleted_customers_are_returned_with_newest_first(): void

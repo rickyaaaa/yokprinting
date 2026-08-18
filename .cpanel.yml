@@ -1,0 +1,23 @@
+---
+# cPanel Git Version Control auto-deploy tasks.
+# Runs automatically when you click "Deploy HEAD Commit" in cPanel > Git Version Control.
+#
+# BEFORE FIRST USE: replace USERNAME and yokprinting_app below to match your
+# actual cPanel username and the folder you chose for the app (kept OUTSIDE
+# public_html so .env and app code are never web-accessible).
+#
+# This does NOT touch public_html/index.php or .env — those are set up once
+# manually (see docs/deployment-cpanel.md) and left alone on every deploy.
+
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/USERNAME/yokprinting_app/
+    - export PUBLICPATH=/home/USERNAME/public_html/
+    - /bin/cp -R * $DEPLOYPATH
+    - /usr/local/bin/php -d memory_limit=-1 /opt/cpanel/composer/bin/composer install --no-dev --optimize-autoloader --working-dir=$DEPLOYPATH
+    - /bin/rsync -a --delete --exclude='index.php' $DEPLOYPATH/public/ $PUBLICPATH
+    - /usr/local/bin/php $DEPLOYPATH/artisan migrate --force
+    - /usr/local/bin/php $DEPLOYPATH/artisan storage:link
+    - /usr/local/bin/php $DEPLOYPATH/artisan config:cache
+    - /usr/local/bin/php $DEPLOYPATH/artisan route:cache
+    - /usr/local/bin/php $DEPLOYPATH/artisan view:cache

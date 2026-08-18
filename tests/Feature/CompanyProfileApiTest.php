@@ -3,12 +3,21 @@
 namespace Tests\Feature;
 
 use App\Models\CompanyProfile;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 class CompanyProfileApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->actingAs(User::factory()->create());
+    }
 
     public function test_company_profile_endpoint_returns_fallback_when_profile_is_empty(): void
     {
@@ -68,7 +77,7 @@ class CompanyProfileApiTest extends TestCase
 
         $this->getJson(route('api.company-profile.show'))
             ->assertOk()
-            ->assertJsonPath('data.id', 1)
+            ->assertJsonPath('data.id', fn (int $id): bool => $id > 0)
             ->assertJsonPath('data.email', 'finance@ruangkarya.example')
             ->assertJsonPath('data.numbering_reset', CompanyProfile::NUMBERING_RESET_MONTHLY);
     }
@@ -100,5 +109,17 @@ class CompanyProfileApiTest extends TestCase
                 'default_due_days',
                 'numbering_reset',
             ]);
+    }
+
+    public function test_company_logo_rejects_svg_even_when_it_has_an_svg_mime_type(): void
+    {
+        $logo = UploadedFile::fake()->createWithContent(
+            'logo.svg',
+            '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+        );
+
+        $this->postJson(route('api.company-profile.logo.store'), ['logo' => $logo])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['logo']);
     }
 }

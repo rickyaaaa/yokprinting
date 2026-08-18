@@ -8,6 +8,15 @@ const emptySummary = () => ({
     has_negative_balance: false,
 });
 
+export const businessDate = (timeZone = 'Asia/Jakarta', date = new Date()) => {
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+    }).formatToParts(date);
+    const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+
+    return `${values.year}-${values.month}-${values.day}`;
+};
+
 export function registerCashBankComponents(Alpine) {
     Alpine.data('cashBankPage', (config = {}) => ({
         config,
@@ -19,9 +28,13 @@ export function registerCashBankComponents(Alpine) {
         accountForm: { name: '', bank_name: '', account_number: '', opening_balance: 0 },
         formOpen: false,
         editingId: null,
-        form: { transaction_date: new Date().toISOString().slice(0, 10), type: 'income', category: 'other_income', amount: '', description: '' },
+        form: { transaction_date: businessDate(config.timezone), type: 'income', category: 'other_income', amount: '', description: '' },
         errors: {},
+        accountErrors: {},
         loading: false,
+        summaryLoading: true,
+        summaryLoaded: false,
+        summaryError: '',
         saving: false,
         savingAccount: false,
         notice: '',
@@ -38,9 +51,21 @@ export function registerCashBankComponents(Alpine) {
         },
 
         async loadSummary() {
-            const response = await fetch('/api/cash-bank/summary', { credentials: 'same-origin', headers: { Accept: 'application/json' } });
-            const payload = await response.json().catch(() => ({}));
-            if (response.ok) this.summary = payload.data;
+            this.summaryLoading = true;
+            this.summaryError = '';
+
+            try {
+                const response = await fetch('/api/cash-bank/summary', { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok || !payload.data) throw new Error(payload.message ?? 'Ringkasan Kas & Bank gagal dimuat.');
+                this.summary = payload.data;
+                this.summaryLoaded = true;
+            } catch (error) {
+                this.summaryLoaded = false;
+                this.summaryError = error instanceof Error ? error.message : 'Ringkasan Kas & Bank gagal dimuat.';
+            } finally {
+                this.summaryLoading = false;
+            }
         },
 
         async loadTransactions(page = 1) {
@@ -52,7 +77,9 @@ export function registerCashBankComponents(Alpine) {
             try {
                 const response = await fetch(`/api/cash-bank/transactions?${params}`, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
                 const payload = await response.json().catch(() => ({}));
-                if (!response.ok) throw new Error(payload.message ?? 'Riwayat Kas & Bank gagal dimuat.');
+                if (!response.ok || !Array.isArray(payload.data) || !payload.meta) {
+                    throw new Error(payload.message ?? 'Riwayat Kas & Bank gagal dimuat.');
+                }
                 this.transactions = payload.data;
                 this.meta = payload.meta;
             } catch (error) {
@@ -65,7 +92,7 @@ export function registerCashBankComponents(Alpine) {
         openCreate(type) {
             this.editingId = null;
             this.form = {
-                transaction_date: new Date().toISOString().slice(0, 10), type,
+                transaction_date: businessDate(this.config.timezone), type,
                 category: type === 'income' ? 'other_income' : 'operational_cost', amount: '', description: '',
             };
             this.errors = {};
@@ -75,6 +102,11 @@ export function registerCashBankComponents(Alpine) {
         },
 
         openAccountSettings() {
+            if (!this.summaryLoaded) {
+                this.summaryError = 'Muat ulang ringkasan sebelum mengubah rekening utama.';
+                return;
+            }
+
             this.accountForm = {
                 name: this.summary.account_name,
                 bank_name: this.summary.bank_name,
@@ -83,6 +115,7 @@ export function registerCashBankComponents(Alpine) {
             };
             this.notice = '';
             this.error = '';
+            this.accountErrors = {};
             this.accountSettingsOpen = true;
             this.$nextTick(() => this.$refs.accountForm?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
         },
@@ -92,6 +125,7 @@ export function registerCashBankComponents(Alpine) {
             this.savingAccount = true;
             this.error = '';
             this.notice = '';
+            this.accountErrors = {};
 
             try {
                 const response = await fetch('/api/cash-bank/account', {
@@ -100,7 +134,10 @@ export function registerCashBankComponents(Alpine) {
                     body: JSON.stringify(this.accountForm),
                 });
                 const payload = await response.json().catch(() => ({}));
-                if (!response.ok) throw new Error(payload.message ?? 'Rekening belum dapat diperbarui.');
+                if (!response.ok) {
+                    this.accountErrors = payload.errors ?? {};
+                    throw new Error(this.firstValidationError(this.accountErrors) ?? payload.message ?? 'Rekening belum dapat diperbarui.');
+                }
                 this.notice = payload.message;
                 this.accountSettingsOpen = false;
                 await Promise.all([this.loadSummary(), this.loadTransactions(this.meta.current_page)]);
@@ -144,7 +181,7 @@ export function registerCashBankComponents(Alpine) {
                 const payload = await response.json().catch(() => ({}));
                 if (!response.ok) {
                     this.errors = payload.errors ?? {};
-                    throw new Error(payload.message ?? 'Transaksi belum dapat disimpan.');
+                    throw new Error(this.firstValidationError(this.errors) ?? payload.message ?? 'Transaksi belum dapat disimpan.');
                 }
                 this.notice = payload.message;
                 this.formOpen = false;
@@ -158,17 +195,20 @@ export function registerCashBankComponents(Alpine) {
 
         async cancel(transaction) {
             if (!transaction.is_manual || transaction.status === 'cancelled' || !window.confirm(`Batalkan ${transaction.transaction_number}?`)) return;
-            const response = await fetch(`/api/cash-bank/transactions/${transaction.id}`, {
-                method: 'DELETE', credentials: 'same-origin',
-                headers: { Accept: 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '' },
-            });
-            const payload = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                this.error = payload.message ?? 'Transaksi belum dapat dibatalkan.';
-                return;
+            this.error = '';
+
+            try {
+                const response = await fetch(`/api/cash-bank/transactions/${transaction.id}`, {
+                    method: 'DELETE', credentials: 'same-origin',
+                    headers: { Accept: 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '' },
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(payload.message ?? 'Transaksi belum dapat dibatalkan.');
+                this.notice = payload.message;
+                await Promise.all([this.loadSummary(), this.loadTransactions(this.meta.current_page)]);
+            } catch (error) {
+                this.error = error instanceof Error ? error.message : 'Transaksi belum dapat dibatalkan.';
             }
-            this.notice = payload.message;
-            await Promise.all([this.loadSummary(), this.loadTransactions(this.meta.current_page)]);
         },
 
         resetFilters() {
@@ -177,6 +217,11 @@ export function registerCashBankComponents(Alpine) {
         },
 
         formatRupiah: rupiah,
+        fieldError(source, field) { return Array.isArray(source?.[field]) ? source[field][0] : (source?.[field] ?? ''); },
+        firstValidationError(source) {
+            const first = Object.values(source ?? {}).flat().find(Boolean);
+            return typeof first === 'string' ? first : null;
+        },
         formatDate(value) { return new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`)); },
     }));
 }

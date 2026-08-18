@@ -6,10 +6,12 @@ use App\Models\CompanyProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Tests\Concerns\ActsAsOwner;
 use Tests\TestCase;
 
 class CompanyLogoUploadApiTest extends TestCase
 {
+    use ActsAsOwner;
     use RefreshDatabase;
 
     public function test_company_logo_can_be_uploaded_for_default_profile(): void

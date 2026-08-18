@@ -31,7 +31,7 @@ class ProfitLossReport
         )->addDay()->toDateString();
 
         $finalInvoices = Invoice::query()
-            ->where('status', Invoice::STATUS_SENT)
+            ->finalized()
             ->where('issue_date', '>=', $range['date_from'])
             ->where('issue_date', '<', $dateToExclusive);
 
@@ -54,7 +54,7 @@ class ProfitLossReport
 
         $salesQuantity = InvoiceItem::query()
             ->whereHas('invoice', fn ($query) => $query
-                ->where('status', Invoice::STATUS_SENT)
+                ->finalized()
                 ->where('issue_date', '>=', $range['date_from'])
                 ->where('issue_date', '<', $dateToExclusive))
             ->sum('quantity');

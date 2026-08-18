@@ -69,6 +69,21 @@ class CustomerStatementApiTest extends TestCase
             'updated_at' => '2026-07-03 17:00:00',
         ]);
 
+        $draftInvoice = $this->createInvoice(
+            customer: $customer,
+            invoiceNumber: 'INV-2026-DRAFT',
+            totalAmount: 9000000,
+            createdAt: '2026-07-04 08:00:00',
+        );
+        $draftInvoice->forceFill(['status' => Invoice::STATUS_DRAFT])->save();
+        $this->createPayment(
+            invoice: $draftInvoice,
+            paymentNumber: 'PAY-20260704-DRAFT',
+            amount: 1000000,
+            paymentDate: '2026-07-04',
+            createdAt: '2026-07-04 09:00:00',
+        );
+
         $this->getJson(route('api.customers.statement.show', [
             'customer' => $customer,
             'start_date' => '2026-07-01',

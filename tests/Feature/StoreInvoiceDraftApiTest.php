@@ -5,15 +5,18 @@ namespace Tests\Feature;
 use App\Models\Customer;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ActsAsOwner;
 use Tests\TestCase;
 
 class StoreInvoiceDraftApiTest extends TestCase
 {
+    use ActsAsOwner;
     use RefreshDatabase;
 
     public function test_invoice_draft_is_stored_with_server_calculated_totals(): void
     {
-        $response = $this->postJson(route('api.invoices.drafts.store'), $this->validPayload());
+        $payload = $this->validPayload();
+        $response = $this->postJson(route('api.invoices.drafts.store'), $payload);
 
         $response
             ->assertCreated()
@@ -34,12 +37,12 @@ class StoreInvoiceDraftApiTest extends TestCase
 
         $this->assertDatabaseHas('invoices', [
             'invoice_number' => 'INV-2026-0001',
-            'customer_id' => 1,
+            'customer_id' => $payload['customer_id'],
             'status' => 'draft',
             'total_amount' => 22408125,
         ]);
         $this->assertDatabaseHas('invoice_items', [
-            'product_id' => 1,
+            'product_id' => $payload['items'][0]['product_id'],
             'product_name' => 'Paket Desain Identitas Brand',
             'sku' => 'JSA-BRAND-01',
             'purchase_cost_snapshot' => 6000000,

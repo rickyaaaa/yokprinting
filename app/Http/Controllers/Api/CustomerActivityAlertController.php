@@ -18,7 +18,7 @@ class CustomerActivityAlertController extends Controller
             ->needsFollowUp()
             ->withMax([
                 'invoices as last_paid_order_at' => fn ($query) => $query
-                    ->where('status', '!=', Invoice::STATUS_CANCELLED)
+                    ->finalized()
                     ->where('payment_status', Invoice::PAYMENT_PAID),
             ], 'paid_at')
             ->orderBy('name')

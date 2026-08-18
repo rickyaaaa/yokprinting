@@ -63,9 +63,10 @@ class CashBankController extends Controller
             });
         $paginator = $query->orderBy('transaction_date')->orderBy('id')
             ->paginate((int) ($filters['per_page'] ?? 15))->withQueryString();
+        $runningBalances = $cashBank->runningBalancesFor($account, $paginator->items());
         $rows = collect($paginator->items())->map(fn (CashBankTransaction $transaction): array => $this->serialize(
             $transaction,
-            $cashBank->runningBalanceAt($account, $transaction),
+            $runningBalances[$transaction->getKey()],
         ));
 
         return response()->json([

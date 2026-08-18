@@ -27,6 +27,12 @@ class RecordInvoicePayment
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            if ($lockedInvoice->status !== Invoice::STATUS_SENT) {
+                throw ValidationException::withMessages([
+                    'invoice' => 'Pembayaran hanya dapat dicatat untuk invoice yang sudah dikirim.',
+                ]);
+            }
+
             $status = $data['status'] ?? Payment::STATUS_VERIFIED;
             $amount = round((float) $data['amount'], 2);
             $paidBefore = $this->verifiedPaymentsTotal($lockedInvoice);

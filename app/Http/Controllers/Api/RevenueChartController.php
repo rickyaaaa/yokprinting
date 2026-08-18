@@ -21,7 +21,7 @@ class RevenueChartController extends Controller
         $end = $buckets[array_key_last($buckets)]['end'];
 
         $invoices = Invoice::query()
-            ->where('status', Invoice::STATUS_SENT)
+            ->finalized()
             ->whereBetween('issue_date', [$start->toDateString(), $end->toDateString()])
             ->get();
         $payments = Payment::query()

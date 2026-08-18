@@ -82,7 +82,7 @@
         </div>
         <button
             type="button"
-            class="ml-auto rounded-full p-2 text-muted hover:bg-surface-low hover:text-ink lg:hidden"
+            class="ml-auto min-h-11 min-w-11 rounded-full p-2 text-muted hover:bg-surface-low hover:text-ink lg:hidden"
             @click="sidebarOpen = false"
             aria-label="Tutup navigasi"
         >

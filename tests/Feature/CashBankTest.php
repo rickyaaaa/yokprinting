@@ -15,6 +15,7 @@ use App\Services\CashBank\CashBankService;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -36,6 +37,7 @@ class CashBankTest extends TestCase
 
     public function test_verified_bank_payment_creates_income_transaction(): void
     {
+        $this->actingAsOwner();
         $invoice = $this->createInvoice();
 
         $this->postJson(route('api.invoices.payments.store', $invoice->invoice_number), [
@@ -65,6 +67,7 @@ class CashBankTest extends TestCase
 
     public function test_verified_cash_payment_does_not_create_bank_income(): void
     {
+        $this->actingAsOwner();
         $invoice = $this->createInvoice();
 
         $this->postJson(route('api.invoices.payments.store', $invoice->invoice_number), [
@@ -229,6 +232,70 @@ class CashBankTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('meta.beginning_balance', 1_500_000)
             ->assertJsonPath('data.0.running_balance', 1_300_000);
+    }
+
+    public function test_running_balance_includes_transactions_hidden_by_type_filter(): void
+    {
+        $owner = $this->actingAsOwner();
+        BankAccount::query()->firstOrFail()->update(['opening_balance' => 1_000_000]);
+        $service = app(CashBankService::class);
+        $service->recordManualTransaction([
+            'transaction_date' => '2026-08-01', 'type' => 'income', 'category' => 'other_income',
+            'amount' => 500_000, 'description' => 'Pemasukan pertama.',
+        ], $owner->id);
+        $service->recordManualTransaction([
+            'transaction_date' => '2026-08-02', 'type' => 'expense', 'category' => 'bank_fee',
+            'amount' => 200_000, 'description' => 'Pengeluaran tersembunyi oleh filter.',
+        ], $owner->id);
+        $service->recordManualTransaction([
+            'transaction_date' => '2026-08-03', 'type' => 'income', 'category' => 'other_income',
+            'amount' => 100_000, 'description' => 'Pemasukan kedua.',
+        ], $owner->id);
+
+        $this->getJson(route('api.cash-bank.transactions.index', ['type' => CashBankTransaction::TYPE_INCOME]))
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.running_balance', 1_500_000)
+            ->assertJsonPath('data.1.running_balance', 1_400_000);
+    }
+
+    public function test_transaction_history_uses_a_constant_number_of_ledger_queries(): void
+    {
+        $owner = $this->actingAsOwner();
+        $account = BankAccount::query()->firstOrFail();
+        $now = now();
+        $rows = [];
+
+        foreach (range(1, 50) as $sequence) {
+            $rows[] = [
+                'bank_account_id' => $account->id,
+                'transaction_number' => 'KB-IN-202608-'.str_pad((string) $sequence, 4, '0', STR_PAD_LEFT),
+                'transaction_date' => '2026-08-01',
+                'type' => CashBankTransaction::TYPE_INCOME,
+                'category' => 'other_income',
+                'amount' => 10_000,
+                'description' => "Transaksi performa {$sequence}.",
+                'source_type' => CashBankTransaction::SOURCE_MANUAL,
+                'status' => CashBankTransaction::STATUS_POSTED,
+                'created_by' => $owner->id,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        CashBankTransaction::query()->insert($rows);
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $this->getJson(route('api.cash-bank.transactions.index', ['per_page' => 50]))
+            ->assertOk()
+            ->assertJsonCount(50, 'data')
+            ->assertJsonPath('data.49.running_balance', 500_000);
+
+        $ledgerQueries = collect(DB::getQueryLog())
+            ->filter(fn (array $query): bool => str_contains(strtolower($query['query']), 'cash_bank_transactions'));
+
+        $this->assertLessThanOrEqual(4, $ledgerQueries->count());
     }
 
     public function test_user_without_permission_cannot_create_manual_transaction(): void

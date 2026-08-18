@@ -12,10 +12,12 @@ use App\Models\StockMovement;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ActsAsOwner;
 use Tests\TestCase;
 
 class ReportsSuiteApiTest extends TestCase
 {
+    use ActsAsOwner;
     use RefreshDatabase;
 
     public function test_gross_profit_report_returns_revenue_hpp_shipping_and_profit(): void
@@ -26,6 +28,7 @@ class ReportsSuiteApiTest extends TestCase
             'invoice_number' => 'INV-2026-0101',
             'issue_date' => '2026-07-10',
             'due_date' => '2026-07-24',
+            'status' => Invoice::STATUS_SENT,
             'payment_status' => Invoice::PAYMENT_PAID,
             'subtotal' => 1000000,
             'discount_amount' => 100000,
@@ -77,6 +80,7 @@ class ReportsSuiteApiTest extends TestCase
             'invoice_number' => 'INV-2026-0098',
             'issue_date' => '2026-05-01',
             'due_date' => '2026-05-14',
+            'status' => Invoice::STATUS_SENT,
             'payment_status' => Invoice::PAYMENT_PAID,
             'subtotal' => 500000,
             'total_amount' => 500000,
@@ -127,6 +131,7 @@ class ReportsSuiteApiTest extends TestCase
             'invoice_number' => 'INV-2026-0103',
             'issue_date' => '2026-07-11',
             'due_date' => '2026-07-25',
+            'status' => Invoice::STATUS_SENT,
             'payment_status' => Invoice::PAYMENT_UNPAID,
             'subtotal' => 1000000,
             'total_hpp' => 600000,
@@ -168,6 +173,8 @@ class ReportsSuiteApiTest extends TestCase
 
     public function test_legacy_report_exports_require_report_export_permission(): void
     {
+        auth()->logout();
+
         foreach ($this->exportRoutes() as $route) {
             $this->getJson(route($route))->assertUnauthorized();
         }

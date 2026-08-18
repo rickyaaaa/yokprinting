@@ -9,10 +9,12 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
+use Tests\Concerns\ActsAsOwner;
 use Tests\TestCase;
 
 class StockMovementApiTest extends TestCase
 {
+    use ActsAsOwner;
     use RefreshDatabase;
 
     public function test_stock_movements_table_contains_inventory_ledger_fields(): void

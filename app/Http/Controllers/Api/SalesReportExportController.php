@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exports\ReportCsvExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ListSalesReportInvoicesRequest;
 use App\Models\Invoice;
@@ -13,17 +14,24 @@ class SalesReportExportController extends Controller
     /**
      * Export filtered sales report invoice rows as an Excel-compatible CSV file.
      */
-    public function __invoke(ListSalesReportInvoicesRequest $request): Response
+    public function __invoke(ListSalesReportInvoicesRequest $request, ReportCsvExport $export): Response
     {
         $filters = $request->validated();
         $rows = $this->rows($filters);
-        $csv = $this->csv($rows);
         $filename = 'laporan-penjualan-'.SalesReportPeriodPresets::today()->format('Y-m-d').'.csv';
 
-        return response($csv, 200, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-        ]);
+        return $export->download($filename, [
+            'Pelanggan',
+            'Email',
+            'Produk',
+            'Kategori',
+            'Invoice',
+            'Tanggal Invoice',
+            'Jatuh Tempo',
+            'Penjualan',
+            'Margin',
+            'Status',
+        ], $rows);
     }
 
     /**
@@ -43,7 +51,7 @@ class SalesReportExportController extends Controller
 
         $query = Invoice::query()
             ->with(['customer', 'items.product'])
-            ->where('status', '!=', Invoice::STATUS_CANCELLED)
+            ->finalized()
             ->whereBetween('issue_date', [$dateFrom->toDateString(), $dateTo->toDateString()]);
 
         if (is_string($category) && trim($category) !== '') {
@@ -143,37 +151,6 @@ class SalesReportExportController extends Controller
         }
 
         return $invoice->payment_status;
-    }
-
-    /**
-     * @param  array<int, array<int, string|float|null>>  $rows
-     */
-    private function csv(array $rows): string
-    {
-        $handle = fopen('php://temp', 'r+');
-
-        fputcsv($handle, [
-            'Pelanggan',
-            'Email',
-            'Produk',
-            'Kategori',
-            'Invoice',
-            'Tanggal Invoice',
-            'Jatuh Tempo',
-            'Penjualan',
-            'Margin',
-            'Status',
-        ]);
-
-        foreach ($rows as $row) {
-            fputcsv($handle, $row);
-        }
-
-        rewind($handle);
-        $csv = stream_get_contents($handle);
-        fclose($handle);
-
-        return "\u{FEFF}".$csv;
     }
 
     private function statusLabel(string $status): string

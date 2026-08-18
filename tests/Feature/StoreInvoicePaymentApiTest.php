@@ -5,12 +5,68 @@ namespace Tests\Feature;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\Role;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class StoreInvoicePaymentApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->actingAs(User::factory()->create(['role' => User::ROLE_OWNER]));
+    }
+
+    public function test_guest_cannot_record_an_invoice_payment(): void
+    {
+        $invoice = $this->createInvoice(totalAmount: 10000000);
+        auth()->logout();
+
+        $this->postJson(route('api.invoices.payments.store', ['invoice' => $invoice->invoice_number]), [
+            'payment_date' => '2026-07-23',
+            'method' => Payment::METHOD_TRANSFER_BCA,
+            'amount' => 1000000,
+        ])->assertUnauthorized();
+
+        $this->assertDatabaseCount('payments', 0);
+    }
+
+    public function test_user_without_payment_permission_cannot_record_a_payment(): void
+    {
+        $invoice = $this->createInvoice(totalAmount: 10000000);
+        $role = Role::factory()->create();
+        $this->actingAs(User::factory()->create(['role' => $role->code]));
+
+        $this->postJson(route('api.invoices.payments.store', ['invoice' => $invoice->invoice_number]), [
+            'payment_date' => '2026-07-23',
+            'method' => Payment::METHOD_TRANSFER_BCA,
+            'amount' => 1000000,
+        ])->assertForbidden();
+
+        $this->assertDatabaseCount('payments', 0);
+    }
+
+    public function test_payment_is_rejected_until_invoice_is_sent(): void
+    {
+        $invoice = $this->createInvoice(totalAmount: 10000000);
+
+        foreach ([Invoice::STATUS_DRAFT, Invoice::STATUS_CANCELLED] as $status) {
+            $invoice->forceFill(['status' => $status])->save();
+
+            $this->postJson(route('api.invoices.payments.store', ['invoice' => $invoice->invoice_number]), [
+                'payment_date' => '2026-07-23',
+                'method' => Payment::METHOD_TRANSFER_BCA,
+                'amount' => 1000000,
+            ])->assertUnprocessable()
+                ->assertJsonValidationErrors('invoice');
+        }
+
+        $this->assertDatabaseCount('payments', 0);
+    }
 
     public function test_payment_can_be_recorded_for_an_invoice(): void
     {

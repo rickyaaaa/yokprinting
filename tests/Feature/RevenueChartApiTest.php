@@ -7,10 +7,12 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ActsAsOwner;
 use Tests\TestCase;
 
 class RevenueChartApiTest extends TestCase
 {
+    use ActsAsOwner;
     use RefreshDatabase;
 
     protected function tearDown(): void

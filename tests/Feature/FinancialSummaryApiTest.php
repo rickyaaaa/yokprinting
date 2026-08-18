@@ -5,10 +5,12 @@ namespace Tests\Feature;
 use App\Models\Customer;
 use App\Models\Invoice;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ActsAsOwner;
 use Tests\TestCase;
 
 class FinancialSummaryApiTest extends TestCase
 {
+    use ActsAsOwner;
     use RefreshDatabase;
 
     public function test_financial_summary_returns_zeroes_instead_of_demo_values_when_empty(): void

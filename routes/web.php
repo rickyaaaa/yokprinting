@@ -24,7 +24,9 @@ Route::get('/login', fn () => response()
     ->header('Pragma', 'no-cache')
     ->header('Expires', '0'))
     ->name('login');
-Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.store');
+Route::post('/login', [AuthenticatedSessionController::class, 'store'])
+    ->middleware('throttle:login')
+    ->name('login.store');
 Route::get('/register', fn () => redirect()
     ->route('login')
     ->with('status', 'Registrasi publik dinonaktifkan. Akun baru hanya dapat dibuat dari dashboard admin.'));
@@ -46,31 +48,63 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
-    Route::get('/dashboard', DashboardPageController::class)->name('dashboard');
-    Route::view('/roles', 'auth.roles')->name('roles.index');
-    Route::view('/roles/create', 'auth.role-form')->name('roles.create');
+    Route::get('/dashboard', DashboardPageController::class)
+        ->middleware('permission:dashboard.view')
+        ->name('dashboard');
+    Route::view('/roles', 'auth.roles')
+        ->middleware('permission:role.view')
+        ->name('roles.index');
+    Route::view('/roles/create', 'auth.role-form')
+        ->middleware('permission:role.create')
+        ->name('roles.create');
     Route::get('/roles/{role}/permissions', function (string $role) {
         return view('auth.role-permissions', ['roleCode' => $role]);
-    })->name('roles.permissions.edit');
+    })->middleware('permission:role.update')->name('roles.permissions.edit');
     Route::get('/roles/{role}/edit', function (string $role) {
         return view('auth.role-form', ['roleCode' => $role]);
-    })->name('roles.edit');
-    Route::view('/activity-logs', 'auth.activity-logs')->name('activity-logs.index');
-    Route::view('/notifications/due-invoices', 'auth.due-invoices')->name('notifications.due-invoices.index');
-    Route::get('/customers', CustomerIndexPageController::class)->name('customers.index');
-    Route::get('/customers/create', [CustomerFormPageController::class, 'create'])->name('customers.create');
-    Route::get('/customers/{customer}/edit', [CustomerFormPageController::class, 'edit'])->name('customers.edit');
-    Route::get('/customers/{customer}', CustomerShowPageController::class)->name('customers.show');
-    Route::get('/products', ProductIndexPageController::class)->name('products.index');
-    Route::view('/products/create', 'products.form')->name('products.create');
+    })->middleware('permission:role.update')->name('roles.edit');
+    Route::view('/activity-logs', 'auth.activity-logs')
+        ->middleware('permission:activity_log.view')
+        ->name('activity-logs.index');
+    Route::view('/notifications/due-invoices', 'auth.due-invoices')
+        ->middleware('permission:payment.view')
+        ->name('notifications.due-invoices.index');
+    Route::get('/customers', CustomerIndexPageController::class)
+        ->middleware('permission:customer.view')
+        ->name('customers.index');
+    Route::get('/customers/create', [CustomerFormPageController::class, 'create'])
+        ->middleware('permission:customer.create')
+        ->name('customers.create');
+    Route::get('/customers/{customer}/edit', [CustomerFormPageController::class, 'edit'])
+        ->middleware('permission:customer.update')
+        ->name('customers.edit');
+    Route::get('/customers/{customer}', CustomerShowPageController::class)
+        ->middleware('permission:customer.view')
+        ->name('customers.show');
+    Route::get('/products', ProductIndexPageController::class)
+        ->middleware('permission:product.view')
+        ->name('products.index');
+    Route::view('/products/create', 'products.form')
+        ->middleware('permission:product.create')
+        ->name('products.create');
     Route::get('/products/{product}/edit', function (string $product) {
         return view('products.form', ['productCode' => $product]);
-    })->name('products.edit');
-    Route::get('/invoices', InvoiceIndexPageController::class)->name('invoices.index');
-    Route::view('/invoices/create', 'invoices.create')->name('invoices.create');
-    Route::view('/invoices/preview', 'invoices.preview')->name('invoices.preview');
-    Route::get('/payments/receivables', ReceivablePageController::class)->name('payments.receivables.index');
-    Route::get('/payments/history', PaymentHistoryPageController::class)->name('payments.history.index');
+    })->middleware('permission:product.update')->name('products.edit');
+    Route::get('/invoices', InvoiceIndexPageController::class)
+        ->middleware('permission:invoice.view')
+        ->name('invoices.index');
+    Route::view('/invoices/create', 'invoices.create')
+        ->middleware('permission:invoice.create')
+        ->name('invoices.create');
+    Route::view('/invoices/preview', 'invoices.preview')
+        ->middleware('permission:invoice.create')
+        ->name('invoices.preview');
+    Route::get('/payments/receivables', ReceivablePageController::class)
+        ->middleware('permission:payment.view')
+        ->name('payments.receivables.index');
+    Route::get('/payments/history', PaymentHistoryPageController::class)
+        ->middleware('permission:payment.view')
+        ->name('payments.history.index');
     Route::view('/cash-bank', 'cash-bank.index')
         ->middleware('permission:cash_bank.view')
         ->name('cash-bank.index');
@@ -135,5 +169,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/api/reports/profit-loss/excel', [ProfitLossReportController::class, 'excel'])
         ->middleware(['permission:report.export', 'throttle:report-export'])
         ->name('api.reports.profit-loss.excel');
-    Route::view('/settings/company-profile', 'settings.company-profile')->name('settings.company-profile.edit');
+    Route::view('/settings/company-profile', 'settings.company-profile')
+        ->middleware('permission:setting.view')
+        ->name('settings.company-profile.edit');
 });

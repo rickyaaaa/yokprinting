@@ -251,6 +251,74 @@ class CashBankService
         return round((float) $account->opening_balance + $net, 2);
     }
 
+    /**
+     * Calculate running balances for a chronologically ordered page with a constant number of queries.
+     *
+     * @param  iterable<int, CashBankTransaction>  $transactions
+     * @return array<int, float>
+     */
+    public function runningBalancesFor(BankAccount $account, iterable $transactions): array
+    {
+        $rows = collect($transactions)->values();
+
+        if ($rows->isEmpty()) {
+            return [];
+        }
+
+        /** @var CashBankTransaction $first */
+        $first = $rows->first();
+        /** @var CashBankTransaction $last */
+        $last = $rows->last();
+        $firstDate = $first->transaction_date->toDateString();
+        $lastDate = $last->transaction_date->toDateString();
+        $netBeforePage = (float) $account->transactions()->posted()
+            ->where(function ($query) use ($first, $firstDate): void {
+                $query->whereDate('transaction_date', '<', $firstDate)
+                    ->orWhere(function ($query) use ($first, $firstDate): void {
+                        $query->whereDate('transaction_date', $firstDate)
+                            ->where('id', '<', $first->getKey());
+                    });
+            })
+            ->selectRaw('COALESCE(SUM(CASE WHEN type = ? THEN amount ELSE -amount END), 0) AS net', [CashBankTransaction::TYPE_INCOME])
+            ->value('net');
+        $postedInRange = $account->transactions()->posted()
+            ->where(function ($query) use ($first, $firstDate): void {
+                $query->whereDate('transaction_date', '>', $firstDate)
+                    ->orWhere(function ($query) use ($first, $firstDate): void {
+                        $query->whereDate('transaction_date', $firstDate)
+                            ->where('id', '>=', $first->getKey());
+                    });
+            })
+            ->where(function ($query) use ($last, $lastDate): void {
+                $query->whereDate('transaction_date', '<', $lastDate)
+                    ->orWhere(function ($query) use ($last, $lastDate): void {
+                        $query->whereDate('transaction_date', $lastDate)
+                            ->where('id', '<=', $last->getKey());
+                    });
+            })
+            ->orderBy('transaction_date')
+            ->orderBy('id')
+            ->get(['id', 'transaction_date', 'type', 'amount']);
+        $running = round((float) $account->opening_balance + $netBeforePage, 2);
+        $postedIndex = 0;
+        $balances = [];
+
+        foreach ($rows as $row) {
+            while (isset($postedInRange[$postedIndex])
+                && $this->comesBeforeOrAt($postedInRange[$postedIndex], $row)) {
+                $posted = $postedInRange[$postedIndex];
+                $running += $posted->type === CashBankTransaction::TYPE_INCOME
+                    ? (float) $posted->amount
+                    : -(float) $posted->amount;
+                $postedIndex++;
+            }
+
+            $balances[$row->getKey()] = round($running, 2);
+        }
+
+        return $balances;
+    }
+
     private function nextTransactionNumber(BankAccount $account, string $type, string $period): string
     {
         $prefix = $type === CashBankTransaction::TYPE_INCOME ? 'KB-IN' : 'KB-OUT';
@@ -263,6 +331,15 @@ class CashBankService
         $sequence = $last ? ((int) substr($last, -4)) + 1 : 1;
 
         return $base.str_pad((string) $sequence, 4, '0', STR_PAD_LEFT);
+    }
+
+    private function comesBeforeOrAt(CashBankTransaction $candidate, CashBankTransaction $target): bool
+    {
+        $candidateDate = $candidate->transaction_date->toDateString();
+        $targetDate = $target->transaction_date->toDateString();
+
+        return $candidateDate < $targetDate
+            || ($candidateDate === $targetDate && $candidate->getKey() <= $target->getKey());
     }
 
     private function cancelSourceTransaction(string $sourceType, int $sourceId, ?int $cancelledBy): ?CashBankTransaction

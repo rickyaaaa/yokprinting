@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Requests\RegisterUserRequest;
+use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Session\TokenMismatchException;
@@ -41,6 +42,7 @@ class LoginEndpointTest extends TestCase
 
         $user->refresh();
 
+        $this->assertAuthenticatedAs($user);
         $this->assertNotNull($user->last_login_at);
         $this->assertNotNull($user->last_login_ip);
     }
@@ -75,6 +77,28 @@ class LoginEndpointTest extends TestCase
         ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['username']);
+    }
+
+    public function test_login_attempts_are_rate_limited_and_audit_writes_are_bounded(): void
+    {
+        User::factory()->create([
+            'username' => 'target-user',
+            'password' => Hash::make('correct-password'),
+        ]);
+
+        foreach (range(1, 5) as $attempt) {
+            $this->postJson(route('api.auth.login'), [
+                'username' => 'target-user',
+                'password' => 'wrong-password',
+            ])->assertUnprocessable();
+        }
+
+        $this->postJson(route('api.auth.login'), [
+            'username' => 'target-user',
+            'password' => 'wrong-password',
+        ])->assertTooManyRequests();
+
+        $this->assertSame(5, ActivityLog::query()->where('action', 'login_failed')->count());
     }
 
     public function test_user_can_login_through_web_session_endpoint(): void

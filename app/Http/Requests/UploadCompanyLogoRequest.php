@@ -23,7 +23,13 @@ class UploadCompanyLogoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'logo' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,svg', 'max:2048'],
+            'logo' => [
+                'required',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:2048',
+                'dimensions:max_width=4096,max_height=4096',
+            ],
         ];
     }
 }

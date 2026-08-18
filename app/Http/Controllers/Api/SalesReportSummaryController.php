@@ -90,7 +90,7 @@ class SalesReportSummaryController extends Controller
     private function invoiceQuery(CarbonImmutable $dateFrom, CarbonImmutable $dateTo): Builder
     {
         return Invoice::query()
-            ->where('status', '!=', Invoice::STATUS_CANCELLED)
+            ->finalized()
             ->whereBetween('issue_date', [$dateFrom->toDateString(), $dateTo->toDateString()]);
     }
 

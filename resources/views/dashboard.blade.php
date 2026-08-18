@@ -256,7 +256,7 @@
                                             </div>
                                             <div class="mt-4 flex items-center justify-between gap-3" x-data="invoiceWhatsAppDelivery" data-endpoint="{{ $notification['whatsapp_endpoint'] }}" data-purpose="reminder" data-sent="true">
                                                 <span class="text-sm font-semibold text-ink">{{ $notification['amount'] }}</span>
-                                                <button type="button" class="rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-800 hover:bg-green-100 disabled:cursor-wait disabled:opacity-70" :disabled="sending" :aria-busy="sending" @click="send()">
+                                                <button type="button" class="min-h-11 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-800 hover:bg-green-100 disabled:cursor-wait disabled:opacity-70" :disabled="sending" :aria-busy="sending" @click="send()">
                                                     <span x-text="sending ? 'Membuka WA…' : 'Ingatkan via WA'">Ingatkan via WA</span>
                                                 </button>
                                             </div>
@@ -266,7 +266,7 @@
                                 </div>
 
                                 <div class="border-t border-line px-5 py-4">
-                                    <a href="{{ route('notifications.due-invoices.index') }}" class="inline-flex w-full items-center justify-center rounded-lg bg-brand-700 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-800">
+                                    <a href="{{ route('notifications.due-invoices.index') }}" class="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand-700 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-800">
                                         Lihat daftar jatuh tempo
                                     </a>
                                 </div>

@@ -28,7 +28,7 @@ class SalesReportInvoiceController extends Controller
 
         $query = Invoice::query()
             ->with(['customer', 'items.product'])
-            ->where('status', '!=', Invoice::STATUS_CANCELLED)
+            ->finalized()
             ->whereBetween('issue_date', [$dateFrom->toDateString(), $dateTo->toDateString()]);
 
         if (is_string($category) && trim($category) !== '') {

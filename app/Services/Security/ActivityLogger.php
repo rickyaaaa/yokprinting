@@ -24,9 +24,12 @@ class ActivityLogger
         string $riskLevel = ActivityLog::RISK_LOW,
         ?User $actor = null,
         ?Request $request = null,
+        bool $inferActor = true,
     ): ActivityLog {
         $request ??= request();
-        $actor ??= $request->user();
+        if ($inferActor && $actor === null) {
+            $actor = $request->user();
+        }
 
         return ActivityLog::query()->create([
             'user_id' => $actor?->getKey(),

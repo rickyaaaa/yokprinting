@@ -6,10 +6,12 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
+use Tests\Concerns\ActsAsOwner;
 use Tests\TestCase;
 
 class ProductCategoryApiTest extends TestCase
 {
+    use ActsAsOwner;
     use RefreshDatabase;
 
     public function test_product_category_schema_and_product_relation_are_available(): void

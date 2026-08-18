@@ -4,10 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\ApplicationSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ActsAsOwner;
 use Tests\TestCase;
 
 class ThemeDefaultSettingsApiTest extends TestCase
 {
+    use ActsAsOwner;
     use RefreshDatabase;
 
     public function test_theme_default_settings_endpoint_returns_seeded_defaults(): void

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Invoice;
+use App\Models\Payment;
 use App\Models\Product;
 use Illuminate\Contracts\View\View;
 
@@ -10,39 +11,55 @@ class DashboardPageController extends Controller
 {
     public function __invoke(): View
     {
-        $invoices = Invoice::query()
-            ->with(['customer', 'items'])
-            ->withSum(['payments as verified_paid_amount' => fn ($query) => $query->verified()], 'amount')
-            ->where('status', '!=', Invoice::STATUS_CANCELLED)
-            ->get();
-        $sent = $invoices->where('status', Invoice::STATUS_SENT);
-        $receivables = $sent->where('payment_status', '!=', Invoice::PAYMENT_PAID);
-        $paid = (float) $sent->sum('verified_paid_amount');
-        $outstanding = (float) $receivables->sum(fn (Invoice $invoice): float => max(0, (float) $invoice->total_amount - (float) ($invoice->verified_paid_amount ?? 0)));
-        $overdue = $receivables->filter(fn (Invoice $invoice): bool => $invoice->due_date->isPast()
-        );
-        $overdueAmount = (float) $overdue->sum(fn (Invoice $invoice): float => max(0, (float) $invoice->total_amount - (float) ($invoice->verified_paid_amount ?? 0)));
-        $revenueThisMonth = (float) $sent->filter(fn (Invoice $invoice): bool => $invoice->issue_date->isCurrentMonth())->sum('total_amount');
+        $monthStart = today()->startOfMonth()->toDateString();
+        $monthEnd = today()->endOfMonth()->toDateString();
+        $revenueThisMonth = (float) Invoice::query()
+            ->finalized()
+            ->whereBetween('issue_date', [$monthStart, $monthEnd])
+            ->sum('total_amount');
+        $revenueInvoiceCount = Invoice::query()
+            ->finalized()
+            ->whereBetween('issue_date', [$monthStart, $monthEnd])
+            ->count();
+        $paid = (float) Payment::query()
+            ->verified()
+            ->whereHas('invoice', fn ($query) => $query->finalized())
+            ->sum('amount');
+        $paidInvoiceCount = Invoice::query()
+            ->finalized()
+            ->where('payment_status', Invoice::PAYMENT_PAID)
+            ->count();
+        $receivableCount = Invoice::query()->receivable()->count();
+        $overdueCount = Invoice::query()->receivable()->overdue()->count();
+        $outstanding = $this->outstandingTotal();
+        $overdueAmount = $this->outstandingTotal(overdueOnly: true);
 
         $totalCashflow = max(1, $paid + $outstanding);
         $pendingAmount = max(0, $outstanding - $overdueAmount);
 
-        $upcoming = $receivables
-            ->sortBy('due_date')
-            ->take(3);
+        $upcoming = Invoice::query()
+            ->receivable()
+            ->with('customer')
+            ->withSum(['payments as verified_paid_amount' => fn ($query) => $query->verified()], 'amount')
+            ->orderBy('due_date')
+            ->limit(3)
+            ->get();
 
         $lowStock = Product::query()->selectable()->lowStock()->orderBy('stock')->take(5)->get();
-        $queue = $invoices
+        $queue = Invoice::query()
+            ->with(['customer', 'items'])
+            ->where('status', '!=', Invoice::STATUS_CANCELLED)
             ->where('production_status', '!=', Invoice::PRODUCTION_COMPLETED)
-            ->sortByDesc('issue_date')
-            ->take(6);
+            ->latest('issue_date')
+            ->limit(6)
+            ->get();
 
         return view('dashboard', [
             'summaryCards' => [
-                ['label' => 'Pendapatan bulan ini', 'value' => $this->rupiah($revenueThisMonth), 'change' => $sent->filter(fn (Invoice $invoice): bool => $invoice->issue_date->isCurrentMonth())->count().' invoice', 'changeTone' => 'success', 'caption' => 'Invoice final bulan berjalan', 'icon' => 'revenue'],
-                ['label' => 'Invoice tertagih', 'value' => $this->rupiah($paid), 'change' => $sent->where('payment_status', Invoice::PAYMENT_PAID)->count().' lunas', 'changeTone' => 'brand', 'caption' => 'Pembayaran terverifikasi', 'icon' => 'paid'],
-                ['label' => 'Menunggu bayar', 'value' => $this->rupiah($outstanding), 'change' => $receivables->count().' invoice', 'changeTone' => 'warning', 'caption' => 'Sisa pembayaran', 'icon' => 'pending'],
-                ['label' => 'Lewat tempo', 'value' => $this->rupiah($overdueAmount), 'change' => $overdue->count().' invoice', 'changeTone' => 'danger', 'caption' => 'Perlu tindak lanjut', 'icon' => 'overdue'],
+                ['label' => 'Pendapatan bulan ini', 'value' => $this->rupiah($revenueThisMonth), 'change' => $revenueInvoiceCount.' invoice', 'changeTone' => 'success', 'caption' => 'Invoice final bulan berjalan', 'icon' => 'revenue'],
+                ['label' => 'Invoice tertagih', 'value' => $this->rupiah($paid), 'change' => $paidInvoiceCount.' lunas', 'changeTone' => 'brand', 'caption' => 'Pembayaran terverifikasi', 'icon' => 'paid'],
+                ['label' => 'Menunggu bayar', 'value' => $this->rupiah($outstanding), 'change' => $receivableCount.' invoice', 'changeTone' => 'warning', 'caption' => 'Sisa pembayaran', 'icon' => 'pending'],
+                ['label' => 'Lewat tempo', 'value' => $this->rupiah($overdueAmount), 'change' => $overdueCount.' invoice', 'changeTone' => 'danger', 'caption' => 'Perlu tindak lanjut', 'icon' => 'overdue'],
             ],
             'cashflowSegments' => [
                 ['label' => 'Tertagih', 'value' => round($paid / $totalCashflow * 100).'%', 'class' => 'bg-brand-600'],
@@ -90,5 +107,30 @@ class DashboardPageController extends Controller
     private function rupiah(float $amount): string
     {
         return 'Rp'.number_format($amount, 0, ',', '.');
+    }
+
+    /**
+     * Calculate receivable totals in SQL without hydrating the whole invoice ledger.
+     */
+    private function outstandingTotal(bool $overdueOnly = false): float
+    {
+        $verifiedPayments = Payment::query()
+            ->verified()
+            ->selectRaw('invoice_id, SUM(amount) as paid_amount')
+            ->groupBy('invoice_id');
+
+        $query = Invoice::query()
+            ->receivable()
+            ->leftJoinSub($verifiedPayments, 'verified_payments', function ($join): void {
+                $join->on('verified_payments.invoice_id', '=', 'invoices.id');
+            });
+
+        if ($overdueOnly) {
+            $query->whereDate('invoices.due_date', '<', today());
+        }
+
+        return max(0, (float) $query
+            ->selectRaw('COALESCE(SUM(invoices.total_amount - COALESCE(verified_payments.paid_amount, 0)), 0) as outstanding_total')
+            ->value('outstanding_total'));
     }
 }
