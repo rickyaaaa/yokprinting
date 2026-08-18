@@ -114,4 +114,10 @@ class CsrfMetaTagPresenceTest extends TestCase
         $this->get(route('expenses.index'))->assertSee('name="csrf-token"', false);
         $this->get(route('expenses.create'))->assertSee('name="csrf-token"', false);
     }
+
+    public function test_purchase_order_pages_have_csrf_meta_tag(): void
+    {
+        $this->get(route('purchase-orders.index'))->assertSee('name="csrf-token"', false);
+        $this->get(route('purchase-orders.create'))->assertSee('name="csrf-token"', false);
+    }
 }

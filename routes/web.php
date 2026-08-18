@@ -115,6 +115,12 @@ Route::middleware('auth')->group(function () {
     Route::patch('/api/invoices/{invoice:invoice_number}/production-status', [InvoiceProductionStatusController::class, 'update'])
         ->middleware('permission:invoice.update')
         ->name('api.invoices.production-status.update');
+    Route::view('/purchase-orders', 'purchase-orders.index')
+        ->middleware('permission:purchase_order.view')
+        ->name('purchase-orders.index');
+    Route::view('/purchase-orders/create', 'purchase-orders.create')
+        ->middleware('permission:purchase_order.create')
+        ->name('purchase-orders.create');
     Route::view('/expenses', 'expenses.index')
         ->middleware('permission:expense.view')
         ->name('expenses.index');

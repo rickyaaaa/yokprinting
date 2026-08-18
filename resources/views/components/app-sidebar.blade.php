@@ -35,6 +35,12 @@
             && $currentRole->status !== \App\Models\Role::STATUS_DISABLED
             && $currentRole->permissions->contains('code', 'cash_bank.view'))
     );
+    $canViewPurchaseOrders = $currentUser?->isActive() && (
+        $currentUser->role === \App\Models\User::ROLE_OWNER
+        || ($currentRole
+            && $currentRole->status !== \App\Models\Role::STATUS_DISABLED
+            && $currentRole->permissions->contains('code', 'purchase_order.view'))
+    );
 
     $navGroups = [
         [
@@ -55,6 +61,7 @@
             'items' => [
                 ['label' => 'Pelanggan', 'route' => 'customers.index', 'active' => ['customers.*'], 'icon' => 'customers'],
                 ['label' => 'Produk', 'route' => 'products.index', 'active' => ['products.*'], 'icon' => 'products'],
+                ['label' => 'Purchase Order', 'route' => 'purchase-orders.index', 'active' => ['purchase-orders.*'], 'icon' => 'purchase-order', 'visible' => $canViewPurchaseOrders],
                 ['label' => 'Laporan penjualan', 'route' => 'reports.sales.index', 'active' => ['reports.sales.*'], 'icon' => 'reports', 'visible' => $canViewReports],
                 ['label' => 'Laba rugi', 'route' => 'reports.profit-loss.index', 'active' => ['reports.profit-loss.*'], 'icon' => 'profit-loss', 'visible' => $canViewReports],
                 ['label' => 'Pengaturan', 'route' => 'settings.company-profile.edit', 'active' => ['settings.*'], 'icon' => 'settings'],
@@ -153,6 +160,11 @@
                                 @case('products')
                                     <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" stroke-linejoin="round"/>
                                     <path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12.1V21" stroke-linejoin="round"/>
+                                    @break
+
+                                @case('purchase-order')
+                                    <path d="M3 4h2l1.6 10.2A2 2 0 0 0 8.6 16h8.3a2 2 0 0 0 2-1.7L20 7H6" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2ZM17 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
                                     @break
 
                                 @case('reports')

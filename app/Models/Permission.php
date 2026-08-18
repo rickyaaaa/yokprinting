@@ -41,6 +41,8 @@ class Permission extends Model
 
     public const MODULE_ROLE = 'role';
 
+    public const MODULE_PURCHASE_ORDER = 'purchase_order';
+
     /**
      * The model's default values for attributes.
      *

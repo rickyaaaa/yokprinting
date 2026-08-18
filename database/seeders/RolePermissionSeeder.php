@@ -24,6 +24,7 @@ class RolePermissionSeeder extends Seeder
             Permission::MODULE_CASH_BANK => 'Kas & Bank',
             Permission::MODULE_SETTING => 'Pengaturan',
             Permission::MODULE_ROLE => 'Role',
+            Permission::MODULE_PURCHASE_ORDER => 'Purchase Order',
         ];
 
         $actions = [
@@ -32,14 +33,19 @@ class RolePermissionSeeder extends Seeder
             'update' => ['label' => 'Ubah', 'risk' => Permission::RISK_MEDIUM],
             'delete' => ['label' => 'Hapus', 'risk' => Permission::RISK_HIGH],
             'export' => ['label' => 'Export', 'risk' => Permission::RISK_MEDIUM],
+            'submit' => ['label' => 'Ajukan', 'risk' => Permission::RISK_MEDIUM],
+            'approve' => ['label' => 'Setujui', 'risk' => Permission::RISK_HIGH],
+            'cancel' => ['label' => 'Batalkan', 'risk' => Permission::RISK_HIGH],
         ];
 
         $sort = 10;
 
         foreach ($modules as $module => $moduleLabel) {
-            $moduleActions = in_array($module, [Permission::MODULE_EXPENSE, Permission::MODULE_CASH_BANK], true)
-                ? ['view', 'create', 'update', 'delete']
-                : array_keys($actions);
+            $moduleActions = match ($module) {
+                Permission::MODULE_EXPENSE, Permission::MODULE_CASH_BANK => ['view', 'create', 'update', 'delete'],
+                Permission::MODULE_PURCHASE_ORDER => ['view', 'create', 'update', 'submit', 'approve', 'cancel'],
+                default => ['view', 'create', 'update', 'delete', 'export'],
+            };
 
             foreach ($moduleActions as $action) {
                 $meta = $actions[$action];
@@ -95,6 +101,12 @@ class RolePermissionSeeder extends Seeder
                     'cash_bank.create',
                     'cash_bank.update',
                     'cash_bank.delete',
+                    'purchase_order.view',
+                    'purchase_order.create',
+                    'purchase_order.update',
+                    'purchase_order.submit',
+                    'purchase_order.approve',
+                    'purchase_order.cancel',
                 ],
             ],
             Role::CODE_OPERATIONS => [
@@ -110,6 +122,10 @@ class RolePermissionSeeder extends Seeder
                     'product.view',
                     'product.update',
                     'payment.view',
+                    'purchase_order.view',
+                    'purchase_order.create',
+                    'purchase_order.update',
+                    'purchase_order.submit',
                 ],
             ],
             Role::CODE_VIEWER => [
@@ -124,6 +140,7 @@ class RolePermissionSeeder extends Seeder
                     'product.view',
                     'payment.view',
                     'report.view',
+                    'purchase_order.view',
                 ],
             ],
         ];

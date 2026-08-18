@@ -36,12 +36,14 @@ import {
 import { registerExpenseComponents } from './expenses';
 import { registerProfitLossComponents } from './profit-loss';
 import { registerCashBankComponents } from './cash-bank';
+import { registerPurchaseOrderComponents } from './purchase-orders';
 
 window.Alpine = Alpine;
 
 registerExpenseComponents(Alpine);
 registerProfitLossComponents(Alpine);
 registerCashBankComponents(Alpine);
+registerPurchaseOrderComponents(Alpine);
 
 Chart.register(BarController, BarElement, CategoryScale, Filler, LinearScale, LineController, LineElement, PointElement, Legend, Tooltip);
 

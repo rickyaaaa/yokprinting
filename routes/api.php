@@ -26,6 +26,10 @@ use App\Http\Controllers\Api\ProductCategoryController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProductLowStockSummaryController;
 use App\Http\Controllers\Api\ProductOptionController;
+use App\Http\Controllers\Api\PurchaseOrderApprovalController;
+use App\Http\Controllers\Api\PurchaseOrderCancellationController;
+use App\Http\Controllers\Api\PurchaseOrderController;
+use App\Http\Controllers\Api\PurchaseOrderSubmissionController;
 use App\Http\Controllers\Api\ReceivableController;
 use App\Http\Controllers\Api\RecentActivitiesController;
 use App\Http\Controllers\Api\ReportExportController;
@@ -181,6 +185,25 @@ Route::middleware(['web', 'auth'])->group(function (): void {
         ->middlewareFor('update', 'permission:product.update')
         ->middlewareFor('destroy', 'permission:product.delete')
         ->names('api.suppliers');
+
+    Route::apiResource('purchase-orders', PurchaseOrderController::class)
+        ->only(['index', 'store', 'show', 'update'])
+        ->middlewareFor(['index', 'show'], 'permission:purchase_order.view')
+        ->middlewareFor('store', 'permission:purchase_order.create')
+        ->middlewareFor('update', 'permission:purchase_order.update')
+        ->names('api.purchase-orders');
+
+    Route::post('/purchase-orders/{purchase_order}/submit', [PurchaseOrderSubmissionController::class, 'store'])
+        ->middleware('permission:purchase_order.submit')
+        ->name('api.purchase-orders.submit');
+
+    Route::post('/purchase-orders/{purchase_order}/approve', [PurchaseOrderApprovalController::class, 'store'])
+        ->middleware('permission:purchase_order.approve')
+        ->name('api.purchase-orders.approve');
+
+    Route::post('/purchase-orders/{purchase_order}/cancel', [PurchaseOrderCancellationController::class, 'store'])
+        ->middleware('permission:purchase_order.cancel')
+        ->name('api.purchase-orders.cancel');
 
     Route::get('/roles', [RoleController::class, 'index'])
         ->middleware('permission:role.view')
