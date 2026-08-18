@@ -110,7 +110,7 @@
                             </div>
                             <button type="button" class="min-h-11 min-w-11 rounded-lg px-3 py-2 text-sm font-semibold text-muted hover:bg-canvas" @click="formOpen = false">Tutup</button>
                         </div>
-                        <form class="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-[10rem_12rem_minmax(12rem,1fr)_12rem_minmax(16rem,1.5fr)_auto] sm:p-6" @submit.prevent="save()">
+                        <form class="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-[10rem_12rem_minmax(12rem,1fr)_10rem_12rem_minmax(16rem,1.5fr)_auto] sm:p-6" @submit.prevent="save()">
                             <label>
                                 <span class="mb-1.5 block text-xs font-semibold text-muted">Tanggal</span>
                                 <input id="transaction-date" type="date" class="form-control" x-model="form.transaction_date" :aria-invalid="Boolean(fieldError(errors, 'transaction_date'))" aria-describedby="transaction-date-error" required>
@@ -130,6 +130,14 @@
                                     <template x-for="(label, value) in categories" :key="value"><option :value="value" x-text="label"></option></template>
                                 </select>
                                 <span id="transaction-category-error" x-show="fieldError(errors, 'category')" class="mt-1.5 block text-xs text-red-700" x-text="fieldError(errors, 'category')" role="alert"></span>
+                            </label>
+                            <label>
+                                <span class="mb-1.5 block text-xs font-semibold text-muted">Metode</span>
+                                <select id="transaction-payment-method" class="form-control" x-model="form.payment_method" :aria-invalid="Boolean(fieldError(errors, 'payment_method'))" aria-describedby="transaction-payment-method-error" required>
+                                    <option value="transfer">Transfer</option>
+                                    <option value="cash">Tunai</option>
+                                </select>
+                                <span id="transaction-payment-method-error" x-show="fieldError(errors, 'payment_method')" class="mt-1.5 block text-xs text-red-700" x-text="fieldError(errors, 'payment_method')" role="alert"></span>
                             </label>
                             <label>
                                 <span class="mb-1.5 block text-xs font-semibold text-muted">Nominal</span>
@@ -153,11 +161,12 @@
                             <h2 id="cash-bank-history-heading" class="font-semibold text-ink">Histori transaksi</h2>
                             <p class="mt-1 text-sm text-muted">Saldo berjalan dihitung dari saldo awal dan seluruh transaksi tercatat sebelumnya.</p>
                         </div>
-                        <form class="grid gap-3 border-b border-line p-5 md:grid-cols-2 xl:grid-cols-[minmax(13rem,1fr)_10rem_10rem_12rem_auto_auto]" @submit.prevent="loadTransactions()">
+                        <form class="grid gap-3 border-b border-line p-5 md:grid-cols-2 xl:grid-cols-[minmax(13rem,1fr)_10rem_10rem_10rem_10rem_auto_auto]" @submit.prevent="loadTransactions()">
                             <label><span class="mb-1.5 block text-xs font-semibold text-muted">Pencarian</span><input type="search" class="form-control" x-model="filters.search" placeholder="Nomor, kategori, keterangan"></label>
                             <label><span class="mb-1.5 block text-xs font-semibold text-muted">Dari tanggal</span><input type="date" class="form-control" x-model="filters.date_from"></label>
                             <label><span class="mb-1.5 block text-xs font-semibold text-muted">Sampai tanggal</span><input type="date" class="form-control" x-model="filters.date_to"></label>
                             <label><span class="mb-1.5 block text-xs font-semibold text-muted">Jenis</span><select class="form-control" x-model="filters.type"><option value="">Semua transaksi</option><option value="income">Uang Masuk</option><option value="expense">Uang Keluar</option></select></label>
+                            <label><span class="mb-1.5 block text-xs font-semibold text-muted">Metode</span><select class="form-control" x-model="filters.payment_method"><option value="">Semua metode</option><option value="transfer">Transfer</option><option value="cash">Tunai</option></select></label>
                             <button type="submit" class="min-h-11 self-end rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-wait disabled:opacity-60" :disabled="loading" x-text="loading ? 'Memuat...' : 'Terapkan'"></button>
                             <button type="button" class="min-h-11 self-end rounded-lg border border-line px-4 py-2.5 text-sm font-semibold text-muted hover:bg-canvas disabled:cursor-wait disabled:opacity-60" :disabled="loading" @click="resetFilters()">Reset</button>
                         </form>
@@ -168,7 +177,7 @@
                         <div x-show="!loading" class="overflow-x-auto" :aria-busy="loading">
                             <table class="w-full min-w-[1100px] text-left text-sm">
                                 <thead><tr class="border-b border-line text-xs font-semibold text-muted">
-                                    <th class="px-5 py-3 sm:px-6">Tanggal / Nomor</th><th class="px-5 py-3">Keterangan</th><th class="px-5 py-3">Sumber</th>
+                                    <th class="px-5 py-3 sm:px-6">Tanggal / Nomor</th><th class="px-5 py-3">Keterangan</th><th class="px-5 py-3">Sumber</th><th class="px-5 py-3">Metode</th>
                                     <th class="px-5 py-3 text-right">Masuk</th><th class="px-5 py-3 text-right">Keluar</th><th class="px-5 py-3 text-right">Saldo</th><th class="px-5 py-3">Status</th><th class="px-5 py-3 text-right sm:px-6">Aksi</th>
                                 </tr></thead>
                                 <tbody class="divide-y divide-line">
@@ -177,6 +186,9 @@
                                             <td class="whitespace-nowrap px-5 py-4 sm:px-6"><span class="block font-medium text-ink" x-text="formatDate(transaction.transaction_date)"></span><span class="mt-1 block font-mono text-xs text-muted" x-text="transaction.transaction_number"></span></td>
                                             <td class="max-w-sm px-5 py-4"><span class="block font-medium text-ink" x-text="transaction.category_label"></span><span class="mt-1 block text-xs leading-5 text-muted" x-text="transaction.description"></span></td>
                                             <td class="px-5 py-4 text-muted" x-text="transaction.source_label"></td>
+                                            <td class="px-5 py-4">
+                                                <span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="transaction.payment_method === 'cash' ? 'bg-yellow-100 text-yellow-900' : 'bg-brand-100 text-brand-800'" x-text="transaction.payment_method_label"></span>
+                                            </td>
                                             <td class="whitespace-nowrap px-5 py-4 text-right font-semibold text-green-700" x-text="transaction.income ? formatRupiah(transaction.income) : '-' "></td>
                                             <td class="whitespace-nowrap px-5 py-4 text-right font-semibold text-red-700" x-text="transaction.expense ? formatRupiah(transaction.expense) : '-' "></td>
                                             <td class="whitespace-nowrap px-5 py-4 text-right font-semibold text-ink" x-text="formatRupiah(transaction.running_balance)"></td>
@@ -187,7 +199,7 @@
                                             </div></td>
                                         </tr>
                                     </template>
-                                    <tr x-show="transactions.length === 0"><td colspan="8" class="px-5 py-12 text-center text-muted">Belum ada transaksi yang sesuai filter.</td></tr>
+                                    <tr x-show="transactions.length === 0"><td colspan="9" class="px-5 py-12 text-center text-muted">Belum ada transaksi yang sesuai filter.</td></tr>
                                 </tbody>
                             </table>
                         </div>

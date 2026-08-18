@@ -54,6 +54,7 @@ class CashBankController extends Controller
             ->when($filters['date_to'] ?? null, fn (Builder $query, string $date): Builder => $query->whereDate('transaction_date', '<=', $date))
             ->when($filters['type'] ?? null, fn (Builder $query, string $type): Builder => $query->where('type', $type))
             ->when($filters['category'] ?? null, fn (Builder $query, string $category): Builder => $query->where('category', $category))
+            ->when($filters['payment_method'] ?? null, fn (Builder $query, string $method): Builder => $query->where('payment_method', $method))
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $query->where(function (Builder $query) use ($search): void {
                     $query->where('transaction_number', 'like', "%{$search}%")
@@ -160,6 +161,8 @@ class CashBankController extends Controller
             'type_label' => $transaction->type === CashBankTransaction::TYPE_INCOME ? 'Uang Masuk' : 'Uang Keluar',
             'category' => $transaction->category,
             'category_label' => $this->categoryLabel($transaction->category),
+            'payment_method' => $transaction->payment_method,
+            'payment_method_label' => $transaction->payment_method === CashBankTransaction::PAYMENT_METHOD_CASH ? 'Tunai' : 'Transfer',
             'amount' => (float) $transaction->amount,
             'description' => $transaction->description,
             'source_type' => $transaction->source_type,

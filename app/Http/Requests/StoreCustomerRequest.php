@@ -27,10 +27,10 @@ class StoreCustomerRequest extends FormRequest
         return [
             'code' => ['sometimes', 'nullable', 'string', 'max:50', 'unique:customers,code'],
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email:rfc', 'max:255', 'unique:customers,email'],
+            'email' => ['sometimes', 'nullable', 'email:rfc', 'max:255', 'unique:customers,email'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:50'],
             'address' => ['required', 'string', 'max:2000'],
-            'city' => ['required', 'string', 'max:100'],
+            'city' => ['sometimes', 'nullable', 'string', 'max:100'],
             'province' => ['sometimes', 'nullable', 'string', 'max:100'],
             'postal_code' => ['sometimes', 'nullable', 'string', 'max:20'],
             'tax_number' => ['sometimes', 'nullable', 'string', 'max:50'],

@@ -136,10 +136,28 @@ class CustomerCrudApiTest extends TestCase
             'name' => '',
             'email' => 'not-an-email',
             'address' => '',
-            'city' => '',
             'status' => 'archived',
         ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['code', 'name', 'email', 'address', 'city', 'status']);
+            ->assertJsonValidationErrors(['code', 'name', 'email', 'address', 'status']);
+    }
+
+    public function test_customer_can_be_created_without_email_or_city(): void
+    {
+        $this->postJson(route('api.customers.store'), [
+            'name' => 'Toko Kelontong Pak Budi',
+            'phone' => '081234567890',
+            'address' => 'Jl. Kelontong No. 5',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.name', 'Toko Kelontong Pak Budi')
+            ->assertJsonPath('data.email', null)
+            ->assertJsonPath('data.city', null);
+
+        $this->assertDatabaseHas('customers', [
+            'name' => 'Toko Kelontong Pak Budi',
+            'email' => null,
+            'city' => null,
+        ]);
     }
 }

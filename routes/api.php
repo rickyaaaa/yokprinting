@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\CustomerTransactionHistoryController;
 use App\Http\Controllers\Api\DueInvoiceNotificationController;
 use App\Http\Controllers\Api\FinancialSummaryController;
 use App\Http\Controllers\Api\GrossProfitReportController;
+use App\Http\Controllers\Api\InvoiceCancellationController;
 use App\Http\Controllers\Api\InvoiceDeliveryController;
 use App\Http\Controllers\Api\InvoiceDeliveryNotePdfController;
 use App\Http\Controllers\Api\InvoiceDraftController;
@@ -240,6 +241,10 @@ Route::middleware(['web', 'auth'])->group(function (): void {
     Route::post('/invoices/{invoice:invoice_number}/follow-up', [InvoiceFollowUpController::class, 'store'])
         ->middleware('permission:invoice.update')
         ->name('api.invoices.follow-up.store');
+
+    Route::post('/invoices/{invoice:invoice_number}/cancel', [InvoiceCancellationController::class, 'store'])
+        ->middleware('permission:invoice.update')
+        ->name('api.invoices.cancel.store');
 
     Route::get('/invoices/{invoice}/pdf', [InvoicePdfController::class, 'download'])
         ->middleware(['permission:invoice.export', 'throttle:invoice-pdf'])

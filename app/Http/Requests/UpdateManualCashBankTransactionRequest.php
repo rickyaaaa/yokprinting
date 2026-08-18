@@ -19,6 +19,10 @@ class UpdateManualCashBankTransactionRequest extends FormRequest
             'transaction_date' => ['sometimes', 'required', 'date'],
             'type' => ['sometimes', 'required', Rule::in([CashBankTransaction::TYPE_INCOME, CashBankTransaction::TYPE_EXPENSE])],
             'category' => ['sometimes', 'required', 'string', 'max:100'],
+            'payment_method' => ['sometimes', 'required', Rule::in([
+                CashBankTransaction::PAYMENT_METHOD_CASH,
+                CashBankTransaction::PAYMENT_METHOD_TRANSFER,
+            ])],
             'amount' => ['sometimes', 'required', 'numeric', 'gt:0', 'decimal:0,2', 'max:9999999999999.99'],
             'description' => ['sometimes', 'required', 'string', 'max:2000'],
         ];

@@ -150,6 +150,7 @@ class Invoice extends Model
             'viewed_at' => 'datetime',
             'paid_at' => 'datetime',
             'last_follow_up_at' => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
     }
 
@@ -175,6 +176,24 @@ class Invoice extends Model
     public function lastFollowUpBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'last_follow_up_by');
+    }
+
+    /**
+     * Get the user who cancelled this invoice, if any.
+     */
+    public function cancelledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
+    /**
+     * Determine whether the invoice can still be cancelled ("close order").
+     */
+    public function canBeCancelled(): bool
+    {
+        return $this->status !== self::STATUS_CANCELLED
+            && $this->production_status !== self::PRODUCTION_COMPLETED
+            && ! $this->payments()->exists();
     }
 
     /**

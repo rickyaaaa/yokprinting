@@ -48,6 +48,10 @@
         'dp_required' => $formatRupiah($invoiceModel->requiredDpAmount()),
         'design_notes' => $invoiceModel->design_notes ?: 'Belum ada catatan desain.',
         'mockup_url' => $invoiceModel->mockup_url,
+        'is_cancelled' => $invoiceModel->status === \App\Models\Invoice::STATUS_CANCELLED,
+        'can_be_cancelled' => $invoiceModel->canBeCancelled(),
+        'cancellation_reason' => $invoiceModel->cancellation_reason,
+        'cancelled_at' => $formatDate($invoiceModel->cancelled_at),
     ];
 
     $items = $invoiceModel->items->map(static function ($item) use ($formatRupiah): array {
@@ -161,10 +165,20 @@
                                     'bg-green-100 text-green-800' => $invoice['is_paid'],
                                     'bg-yellow-100 text-yellow-900' => ! $invoice['is_paid'],
                                 ])>{{ $invoice['status'] }}</span>
+                                @if ($invoice['is_cancelled'])
+                                    <span class="rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-800">Order dibatalkan</span>
+                                @endif
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Detail {{ $invoice['number'] }}</h1>
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">
-                                {{ $invoice['is_paid'] ? 'Invoice telah lunas dan tidak memiliki sisa tagihan.' : 'Pantau rincian tagihan, pembayaran masuk, dan sisa outstanding untuk invoice ini.' }}
+                                @if ($invoice['is_cancelled'])
+                                    Order ini dibatalkan pada {{ $invoice['cancelled_at'] }}.
+                                    @if ($invoice['cancellation_reason'])
+                                        Alasan: {{ $invoice['cancellation_reason'] }}.
+                                    @endif
+                                @else
+                                    {{ $invoice['is_paid'] ? 'Invoice telah lunas dan tidak memiliki sisa tagihan.' : 'Pantau rincian tagihan, pembayaran masuk, dan sisa outstanding untuk invoice ini.' }}
+                                @endif
                             </p>
                         </div>
                         <div
@@ -189,7 +203,7 @@
                                     </svg>
                                     Surat jalan
                             </a>
-                            @unless ($invoice['is_paid'])
+                            @unless ($invoice['is_paid'] || $invoice['is_cancelled'])
                                 <div
                                     class="relative"
                                     x-data="invoiceWhatsAppDelivery"
@@ -218,6 +232,23 @@
                                     Catat pembayaran
                                 </a>
                             @endunless
+                            @if ($invoice['can_be_cancelled'])
+                                <div class="relative" x-data="cancelOrderAction" data-endpoint="{{ route('api.invoices.cancel.store', ['invoice' => $invoiceModel]) }}">
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3.5 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:cursor-wait disabled:opacity-70"
+                                        :disabled="cancelling"
+                                        :aria-busy="cancelling"
+                                        @click="cancel()"
+                                    >
+                                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                            <path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/>
+                                        </svg>
+                                        <span x-text="cancelling ? 'Membatalkan...' : 'Batalkan order'"></span>
+                                    </button>
+                                    <p x-cloak x-show="message" x-text="message" class="absolute right-0 top-full z-10 mt-2 w-64 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900 shadow-sm" role="alert"></p>
+                                </div>
+                            @endif
                         </div>
                     </div>
 
@@ -341,7 +372,7 @@
                                         @endforeach
                                     </ol>
 
-                                    @if ($canUpdateProduction)
+                                    @if ($canUpdateProduction && ! $invoice['is_cancelled'])
                                         <form class="mt-5 border-t border-line pt-5" @submit.prevent="submit()">
                                             <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                                                 <div class="max-w-xl">
@@ -420,7 +451,26 @@
                                 </div>
                             </section>
 
-                            @if ($invoice['is_paid'])
+                            @if ($invoice['is_cancelled'])
+                                <section
+                                    id="record-payment"
+                                    class="rounded-xl border border-red-200 bg-red-50 p-5 sm:p-6"
+                                    aria-labelledby="record-payment-heading"
+                                    data-testid="order-cancelled-state"
+                                >
+                                    <div class="flex items-start gap-4">
+                                        <span class="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-red-600 text-white" aria-hidden="true">
+                                            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/>
+                                            </svg>
+                                        </span>
+                                        <div>
+                                            <h2 id="record-payment-heading" class="font-semibold text-red-950">Order dibatalkan</h2>
+                                            <p class="mt-1 text-sm leading-6 text-red-800">Order ini sudah ditutup. Pembayaran tidak dapat dicatat.</p>
+                                        </div>
+                                    </div>
+                                </section>
+                            @elseif ($invoice['is_paid'])
                                 <section
                                     id="record-payment"
                                     class="rounded-xl border border-green-200 bg-green-50 p-5 sm:p-6"

@@ -65,7 +65,7 @@ class CashBankTest extends TestCase
         $this->assertDatabaseCount('cash_bank_transactions', 0);
     }
 
-    public function test_verified_cash_payment_does_not_create_bank_income(): void
+    public function test_verified_cash_payment_creates_income_transaction_tagged_as_cash(): void
     {
         $this->actingAsOwner();
         $invoice = $this->createInvoice();
@@ -76,7 +76,15 @@ class CashBankTest extends TestCase
             'amount' => 500_000,
         ])->assertCreated();
 
-        $this->assertDatabaseCount('cash_bank_transactions', 0);
+        $payment = Payment::query()->firstOrFail();
+        $this->assertDatabaseHas('cash_bank_transactions', [
+            'type' => CashBankTransaction::TYPE_INCOME,
+            'payment_method' => CashBankTransaction::PAYMENT_METHOD_CASH,
+            'amount' => 500_000,
+            'source_type' => CashBankTransaction::SOURCE_PAYMENT,
+            'source_id' => $payment->id,
+            'status' => CashBankTransaction::STATUS_POSTED,
+        ]);
     }
 
     public function test_same_payment_cannot_create_ledger_twice(): void
@@ -176,6 +184,40 @@ class CashBankTest extends TestCase
         ])->assertCreated()->assertJsonPath('data.source_type', CashBankTransaction::SOURCE_MANUAL);
 
         $this->getJson(route('api.cash-bank.summary'))->assertJsonPath('data.current_balance', 1_250_000);
+    }
+
+    public function test_manual_transaction_defaults_to_transfer_when_payment_method_omitted(): void
+    {
+        $this->actingAsOwner();
+
+        $this->postJson(route('api.cash-bank.transactions.store'), [
+            'transaction_date' => '2026-08-01', 'type' => 'income', 'category' => 'owner_capital',
+            'amount' => 500_000, 'description' => 'Modal via transfer.',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.payment_method', CashBankTransaction::PAYMENT_METHOD_TRANSFER)
+            ->assertJsonPath('data.payment_method_label', 'Transfer');
+    }
+
+    public function test_manual_transaction_can_be_recorded_as_cash(): void
+    {
+        $this->actingAsOwner();
+
+        $this->postJson(route('api.cash-bank.transactions.store'), [
+            'transaction_date' => '2026-08-01', 'type' => 'expense', 'category' => 'operational_cost',
+            'payment_method' => 'cash', 'amount' => 150_000, 'description' => 'Beli perlengkapan kecil.',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.payment_method', CashBankTransaction::PAYMENT_METHOD_CASH)
+            ->assertJsonPath('data.payment_method_label', 'Tunai');
+
+        $this->getJson(route('api.cash-bank.transactions.index', ['payment_method' => 'cash']))
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+
+        $this->getJson(route('api.cash-bank.transactions.index', ['payment_method' => 'transfer']))
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
     }
 
     public function test_manual_expense_reduces_balance(): void
@@ -325,7 +367,7 @@ class CashBankTest extends TestCase
         $this->assertSame('2000000.00', $transaction?->refresh()->amount);
     }
 
-    public function test_non_bank_expense_creates_ledger_when_changed_to_bank(): void
+    public function test_cash_expense_creates_ledger_immediately_and_flips_to_bank_on_the_same_row(): void
     {
         Storage::fake('expense_proofs');
         $this->actingAsOwner();
@@ -334,36 +376,40 @@ class CashBankTest extends TestCase
         $response = $this->post(route('api.expenses.store'), $payload, ['Accept' => 'application/json'])
             ->assertCreated();
         $expense = Expense::query()->findOrFail($response->json('data.id'));
-        $this->assertDatabaseCount('cash_bank_transactions', 0);
+        $transaction = $expense->cashBankTransaction()->firstOrFail();
+        $this->assertSame(CashBankTransaction::PAYMENT_METHOD_CASH, $transaction->payment_method);
 
         $this->patchJson(route('api.expenses.update', $expense), [
             'version' => $expense->version,
             'payment_method' => 'Transfer bank',
         ])->assertOk();
 
+        $this->assertDatabaseCount('cash_bank_transactions', 1);
         $this->assertDatabaseHas('cash_bank_transactions', [
-            'source_type' => CashBankTransaction::SOURCE_EXPENSE,
-            'source_id' => $expense->id,
+            'id' => $transaction->id,
+            'payment_method' => CashBankTransaction::PAYMENT_METHOD_TRANSFER,
             'status' => CashBankTransaction::STATUS_POSTED,
         ]);
     }
 
-    public function test_bank_expense_ledger_is_cancelled_when_changed_to_cash(): void
+    public function test_bank_expense_ledger_flips_to_cash_on_the_same_row_when_changed(): void
     {
         Storage::fake('expense_proofs');
-        $owner = $this->actingAsOwner();
+        $this->actingAsOwner();
         $expense = $this->createExpenseThroughApi();
         $transaction = $expense->cashBankTransaction()->firstOrFail();
+        $this->assertSame(CashBankTransaction::PAYMENT_METHOD_TRANSFER, $transaction->payment_method);
 
         $this->patchJson(route('api.expenses.update', $expense), [
             'version' => $expense->version,
             'payment_method' => 'Tunai',
         ])->assertOk();
 
+        $this->assertDatabaseCount('cash_bank_transactions', 1);
         $this->assertDatabaseHas('cash_bank_transactions', [
             'id' => $transaction->id,
-            'status' => CashBankTransaction::STATUS_CANCELLED,
-            'cancelled_by' => $owner->id,
+            'payment_method' => CashBankTransaction::PAYMENT_METHOD_CASH,
+            'status' => CashBankTransaction::STATUS_POSTED,
         ]);
     }
 

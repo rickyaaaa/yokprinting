@@ -786,6 +786,59 @@ Alpine.data('productionStatusForm', () => ({
     },
 }));
 
+Alpine.data('cancelOrderAction', () => ({
+    endpoint: '',
+    cancelling: false,
+    message: '',
+
+    init() {
+        this.endpoint = this.$el.dataset.endpoint;
+    },
+
+    async cancel() {
+        if (this.cancelling || !this.endpoint) {
+            return;
+        }
+
+        if (!window.confirm('Yakin batalkan order ini? Order yang sudah dibatalkan tidak bisa dikembalikan lagi.')) {
+            return;
+        }
+
+        const reason = window.prompt('Alasan pembatalan (opsional):', '');
+
+        if (reason === null) {
+            return;
+        }
+
+        this.cancelling = true;
+        this.message = '';
+
+        try {
+            const response = await fetch(this.endpoint, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                },
+                body: JSON.stringify({ reason: reason.trim() === '' ? null : reason.trim() }),
+            });
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                const validationMessage = Object.values(payload.errors ?? {}).flat()[0];
+                throw new Error(validationMessage ?? payload.message ?? 'Order gagal dibatalkan.');
+            }
+
+            window.location.reload();
+        } catch (error) {
+            this.message = error instanceof Error ? error.message : 'Order gagal dibatalkan.';
+            this.cancelling = false;
+        }
+    },
+}));
+
 Alpine.data('invoiceWhatsAppDelivery', () => ({
     endpoint: '',
     sending: false,
@@ -2412,9 +2465,7 @@ Alpine.data('customerForm', (initialForm = {}, isEditMode = false, customerId = 
             errors.name = 'Nama pelanggan wajib diisi.';
         }
 
-        if (!this.form.email.trim()) {
-            errors.email = 'Email pelanggan wajib diisi.';
-        } else if (!emailPattern.test(this.form.email.trim())) {
+        if (this.form.email.trim() && !emailPattern.test(this.form.email.trim())) {
             errors.email = 'Format email pelanggan belum valid.';
         }
 
@@ -2426,21 +2477,17 @@ Alpine.data('customerForm', (initialForm = {}, isEditMode = false, customerId = 
             errors.address = 'Alamat penagihan wajib diisi.';
         }
 
-        if (!this.form.city.trim()) {
-            errors.city = 'Kota wajib diisi.';
-        }
-
         return errors;
     },
 
     payload() {
         return {
             name: this.form.name.trim(),
-            email: this.form.email.trim(),
+            email: this.form.email.trim() || null,
             phone: this.form.phone.trim() || null,
             tax_number: this.form.taxNumber.trim() || null,
             address: this.form.address.trim(),
-            city: this.form.city.trim(),
+            city: this.form.city.trim() || null,
             province: this.form.province.trim() || null,
             postal_code: this.form.postalCode.trim() || null,
             status: {

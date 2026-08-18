@@ -23,12 +23,12 @@ export function registerCashBankComponents(Alpine) {
         summary: emptySummary(),
         transactions: [],
         meta: { current_page: 1, last_page: 1, total: 0, beginning_balance: 0 },
-        filters: { search: '', date_from: '', date_to: '', type: '', category: '', per_page: 15 },
+        filters: { search: '', date_from: '', date_to: '', type: '', category: '', payment_method: '', per_page: 15 },
         accountSettingsOpen: false,
         accountForm: { name: '', bank_name: '', account_number: '', opening_balance: 0 },
         formOpen: false,
         editingId: null,
-        form: { transaction_date: businessDate(config.timezone), type: 'income', category: 'other_income', amount: '', description: '' },
+        form: { transaction_date: businessDate(config.timezone), type: 'income', category: 'other_income', payment_method: 'transfer', amount: '', description: '' },
         errors: {},
         accountErrors: {},
         loading: false,
@@ -93,7 +93,8 @@ export function registerCashBankComponents(Alpine) {
             this.editingId = null;
             this.form = {
                 transaction_date: businessDate(this.config.timezone), type,
-                category: type === 'income' ? 'other_income' : 'operational_cost', amount: '', description: '',
+                category: type === 'income' ? 'other_income' : 'operational_cost',
+                payment_method: 'transfer', amount: '', description: '',
             };
             this.errors = {};
             this.notice = '';
@@ -153,7 +154,8 @@ export function registerCashBankComponents(Alpine) {
             this.editingId = transaction.id;
             this.form = {
                 transaction_date: transaction.transaction_date, type: transaction.type,
-                category: transaction.category, amount: transaction.amount, description: transaction.description,
+                category: transaction.category, payment_method: transaction.payment_method ?? 'transfer',
+                amount: transaction.amount, description: transaction.description,
             };
             this.errors = {};
             this.formOpen = true;
@@ -212,7 +214,7 @@ export function registerCashBankComponents(Alpine) {
         },
 
         resetFilters() {
-            this.filters = { search: '', date_from: '', date_to: '', type: '', category: '', per_page: 15 };
+            this.filters = { search: '', date_from: '', date_to: '', type: '', category: '', payment_method: '', per_page: 15 };
             this.loadTransactions();
         },
 

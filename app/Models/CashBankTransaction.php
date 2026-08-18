@@ -22,9 +22,13 @@ class CashBankTransaction extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
+    public const PAYMENT_METHOD_CASH = 'cash';
+
+    public const PAYMENT_METHOD_TRANSFER = 'transfer';
+
     protected $fillable = [
         'bank_account_id', 'transaction_number', 'transaction_date', 'type', 'category',
-        'amount', 'description', 'source_type', 'source_id', 'status', 'created_by',
+        'payment_method', 'amount', 'description', 'source_type', 'source_id', 'status', 'created_by',
         'cancelled_at', 'cancelled_by',
     ];
 

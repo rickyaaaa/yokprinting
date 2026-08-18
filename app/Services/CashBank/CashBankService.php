@@ -34,8 +34,7 @@ class CashBankService
         return DB::transaction(function () use ($payment): ?CashBankTransaction {
             $lockedPayment = Payment::query()->lockForUpdate()->findOrFail($payment->getKey());
 
-            if ($lockedPayment->status !== Payment::STATUS_VERIFIED
-                || ! $this->paymentMethods->isBankMethod($lockedPayment->method)) {
+            if ($lockedPayment->status !== Payment::STATUS_VERIFIED) {
                 return null;
             }
 
@@ -58,6 +57,9 @@ class CashBankService
                 'transaction_date' => $lockedPayment->payment_date,
                 'type' => CashBankTransaction::TYPE_INCOME,
                 'category' => 'invoice_payment',
+                'payment_method' => $this->paymentMethods->isBankMethod($lockedPayment->method)
+                    ? CashBankTransaction::PAYMENT_METHOD_TRANSFER
+                    : CashBankTransaction::PAYMENT_METHOD_CASH,
                 'amount' => $lockedPayment->amount,
                 'description' => 'Pembayaran Invoice '.$lockedPayment->invoice?->invoice_number,
                 'source_type' => CashBankTransaction::SOURCE_PAYMENT,
@@ -82,9 +84,12 @@ class CashBankService
                 ->where('source_id', $lockedExpense->getKey())
                 ->lockForUpdate()
                 ->first();
-            $isBank = ! $lockedExpense->trashed() && $this->expenseMethods->isBankMethod($lockedExpense->payment_method);
+            $shouldTrack = ! $lockedExpense->trashed();
+            $paymentMethod = $this->expenseMethods->isBankMethod($lockedExpense->payment_method)
+                ? CashBankTransaction::PAYMENT_METHOD_TRANSFER
+                : CashBankTransaction::PAYMENT_METHOD_CASH;
 
-            if (! $isBank) {
+            if (! $shouldTrack) {
                 if ($transaction && $transaction->status === CashBankTransaction::STATUS_POSTED) {
                     $this->markCancelled($transaction, auth()->id());
                 }
@@ -96,6 +101,7 @@ class CashBankService
                 $transaction->forceFill([
                     'transaction_date' => $lockedExpense->expense_date,
                     'category' => $lockedExpense->category,
+                    'payment_method' => $paymentMethod,
                     'amount' => $lockedExpense->amount,
                     'description' => $lockedExpense->description,
                     'status' => CashBankTransaction::STATUS_POSTED,
@@ -114,6 +120,7 @@ class CashBankService
                 'transaction_date' => $lockedExpense->expense_date,
                 'type' => CashBankTransaction::TYPE_EXPENSE,
                 'category' => $lockedExpense->category,
+                'payment_method' => $paymentMethod,
                 'amount' => $lockedExpense->amount,
                 'description' => $lockedExpense->description,
                 'source_type' => CashBankTransaction::SOURCE_EXPENSE,
@@ -146,6 +153,7 @@ class CashBankService
                 'transaction_date' => $date->toDateString(),
                 'type' => $data['type'],
                 'category' => $data['category'],
+                'payment_method' => $data['payment_method'] ?? CashBankTransaction::PAYMENT_METHOD_TRANSFER,
                 'amount' => $data['amount'],
                 'description' => $data['description'],
                 'source_type' => CashBankTransaction::SOURCE_MANUAL,
@@ -384,6 +392,7 @@ class CashBankService
             'transaction_date' => $transaction->transaction_date?->toDateString(),
             'type' => $transaction->type,
             'category' => $transaction->category,
+            'payment_method' => $transaction->payment_method,
             'amount' => (string) $transaction->amount,
             'description' => $transaction->description,
             'status' => $transaction->status,

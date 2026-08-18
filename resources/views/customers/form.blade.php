@@ -111,7 +111,7 @@
                                         </select>
                                     </label>
                                     <label class="block">
-                                        <span class="text-sm font-medium text-ink">Email</span>
+                                        <span class="text-sm font-medium text-ink">Email <span class="font-normal text-muted">(opsional)</span></span>
                                         <input type="email" class="form-control mt-1.5" x-model="form.email" data-validation-field="email" placeholder="finance@example.com" :aria-invalid="Boolean(fieldErrors.email)" @input="clearFieldError('email')">
                                         <span class="mt-1 block text-xs text-red-700" x-show="fieldErrors.email" x-text="fieldErrors.email"></span>
                                     </label>
@@ -136,12 +136,12 @@
                                         <span class="mt-1 block text-xs text-red-700" x-show="fieldErrors.address" x-text="fieldErrors.address"></span>
                                     </label>
                                     <label class="block">
-                                        <span class="text-sm font-medium text-ink">Kota</span>
+                                        <span class="text-sm font-medium text-ink">Kota <span class="font-normal text-muted">(opsional)</span></span>
                                         <input class="form-control mt-1.5" x-model="form.city" data-validation-field="city" :aria-invalid="Boolean(fieldErrors.city)" @input="clearFieldError('city')">
                                         <span class="mt-1 block text-xs text-red-700" x-show="fieldErrors.city" x-text="fieldErrors.city"></span>
                                     </label>
                                     <label class="block">
-                                        <span class="text-sm font-medium text-ink">Provinsi</span>
+                                        <span class="text-sm font-medium text-ink">Provinsi <span class="font-normal text-muted">(opsional)</span></span>
                                         <input class="form-control mt-1.5" x-model="form.province">
                                     </label>
                                     <label class="block">
