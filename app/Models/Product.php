@@ -50,6 +50,10 @@ class Product extends Model
     /**
      * The attributes that are mass assignable.
      *
+     * `last_purchase_price` and `average_purchase_cost` are deliberately
+     * excluded: they're system-managed reference costs meant to be updated
+     * only by purchasing/goods-receipt flows, never by direct user input.
+     *
      * @var list<string>
      */
     protected $fillable = [
@@ -92,6 +96,8 @@ class Product extends Model
     {
         return [
             'purchase_price' => 'decimal:2',
+            'last_purchase_price' => 'decimal:2',
+            'average_purchase_cost' => 'decimal:2',
             'stock' => 'decimal:4',
             'minimum_stock' => 'decimal:4',
             'minimum_order_qty' => 'integer',
