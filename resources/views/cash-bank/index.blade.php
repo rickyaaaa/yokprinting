@@ -93,12 +93,12 @@
                             </div>
                             <button type="button" class="min-h-11 min-w-11 rounded-lg px-3 py-2 text-sm font-semibold text-muted hover:bg-canvas" @click="accountSettingsOpen = false">Tutup</button>
                         </div>
-                        <form class="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,1fr)_minmax(10rem,1fr)_minmax(12rem,1fr)_minmax(12rem,1fr)_auto] sm:p-6" @submit.prevent="saveAccount()">
+                        <form class="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:p-6" @submit.prevent="saveAccount()">
                             <label><span class="mb-1.5 block text-xs font-semibold text-muted">Nama rekening</span><input id="account-name" type="text" maxlength="255" class="form-control" x-model="accountForm.name" :aria-invalid="Boolean(fieldError(accountErrors, 'name'))" aria-describedby="account-name-error" required><span id="account-name-error" x-show="fieldError(accountErrors, 'name')" class="mt-1.5 block text-xs text-red-700" x-text="fieldError(accountErrors, 'name')" role="alert"></span></label>
                             <label><span class="mb-1.5 block text-xs font-semibold text-muted">Nama bank</span><input id="account-bank-name" type="text" maxlength="255" class="form-control" x-model="accountForm.bank_name" :aria-invalid="Boolean(fieldError(accountErrors, 'bank_name'))" aria-describedby="account-bank-name-error" required><span id="account-bank-name-error" x-show="fieldError(accountErrors, 'bank_name')" class="mt-1.5 block text-xs text-red-700" x-text="fieldError(accountErrors, 'bank_name')" role="alert"></span></label>
                             <label><span class="mb-1.5 block text-xs font-semibold text-muted">Nomor rekening</span><input id="account-number" type="text" maxlength="100" class="form-control" x-model="accountForm.account_number" :aria-invalid="Boolean(fieldError(accountErrors, 'account_number'))" aria-describedby="account-number-error"><span id="account-number-error" x-show="fieldError(accountErrors, 'account_number')" class="mt-1.5 block text-xs text-red-700" x-text="fieldError(accountErrors, 'account_number')" role="alert"></span></label>
                             <label><span class="mb-1.5 block text-xs font-semibold text-muted">Saldo awal</span><input id="account-opening-balance" type="number" step="0.01" class="form-control" x-model="accountForm.opening_balance" :aria-invalid="Boolean(fieldError(accountErrors, 'opening_balance'))" aria-describedby="account-opening-balance-error" required><span id="account-opening-balance-error" x-show="fieldError(accountErrors, 'opening_balance')" class="mt-1.5 block text-xs text-red-700" x-text="fieldError(accountErrors, 'opening_balance')" role="alert"></span></label>
-                            <button type="submit" class="min-h-11 self-end rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-wait disabled:opacity-60" :disabled="savingAccount" x-text="savingAccount ? 'Menyimpan...' : 'Simpan Rekening'"></button>
+                            <button type="submit" class="min-h-11 self-end rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-wait disabled:opacity-60 sm:col-span-2 lg:col-span-1" :disabled="savingAccount" x-text="savingAccount ? 'Menyimpan...' : 'Simpan Rekening'"></button>
                         </form>
                     </section>
 
@@ -110,7 +110,7 @@
                             </div>
                             <button type="button" class="min-h-11 min-w-11 rounded-lg px-3 py-2 text-sm font-semibold text-muted hover:bg-canvas" @click="formOpen = false">Tutup</button>
                         </div>
-                        <form class="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-[10rem_12rem_minmax(12rem,1fr)_10rem_12rem_minmax(16rem,1.5fr)_auto] sm:p-6" @submit.prevent="save()">
+                        <form class="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:p-6" @submit.prevent="save()">
                             <label>
                                 <span class="mb-1.5 block text-xs font-semibold text-muted">Tanggal</span>
                                 <input id="transaction-date" type="date" class="form-control" x-model="form.transaction_date" :aria-invalid="Boolean(fieldError(errors, 'transaction_date'))" aria-describedby="transaction-date-error" required>
@@ -144,7 +144,7 @@
                                 <input id="transaction-amount" type="number" min="0.01" step="0.01" class="form-control" x-model="form.amount" placeholder="0" :aria-invalid="Boolean(fieldError(errors, 'amount'))" aria-describedby="transaction-amount-error" required>
                                 <span id="transaction-amount-error" x-show="fieldError(errors, 'amount')" class="mt-1.5 block text-xs text-red-700" x-text="fieldError(errors, 'amount')" role="alert"></span>
                             </label>
-                            <label>
+                            <label class="sm:col-span-2 lg:col-span-1 xl:col-span-2">
                                 <span class="mb-1.5 block text-xs font-semibold text-muted">Keterangan</span>
                                 <input id="transaction-description" type="text" maxlength="2000" class="form-control" x-model="form.description" placeholder="Jelaskan transaksi" :aria-invalid="Boolean(fieldError(errors, 'description'))" aria-describedby="transaction-description-error" required>
                                 <span id="transaction-description-error" x-show="fieldError(errors, 'description')" class="mt-1.5 block text-xs text-red-700" x-text="fieldError(errors, 'description')" role="alert"></span>
@@ -161,14 +161,16 @@
                             <h2 id="cash-bank-history-heading" class="font-semibold text-ink">Histori transaksi</h2>
                             <p class="mt-1 text-sm text-muted">Saldo berjalan dihitung dari saldo awal dan seluruh transaksi tercatat sebelumnya.</p>
                         </div>
-                        <form class="grid gap-3 border-b border-line p-5 md:grid-cols-2 xl:grid-cols-[minmax(13rem,1fr)_10rem_10rem_10rem_10rem_auto_auto]" @submit.prevent="loadTransactions()">
-                            <label><span class="mb-1.5 block text-xs font-semibold text-muted">Pencarian</span><input type="search" class="form-control" x-model="filters.search" placeholder="Nomor, kategori, keterangan"></label>
+                        <form class="grid gap-3 border-b border-line p-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" @submit.prevent="loadTransactions()">
+                            <label class="sm:col-span-2 lg:col-span-1"><span class="mb-1.5 block text-xs font-semibold text-muted">Pencarian</span><input type="search" class="form-control" x-model="filters.search" placeholder="Nomor, kategori, keterangan"></label>
                             <label><span class="mb-1.5 block text-xs font-semibold text-muted">Dari tanggal</span><input type="date" class="form-control" x-model="filters.date_from"></label>
                             <label><span class="mb-1.5 block text-xs font-semibold text-muted">Sampai tanggal</span><input type="date" class="form-control" x-model="filters.date_to"></label>
                             <label><span class="mb-1.5 block text-xs font-semibold text-muted">Jenis</span><select class="form-control" x-model="filters.type"><option value="">Semua transaksi</option><option value="income">Uang Masuk</option><option value="expense">Uang Keluar</option></select></label>
                             <label><span class="mb-1.5 block text-xs font-semibold text-muted">Metode</span><select class="form-control" x-model="filters.payment_method"><option value="">Semua metode</option><option value="transfer">Transfer</option><option value="cash">Tunai</option></select></label>
-                            <button type="submit" class="min-h-11 self-end rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-wait disabled:opacity-60" :disabled="loading" x-text="loading ? 'Memuat...' : 'Terapkan'"></button>
-                            <button type="button" class="min-h-11 self-end rounded-lg border border-line px-4 py-2.5 text-sm font-semibold text-muted hover:bg-canvas disabled:cursor-wait disabled:opacity-60" :disabled="loading" @click="resetFilters()">Reset</button>
+                            <div class="flex items-end gap-3 sm:col-span-2 lg:col-span-1">
+                                <button type="submit" class="min-h-11 flex-1 rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-wait disabled:opacity-60" :disabled="loading" x-text="loading ? 'Memuat...' : 'Terapkan'"></button>
+                                <button type="button" class="min-h-11 flex-1 rounded-lg border border-line px-4 py-2.5 text-sm font-semibold text-muted hover:bg-canvas disabled:cursor-wait disabled:opacity-60" :disabled="loading" @click="resetFilters()">Reset</button>
+                            </div>
                         </form>
 
                         <div x-show="loading" class="min-h-64 p-10 text-center text-sm text-muted" role="status" aria-live="polite">
