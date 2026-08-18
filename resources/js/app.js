@@ -1111,6 +1111,124 @@ Alpine.data('receivablesTable', (receivables = []) => ({
     },
 }));
 
+Alpine.data('dueInvoiceFollowUpTable', (dueInvoices = []) => ({
+    query: '',
+    statusFilter: 'all',
+    sortKey: 'dueSort',
+    sortDirection: 'asc',
+    dueInvoices,
+    markingInvoice: null,
+    message: '',
+    messageTone: 'success',
+
+    get filteredInvoices() {
+        const keyword = this.query.trim().toLocaleLowerCase('id');
+
+        return this.dueInvoices
+            .filter((invoice) => {
+                const matchesStatus = this.statusFilter === 'all' || invoice.status === this.statusFilter;
+                const matchesKeyword = !keyword ||
+                    `${invoice.invoice} ${invoice.customer}`
+                        .toLocaleLowerCase('id')
+                        .includes(keyword);
+
+                return matchesStatus && matchesKeyword;
+            })
+            .sort((first, second) => {
+                const firstValue = first[this.sortKey];
+                const secondValue = second[this.sortKey];
+
+                if (typeof firstValue === 'number' && typeof secondValue === 'number') {
+                    return this.sortDirection === 'asc'
+                        ? firstValue - secondValue
+                        : secondValue - firstValue;
+                }
+
+                return this.sortDirection === 'asc'
+                    ? String(firstValue).localeCompare(String(secondValue), 'id')
+                    : String(secondValue).localeCompare(String(firstValue), 'id');
+            });
+    },
+
+    sortBy(key) {
+        if (this.sortKey === key) {
+            this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+            return;
+        }
+
+        this.sortKey = key;
+        this.sortDirection = key === 'dueSort' ? 'asc' : 'desc';
+    },
+
+    sortIndicator(key) {
+        if (this.sortKey !== key) {
+            return 'sort';
+        }
+
+        return this.sortDirection === 'asc' ? 'asc' : 'desc';
+    },
+
+    statusClass(status) {
+        return {
+            Overdue: 'bg-red-100 text-red-800',
+            'Due soon': 'bg-yellow-100 text-yellow-900',
+            Scheduled: 'bg-accent-soft text-accent',
+        }[status] ?? 'bg-canvas text-muted';
+    },
+
+    async markFollowUp(invoice) {
+        if (this.markingInvoice) {
+            return;
+        }
+
+        const note = window.prompt(`Catatan follow-up untuk ${invoice.invoice} (opsional):`, '');
+
+        if (note === null) {
+            return;
+        }
+
+        this.markingInvoice = invoice.invoice;
+        this.message = '';
+
+        try {
+            const response = await fetch(`/api/invoices/${encodeURIComponent(invoice.invoice)}/follow-up`, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                },
+                body: JSON.stringify({ note: note.trim() === '' ? null : note.trim() }),
+            });
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                const validationMessage = Object.values(payload.errors ?? {}).flat()[0];
+                throw new Error(validationMessage ?? payload.message ?? 'Follow-up gagal dicatat.');
+            }
+
+            const target = this.dueInvoices.find((row) => row.invoice === invoice.invoice);
+
+            if (target) {
+                const when = new Date(payload.data.last_follow_up_at).toLocaleString('id-ID', {
+                    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                });
+
+                target.lastFollowUpLabel = `${when} oleh ${payload.data.last_follow_up_by ?? 'Anda'}`;
+            }
+
+            this.messageTone = 'success';
+            this.message = payload.message;
+        } catch (error) {
+            this.messageTone = 'error';
+            this.message = error.message;
+        } finally {
+            this.markingInvoice = null;
+        }
+    },
+}));
+
 Alpine.data('paymentHistoryTable', (payments = []) => ({
     query: '',
     statusFilter: 'all',

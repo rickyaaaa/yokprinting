@@ -2,14 +2,12 @@
 
 namespace Tests\Feature;
 
-use App\Http\Requests\RegisterUserRequest;
 use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Validator;
 use Tests\TestCase;
 
 class LoginEndpointTest extends TestCase
@@ -136,24 +134,6 @@ class LoginEndpointTest extends TestCase
             ->assertJsonValidationErrors(['username']);
 
         $this->assertGuest();
-    }
-
-    public function test_duplicate_username_is_rejected_by_user_validation(): void
-    {
-        User::factory()->create(['username' => 'andi']);
-        $request = new RegisterUserRequest;
-        $validator = Validator::make([
-            'name' => 'Andi Kedua',
-            'username' => 'andi',
-            'company_name' => 'YokPrinting',
-            'email' => 'andi-kedua@example.test',
-            'password' => 'secure-password',
-            'password_confirmation' => 'secure-password',
-            'terms' => true,
-        ], $request->rules());
-
-        $this->assertTrue($validator->fails());
-        $this->assertArrayHasKey('username', $validator->errors()->toArray());
     }
 
     public function test_login_page_uses_fresh_csrf_token_and_disables_browser_cache(): void

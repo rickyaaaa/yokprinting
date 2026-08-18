@@ -8,6 +8,7 @@ use App\Http\Controllers\CustomerFormPageController;
 use App\Http\Controllers\CustomerIndexPageController;
 use App\Http\Controllers\CustomerShowPageController;
 use App\Http\Controllers\DashboardPageController;
+use App\Http\Controllers\DueInvoicePageController;
 use App\Http\Controllers\InvoiceIndexPageController;
 use App\Http\Controllers\InvoicePaymentPageController;
 use App\Http\Controllers\PaymentHistoryPageController;
@@ -66,7 +67,7 @@ Route::middleware('auth')->group(function () {
     Route::view('/activity-logs', 'auth.activity-logs')
         ->middleware('permission:activity_log.view')
         ->name('activity-logs.index');
-    Route::view('/notifications/due-invoices', 'auth.due-invoices')
+    Route::get('/notifications/due-invoices', DueInvoicePageController::class)
         ->middleware('permission:payment.view')
         ->name('notifications.due-invoices.index');
     Route::get('/customers', CustomerIndexPageController::class)

@@ -171,6 +171,22 @@ class ExampleTest extends TestCase
 
     public function test_due_invoice_notification_list_page_is_available(): void
     {
+        $customer = Customer::query()->create([
+            'code' => 'CUS-001',
+            'name' => 'PT Sinar Nusantara',
+            'email' => 'finance@sinarnusantara.co.id',
+        ]);
+
+        Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-2026-0301',
+            'issue_date' => now()->subDays(17)->toDateString(),
+            'due_date' => now()->subDays(3)->toDateString(),
+            'status' => Invoice::STATUS_SENT,
+            'payment_status' => Invoice::PAYMENT_UNPAID,
+            'total_amount' => 5600000,
+        ]);
+
         $this->get('/notifications/due-invoices')
             ->assertOk()
             ->assertSee('Invoice Jatuh Tempo - YokPrinting.ID')
@@ -178,14 +194,11 @@ class ExampleTest extends TestCase
             ->assertSee('Antrian follow-up invoice')
             ->assertSee('Total perlu follow-up')
             ->assertSee('Nilai outstanding')
-            ->assertSee('INV-2026-0078')
-            ->assertSee('PT Bumi Lestari')
+            ->assertSee('INV-2026-0301')
+            ->assertSee('PT Sinar Nusantara')
             ->assertSee('Lewat 3 hari')
-            ->assertSee('Kirim reminder massal')
             ->assertSee('due-invoice-search')
             ->assertSee('due-invoice-status-filter')
-            ->assertSee('due-invoice-owner-filter')
-            ->assertSee('Tandai follow-up')
             ->assertSee(route('payments.receivables.index'))
             ->assertSee(route('dashboard'));
     }

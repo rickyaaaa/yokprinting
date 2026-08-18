@@ -1,18 +1,10 @@
-@php
-    $dueInvoices = [
-        ['invoice' => 'INV-2026-0078', 'customer' => 'PT Bumi Lestari', 'amount' => 'Rp5.600.000', 'due' => '21 Jul 2026', 'days' => 'Lewat 3 hari', 'status' => 'Overdue', 'owner' => 'Maya Lestari', 'lastFollowUp' => 'Email dikirim 22 Jul', 'nextAction' => 'Telepon finance'],
-        ['invoice' => 'INV-2026-0084', 'customer' => 'PT Sinar Nusantara', 'amount' => 'Rp18.450.000', 'due' => '25 Jul 2026', 'days' => 'Besok', 'status' => 'Due soon', 'owner' => 'Andi Pratama', 'lastFollowUp' => 'Belum ada', 'nextAction' => 'Kirim reminder'],
-        ['invoice' => 'INV-2026-0082', 'customer' => 'CV Lautan Rasa', 'amount' => 'Rp12.750.000', 'due' => '29 Jul 2026', 'days' => '5 hari lagi', 'status' => 'Scheduled', 'owner' => 'Riko Saputra', 'lastFollowUp' => 'WhatsApp 23 Jul', 'nextAction' => 'Jadwalkan follow-up'],
-        ['invoice' => 'INV-2026-0081', 'customer' => 'PT Nusa Digital', 'amount' => 'Rp9.200.000', 'due' => '31 Jul 2026', 'days' => '7 hari lagi', 'status' => 'Scheduled', 'owner' => 'Maya Lestari', 'lastFollowUp' => 'Email 24 Jul', 'nextAction' => 'Pantau pembayaran'],
-    ];
-@endphp
-
 <!DOCTYPE html>
 <html lang="id">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="description" content="Daftar invoice jatuh tempo YokPrinting.ID">
+        <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <title>Invoice Jatuh Tempo - YokPrinting.ID</title>
 
@@ -41,65 +33,47 @@
                         <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Daftar invoice jatuh tempo</h1>
                         <p class="mt-1 max-w-3xl text-sm leading-6 text-muted">Daftar tindak lanjut dari notifikasi dashboard untuk invoice overdue dan invoice yang segera jatuh tempo.</p>
                     </div>
-                    <button type="button" class="inline-flex w-fit items-center rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800" data-testid="bulk-reminder-placeholder">
-                        Kirim reminder massal
-                    </button>
                 </div>
 
                 <section class="mb-6 grid gap-4 md:grid-cols-4" aria-label="Ringkasan invoice jatuh tempo">
-                    <article class="rounded-xl bg-white p-5 border border-line">
-                        <p class="text-xs font-semibold text-muted">Total perlu follow-up</p>
-                        <p class="mt-2 text-2xl font-semibold text-ink">4</p>
-                    </article>
-                    <article class="rounded-xl bg-white p-5 border border-line">
-                        <p class="text-xs font-semibold text-muted">Overdue</p>
-                        <p class="mt-2 text-2xl font-semibold text-red-800">1</p>
-                    </article>
-                    <article class="rounded-xl bg-white p-5 border border-line">
-                        <p class="text-xs font-semibold text-muted">Jatuh tempo 7 hari</p>
-                        <p class="mt-2 text-2xl font-semibold text-yellow-900">3</p>
-                    </article>
-                    <article class="rounded-xl bg-white p-5 border border-line">
-                        <p class="text-xs font-semibold text-muted">Nilai outstanding</p>
-                        <p class="mt-2 text-2xl font-semibold text-ink">Rp45,9 jt</p>
-                    </article>
+                    @foreach ($summaryCards as $card)
+                        <article class="rounded-xl bg-white p-5 border border-line">
+                            <p class="text-xs font-semibold text-muted">{{ $card['label'] }}</p>
+                            <p class="mt-2 text-2xl font-semibold {{ ($card['tone'] ?? null) === 'danger' ? 'text-red-800' : 'text-ink' }}">{{ $card['value'] }}</p>
+                        </article>
+                    @endforeach
                 </section>
 
-                <section class="rounded-xl bg-white border border-line" aria-labelledby="due-invoice-table-heading" x-data="{ status: 'all', owner: 'all' }">
+                <section
+                    class="rounded-xl bg-white border border-line"
+                    aria-labelledby="due-invoice-table-heading"
+                    x-data='dueInvoiceFollowUpTable(@json($dueInvoices))'
+                >
                     <div class="border-b border-line px-5 py-4 sm:px-6">
                         <h2 id="due-invoice-table-heading" class="font-semibold text-ink">Antrian follow-up invoice</h2>
-                        <p class="mt-1 text-sm text-muted">Filter visual disiapkan untuk endpoint notifikasi jatuh tempo pada backend.</p>
+                        <p class="mt-1 text-sm text-muted">Diambil langsung dari invoice yang sudah terkirim dan belum lunas.</p>
                     </div>
 
-                    <div class="grid gap-4 border-b border-line p-5 sm:grid-cols-2 lg:grid-cols-4 sm:p-6">
+                    <div
+                        x-show="message"
+                        x-cloak
+                        x-text="message"
+                        class="mx-5 mt-4 rounded-lg px-3.5 py-2.5 text-sm font-medium sm:mx-6"
+                        :class="messageTone === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                    ></div>
+
+                    <div class="grid gap-4 border-b border-line p-5 sm:grid-cols-2 sm:p-6">
                         <label class="block">
                             <span class="text-sm font-medium text-ink">Cari invoice/customer</span>
-                            <input class="form-control mt-1.5" placeholder="INV-2026 atau nama customer" data-testid="due-invoice-search">
+                            <input type="search" class="form-control mt-1.5" placeholder="INV-2026 atau nama customer" x-model.debounce.150ms="query" data-testid="due-invoice-search">
                         </label>
                         <label class="block">
                             <span class="text-sm font-medium text-ink">Status</span>
-                            <select class="form-control mt-1.5" x-model="status" data-testid="due-invoice-status-filter">
+                            <select class="form-control mt-1.5" x-model="statusFilter" data-testid="due-invoice-status-filter">
                                 <option value="all">Semua status</option>
                                 <option>Overdue</option>
                                 <option>Due soon</option>
                                 <option>Scheduled</option>
-                            </select>
-                        </label>
-                        <label class="block">
-                            <span class="text-sm font-medium text-ink">PIC follow-up</span>
-                            <select class="form-control mt-1.5" x-model="owner" data-testid="due-invoice-owner-filter">
-                                <option value="all">Semua PIC</option>
-                                <option>Andi Pratama</option>
-                                <option>Maya Lestari</option>
-                                <option>Riko Saputra</option>
-                            </select>
-                        </label>
-                        <label class="block">
-                            <span class="text-sm font-medium text-ink">Urutkan</span>
-                            <select class="form-control mt-1.5" data-testid="due-invoice-sort">
-                                <option>Jatuh tempo terdekat</option>
-                                <option>Nominal terbesar</option>
-                                <option>Follow-up terakhir</option>
                             </select>
                         </label>
                     </div>
@@ -108,40 +82,68 @@
                         <table class="min-w-full divide-y divide-line text-left text-sm">
                             <thead class="bg-canvas text-xs font-semibold text-muted">
                                 <tr>
-                                    <th scope="col" class="px-5 py-3 sm:px-6">Invoice</th>
+                                    <th scope="col" class="px-5 py-3 sm:px-6">
+                                        <button type="button" class="inline-flex items-center gap-1 hover:text-ink" @click="sortBy('invoice')">
+                                            Invoice
+                                            <span class="font-mono text-[0.65rem]" x-text="sortIndicator('invoice')"></span>
+                                        </button>
+                                    </th>
                                     <th scope="col" class="px-4 py-3">Customer</th>
-                                    <th scope="col" class="px-4 py-3">Jatuh tempo</th>
-                                    <th scope="col" class="px-4 py-3">Nominal</th>
-                                    <th scope="col" class="px-4 py-3">PIC</th>
+                                    <th scope="col" class="px-4 py-3">
+                                        <button type="button" class="inline-flex items-center gap-1 hover:text-ink" @click="sortBy('dueSort')">
+                                            Jatuh tempo
+                                            <span class="font-mono text-[0.65rem]" x-text="sortIndicator('dueSort')"></span>
+                                        </button>
+                                    </th>
+                                    <th scope="col" class="px-4 py-3">
+                                        <button type="button" class="inline-flex items-center gap-1 hover:text-ink" @click="sortBy('outstandingValue')">
+                                            Nominal
+                                            <span class="font-mono text-[0.65rem]" x-text="sortIndicator('outstandingValue')"></span>
+                                        </button>
+                                    </th>
+                                    <th scope="col" class="px-4 py-3">Status</th>
                                     <th scope="col" class="px-4 py-3">Follow-up</th>
                                     <th scope="col" class="px-4 py-3">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-line">
-                                @foreach ($dueInvoices as $invoice)
+                                <template x-for="invoice in filteredInvoices" :key="invoice.invoice">
                                     <tr>
-                                        <td class="px-5 py-4 sm:px-6">
-                                            <span class="block font-semibold text-ink">{{ $invoice['invoice'] }}</span>
-                                            <span class="mt-1 inline-flex rounded-full {{ $invoice['status'] === 'Overdue' ? 'bg-red-100 text-red-800' : ($invoice['status'] === 'Due soon' ? 'bg-yellow-100 text-yellow-900' : 'bg-accent-soft text-accent') }} px-2.5 py-1 text-xs font-semibold">{{ $invoice['status'] }}</span>
+                                        <td class="px-5 py-4 font-mono text-xs font-semibold text-brand-800 sm:px-6">
+                                            <a :href="`/payments/invoices/${invoice.invoice}`" class="hover:text-brand-900" x-text="invoice.invoice"></a>
                                         </td>
-                                        <td class="px-4 py-4 font-semibold text-ink">{{ $invoice['customer'] }}</td>
+                                        <td class="px-4 py-4 font-semibold text-ink" x-text="invoice.customer"></td>
                                         <td class="px-4 py-4">
-                                            <span class="block text-ink">{{ $invoice['due'] }}</span>
-                                            <span class="mt-1 block text-xs text-muted">{{ $invoice['days'] }}</span>
+                                            <span class="block text-ink" x-text="invoice.due"></span>
+                                            <span class="mt-1 block text-xs text-muted" x-text="invoice.days"></span>
                                         </td>
-                                        <td class="px-4 py-4 font-semibold text-ink">{{ $invoice['amount'] }}</td>
-                                        <td class="px-4 py-4 text-muted">{{ $invoice['owner'] }}</td>
+                                        <td class="px-4 py-4 font-semibold text-ink" x-text="invoice.amount"></td>
                                         <td class="px-4 py-4">
-                                            <span class="block text-xs text-muted">{{ $invoice['lastFollowUp'] }}</span>
-                                            <span class="mt-1 block font-semibold text-ink">{{ $invoice['nextAction'] }}</span>
+                                            <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold" :class="statusClass(invoice.status)" x-text="invoice.status"></span>
                                         </td>
+                                        <td class="px-4 py-4 text-xs text-muted" x-text="invoice.lastFollowUpLabel"></td>
                                         <td class="px-4 py-4">
-                                            <button type="button" class="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
-                                                Tandai follow-up
-                                            </button>
+                                            <div class="flex flex-col items-start gap-1">
+                                                <a :href="`/payments/invoices/${invoice.invoice}`" class="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
+                                                    Lihat invoice
+                                                </a>
+                                                <button
+                                                    type="button"
+                                                    class="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:bg-brand-50 hover:text-brand-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                                    :disabled="markingInvoice === invoice.invoice"
+                                                    @click="markFollowUp(invoice)"
+                                                >
+                                                    <span x-text="markingInvoice === invoice.invoice ? 'Menyimpan...' : 'Tandai follow-up'"></span>
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
-                                @endforeach
+                                </template>
+                                <tr x-show="filteredInvoices.length === 0">
+                                    <td colspan="7" class="px-5 py-10 text-center text-sm text-muted sm:px-6">
+                                        Tidak ada invoice yang cocok dengan filter saat ini.
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>

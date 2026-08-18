@@ -23,6 +23,20 @@ return Application::configure(basePath: dirname(__DIR__))
             subdomains: false,
         );
 
+        // Only trusts proxies explicitly listed via TRUSTED_PROXIES; stays a
+        // no-op (no proxies trusted) until that env var is set, so this is
+        // safe to enable ahead of ever sitting behind a reverse proxy/CDN.
+        // Reads env() directly (not config()) because the config repository
+        // isn't bound to the container yet at this point in the bootstrap.
+        $trustedProxies = array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('TRUSTED_PROXIES')),
+        )));
+
+        $middleware->trustProxies(
+            at: $trustedProxies === [] ? null : $trustedProxies,
+        );
+
         $middleware->alias([
             'permission' => CheckPermission::class,
         ]);

@@ -149,6 +149,7 @@ class Invoice extends Model
             'sent_at' => 'datetime',
             'viewed_at' => 'datetime',
             'paid_at' => 'datetime',
+            'last_follow_up_at' => 'datetime',
         ];
     }
 
@@ -166,6 +167,14 @@ class Invoice extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Get the user who last recorded a follow-up on this invoice.
+     */
+    public function lastFollowUpBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'last_follow_up_by');
     }
 
     /**
