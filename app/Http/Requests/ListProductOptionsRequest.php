@@ -29,7 +29,9 @@ class ListProductOptionsRequest extends FormRequest
             'ids' => ['sometimes', 'array', 'max:150'],
             'ids.*' => ['integer', 'distinct', 'min:1'],
             'status' => ['sometimes', Rule::in([Product::STATUS_ACTIVE])],
-            'limit' => ['sometimes', 'integer', 'between:1,150'],
+            // Dropdown callers (PO form, Harga Supplier form) ask for the
+            // whole active catalog at once - keep this above what they request.
+            'limit' => ['sometimes', 'integer', 'between:1,500'],
         ];
     }
 }

@@ -25,7 +25,9 @@ class ListSuppliersRequest extends FormRequest
         return [
             'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'q' => ['sometimes', 'nullable', 'string', 'max:100'],
-            'limit' => ['sometimes', 'integer', 'between:1,100'],
+            // Dropdown callers (PO form, Harga Supplier form) ask for the
+            // whole supplier list at once - keep this above what they request.
+            'limit' => ['sometimes', 'integer', 'between:1,500'],
         ];
     }
 }

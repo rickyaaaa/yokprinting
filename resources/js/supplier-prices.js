@@ -179,8 +179,15 @@ export const registerSupplierPriceComponents = (Alpine) => {
                     fetch('/api/suppliers?limit=200', { credentials: 'same-origin', headers: { Accept: 'application/json' } }),
                     fetch('/api/products/options?limit=200', { credentials: 'same-origin', headers: { Accept: 'application/json' } }),
                 ]);
-                this.suppliers = (await parseJsonResponse(suppliersResponse)).data ?? [];
-                this.products = (await parseJsonResponse(productsResponse)).data ?? [];
+                const suppliersPayload = await parseJsonResponse(suppliersResponse);
+                const productsPayload = await parseJsonResponse(productsResponse);
+
+                if (!suppliersResponse.ok || !productsResponse.ok) {
+                    throw suppliersPayload.errors || productsPayload.errors || suppliersPayload;
+                }
+
+                this.suppliers = suppliersPayload.data ?? [];
+                this.products = productsPayload.data ?? [];
             } catch (error) {
                 this.generalError = 'Daftar supplier/produk belum berhasil dimuat. Muat ulang halaman.';
             } finally {

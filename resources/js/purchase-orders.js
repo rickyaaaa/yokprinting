@@ -213,6 +213,10 @@ export const registerPurchaseOrderComponents = (Alpine) => {
                 const suppliersPayload = await parseJsonResponse(suppliersResponse);
                 const productsPayload = await parseJsonResponse(productsResponse);
 
+                if (!suppliersResponse.ok || !productsResponse.ok) {
+                    throw suppliersPayload.errors || productsPayload.errors || suppliersPayload;
+                }
+
                 this.suppliers = suppliersPayload.data ?? [];
                 this.products = productsPayload.data ?? [];
             } catch (error) {

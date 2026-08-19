@@ -80,7 +80,7 @@ class ListProductOptionsApiTest extends TestCase
     {
         $this->getJson(route('api.products.options.index', [
             'status' => 'archived',
-            'limit' => 151,
+            'limit' => 501,
         ]))
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['status', 'limit']);
