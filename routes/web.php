@@ -16,6 +16,7 @@ use App\Http\Controllers\ProductIndexPageController;
 use App\Http\Controllers\ProfitLossReportPageController;
 use App\Http\Controllers\ReceivablePageController;
 use App\Models\Expense;
+use App\Models\Supplier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -91,6 +92,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/products/{product}/edit', function (string $product) {
         return view('products.form', ['productCode' => $product]);
     })->middleware('permission:product.update')->name('products.edit');
+    Route::view('/suppliers', 'suppliers.index')
+        ->middleware('permission:product.view')
+        ->name('suppliers.index');
+    Route::view('/suppliers/create', 'suppliers.form')
+        ->middleware('permission:product.create')
+        ->name('suppliers.create');
+    Route::get('/suppliers/{supplier}/edit', function (Supplier $supplier) {
+        return view('suppliers.form', ['supplier' => $supplier]);
+    })->middleware('permission:product.update')->name('suppliers.edit');
     Route::get('/invoices', InvoiceIndexPageController::class)
         ->middleware('permission:invoice.view')
         ->name('invoices.index');

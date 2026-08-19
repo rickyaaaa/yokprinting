@@ -47,6 +47,12 @@
             && $currentRole->status !== \App\Models\Role::STATUS_DISABLED
             && $currentRole->permissions->contains('code', 'goods_receipt.view'))
     );
+    $canViewSuppliers = $currentUser?->isActive() && (
+        $currentUser->role === \App\Models\User::ROLE_OWNER
+        || ($currentRole
+            && $currentRole->status !== \App\Models\Role::STATUS_DISABLED
+            && $currentRole->permissions->contains('code', 'product.view'))
+    );
     $canViewSupplierPrices = $currentUser?->isActive() && (
         $currentUser->role === \App\Models\User::ROLE_OWNER
         || ($currentRole
@@ -73,6 +79,7 @@
             'items' => [
                 ['label' => 'Pelanggan', 'route' => 'customers.index', 'active' => ['customers.*'], 'icon' => 'customers'],
                 ['label' => 'Produk', 'route' => 'products.index', 'active' => ['products.*'], 'icon' => 'products'],
+                ['label' => 'Supplier', 'route' => 'suppliers.index', 'active' => ['suppliers.*'], 'icon' => 'supplier', 'visible' => $canViewSuppliers],
                 ['label' => 'Purchase Order', 'route' => 'purchase-orders.index', 'active' => ['purchase-orders.*'], 'icon' => 'purchase-order', 'visible' => $canViewPurchaseOrders],
                 ['label' => 'Penerimaan Barang', 'route' => 'goods-receipts.index', 'active' => ['goods-receipts.*'], 'icon' => 'goods-receipt', 'visible' => $canViewGoodsReceipts],
                 ['label' => 'Harga Supplier', 'route' => 'supplier-prices.index', 'active' => ['supplier-prices.*'], 'icon' => 'supplier-price', 'visible' => $canViewSupplierPrices],
@@ -174,6 +181,11 @@
                                 @case('products')
                                     <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" stroke-linejoin="round"/>
                                     <path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12.1V21" stroke-linejoin="round"/>
+                                    @break
+
+                                @case('supplier')
+                                    <path d="M3 21V8l9-5 9 5v13" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M7 21v-7h4v7M14 11h3M14 15h3" stroke-linecap="round"/>
                                     @break
 
                                 @case('purchase-order')
