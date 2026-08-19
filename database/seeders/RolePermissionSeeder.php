@@ -26,6 +26,7 @@ class RolePermissionSeeder extends Seeder
             Permission::MODULE_ROLE => 'Role',
             Permission::MODULE_PURCHASE_ORDER => 'Purchase Order',
             Permission::MODULE_GOODS_RECEIPT => 'Penerimaan Barang',
+            Permission::MODULE_SUPPLIER_PRICE => 'Harga Supplier',
         ];
 
         $actions = [
@@ -47,6 +48,7 @@ class RolePermissionSeeder extends Seeder
                 Permission::MODULE_EXPENSE, Permission::MODULE_CASH_BANK => ['view', 'create', 'update', 'delete'],
                 Permission::MODULE_PURCHASE_ORDER => ['view', 'create', 'update', 'submit', 'approve', 'cancel'],
                 Permission::MODULE_GOODS_RECEIPT => ['view', 'create', 'post', 'cancel'],
+                Permission::MODULE_SUPPLIER_PRICE => ['view', 'create', 'update'],
                 default => ['view', 'create', 'update', 'delete', 'export'],
             };
 
@@ -114,6 +116,9 @@ class RolePermissionSeeder extends Seeder
                     'goods_receipt.create',
                     'goods_receipt.post',
                     'goods_receipt.cancel',
+                    'supplier_price.view',
+                    'supplier_price.create',
+                    'supplier_price.update',
                 ],
             ],
             Role::CODE_OPERATIONS => [
@@ -136,6 +141,9 @@ class RolePermissionSeeder extends Seeder
                     'goods_receipt.view',
                     'goods_receipt.create',
                     'goods_receipt.post',
+                    'supplier_price.view',
+                    'supplier_price.create',
+                    'supplier_price.update',
                 ],
             ],
             Role::CODE_VIEWER => [
@@ -152,6 +160,7 @@ class RolePermissionSeeder extends Seeder
                     'report.view',
                     'purchase_order.view',
                     'goods_receipt.view',
+                    'supplier_price.view',
                 ],
             ],
         ];

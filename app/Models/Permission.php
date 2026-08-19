@@ -45,6 +45,8 @@ class Permission extends Model
 
     public const MODULE_GOODS_RECEIPT = 'goods_receipt';
 
+    public const MODULE_SUPPLIER_PRICE = 'supplier_price';
+
     /**
      * The model's default values for attributes.
      *

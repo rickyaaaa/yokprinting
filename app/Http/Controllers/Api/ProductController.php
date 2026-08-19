@@ -8,8 +8,10 @@ use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\SupplierPriceList;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Collection;
 
 class ProductController extends Controller
 {
@@ -56,8 +58,12 @@ class ProductController extends Controller
             })
             ->orderBy($sort, $direction)
             ->limit($limit)
-            ->get()
-            ->map(fn (Product $product): array => $this->serializeProduct($product))
+            ->get();
+
+        $lastSupplierPrices = $this->lastSupplierPricesFor($products->pluck('id'));
+
+        $products = $products
+            ->map(fn (Product $product): array => $this->serializeProduct($product, $lastSupplierPrices->get($product->getKey())))
             ->values();
 
         return response()->json([
@@ -155,7 +161,7 @@ class ProductController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function serializeProduct(Product $product): array
+    private function serializeProduct(Product $product, ?SupplierPriceList $lastSupplierPrice = null): array
     {
         return [
             'id' => $product->getKey(),
@@ -182,6 +188,10 @@ class ProductController extends Controller
             'purchase_price' => (float) $product->purchase_price,
             'last_purchase_price' => $product->last_purchase_price === null ? null : (float) $product->last_purchase_price,
             'average_purchase_cost' => $product->average_purchase_cost === null ? null : (float) $product->average_purchase_cost,
+            // From Supplier Price List, not from actual purchase transactions -
+            // deliberately kept separate from last_purchase_price above (see
+            // requirement 14/15: supplier's asking price vs what was actually paid).
+            'last_supplier_price' => $this->serializeLastSupplierPrice($lastSupplierPrice ?? $this->lastSupplierPricesFor(collect([$product->getKey()]))->get($product->getKey())),
             'stock' => $product->stock === null ? null : (float) $product->stock,
             'minimum_stock' => $product->minimumStockValue(),
             'minimum_order_qty' => $product->minimum_order_qty,
@@ -198,6 +208,49 @@ class ProductController extends Controller
             'status' => $product->status,
             'created_at' => $product->created_at?->toISOString(),
             'updated_at' => $product->updated_at?->toISOString(),
+        ];
+    }
+
+    /**
+     * Batch-resolve the most recent Supplier Price List quote per product
+     * (across all suppliers) in a single query, keyed by product id - a
+     * read-only reference shown on the product master (requirement 14).
+     * Compare suppliers side by side on the Harga Supplier page instead.
+     *
+     * @param  Collection<int, int>  $productIds
+     * @return Collection<int, SupplierPriceList>
+     */
+    private function lastSupplierPricesFor(Collection $productIds): Collection
+    {
+        $productIds = $productIds->filter()->unique()->values();
+
+        if ($productIds->isEmpty()) {
+            return collect();
+        }
+
+        return SupplierPriceList::query()
+            ->whereIn('product_id', $productIds)
+            ->with('supplier:id,name')
+            ->orderByDesc('valid_from')
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy('product_id')
+            ->map(fn ($group) => $group->first());
+    }
+
+    /** @return array<string, mixed>|null */
+    private function serializeLastSupplierPrice(?SupplierPriceList $priceList): ?array
+    {
+        if (! $priceList) {
+            return null;
+        }
+
+        return [
+            'price' => (float) $priceList->price,
+            'supplier_name' => $priceList->supplier?->name,
+            'valid_from' => $priceList->valid_from?->toDateString(),
+            'valid_until' => $priceList->valid_until?->toDateString(),
+            'status' => $priceList->status(),
         ];
     }
 }

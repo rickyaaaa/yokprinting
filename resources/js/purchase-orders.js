@@ -200,7 +200,7 @@ export const registerPurchaseOrderComponents = (Alpine) => {
             other_cost: 0,
             notes: '',
         },
-        items: [{ product_id: '', quantity: '', unit_price: '' }],
+        items: [{ product_id: '', quantity: '', unit_price: '', supplier_price_list_id: null, priceReference: null, priceReferenceLoading: false }],
 
         async init() {
             this.loadingOptions = true;
@@ -223,7 +223,7 @@ export const registerPurchaseOrderComponents = (Alpine) => {
         },
 
         addItem() {
-            this.items.push({ product_id: '', quantity: '', unit_price: '' });
+            this.items.push({ product_id: '', quantity: '', unit_price: '', supplier_price_list_id: null, priceReference: null, priceReferenceLoading: false });
         },
 
         removeItem(index) {
@@ -234,15 +234,81 @@ export const registerPurchaseOrderComponents = (Alpine) => {
             this.items.splice(index, 1);
         },
 
-        productChanged(index) {
+        async productChanged(index) {
             const item = this.items[index];
             const product = this.products.find((candidate) => String(candidate.id) === String(item.product_id));
+            item.supplier_price_list_id = null;
+            item.priceReference = null;
+
+            const supplierPrice = await this.fetchSupplierPriceReference(index);
+
+            if (supplierPrice) {
+                item.supplier_price_list_id = supplierPrice.status !== 'expired' ? supplierPrice.id : null;
+
+                if (item.unit_price === '' || item.unit_price === null) {
+                    item.unit_price = supplierPrice.price;
+                }
+
+                return;
+            }
 
             if (product && (item.unit_price === '' || item.unit_price === null)) {
-                // Suggest from real purchase history first; the legacy flat
-                // field is only a last-resort fallback for products that have
-                // never been through a Goods Receipt yet.
+                // No supplier price quote at all - fall back to real purchase
+                // history first; the legacy flat field is only a last-resort
+                // fallback for products that have never been purchased yet.
                 item.unit_price = product.last_purchase_price || product.average_purchase_cost || product.purchase_price || '';
+            }
+        },
+
+        /**
+         * Re-check every line's supplier price suggestion when the supplier
+         * changes, since a quote from a different supplier must never leak
+         * into this PO (requirement 17).
+         */
+        async supplierChanged() {
+            await Promise.all(this.items.map((item, index) => {
+                item.supplier_price_list_id = null;
+                item.priceReference = null;
+
+                return item.product_id ? this.fetchSupplierPriceReference(index) : Promise.resolve(null);
+            }));
+        },
+
+        async fetchSupplierPriceReference(index) {
+            const item = this.items[index];
+
+            if (!this.form.supplier_id || !item.product_id) {
+                return null;
+            }
+
+            item.priceReferenceLoading = true;
+
+            try {
+                const parameters = new URLSearchParams({
+                    supplier_id: String(this.form.supplier_id),
+                    product_id: String(item.product_id),
+                });
+                const response = await fetch(`/api/supplier-prices/active?${parameters.toString()}`, {
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json' },
+                });
+                const payload = await parseJsonResponse(response);
+
+                if (!response.ok || !payload.data) {
+                    item.priceReference = null;
+
+                    return null;
+                }
+
+                item.priceReference = payload.data;
+
+                return payload.data;
+            } catch (error) {
+                item.priceReference = null;
+
+                return null;
+            } finally {
+                item.priceReferenceLoading = false;
             }
         },
 
@@ -307,6 +373,7 @@ export const registerPurchaseOrderComponents = (Alpine) => {
                             product_id: item.product_id,
                             quantity: item.quantity,
                             unit_price: item.unit_price,
+                            supplier_price_list_id: item.supplier_price_list_id || null,
                         })),
                     }),
                 });
@@ -335,6 +402,14 @@ export const registerPurchaseOrderComponents = (Alpine) => {
 
         formatRupiah(value) {
             return rupiahFormatter.format(Number(value ?? 0));
+        },
+
+        formatDate(value) {
+            if (!value) {
+                return '-';
+            }
+
+            return dateFormatter.format(new Date(`${value}T00:00:00Z`));
         },
     }));
 };

@@ -180,6 +180,16 @@
                                         <span class="text-sm font-medium text-muted">Rata-rata biaya (average cost)</span>
                                         <p class="mt-1 font-semibold text-ink" x-text="formattedAveragePurchaseCost"></p>
                                     </div>
+                                    <div class="block rounded-lg border border-line bg-canvas p-3 md:col-span-2">
+                                        <div class="flex flex-wrap items-start justify-between gap-3">
+                                            <div>
+                                                <span class="text-sm font-medium text-muted">Harga supplier terakhir</span>
+                                                <p class="mt-1 font-semibold text-ink" x-text="formattedLastSupplierPrice"></p>
+                                                <p class="mt-0.5 text-xs text-muted" x-show="lastSupplierPrice" x-text="lastSupplierPriceCaption"></p>
+                                            </div>
+                                            <a x-show="form.id" :href="supplierPriceHistoryUrl" class="whitespace-nowrap text-xs font-semibold text-brand-700 hover:text-brand-800">Lihat History Harga Supplier &rarr;</a>
+                                        </div>
+                                    </div>
                                     <label class="block">
                                         <span class="text-sm font-medium text-ink">Status katalog</span>
                                         <select class="form-control mt-1.5" x-model="form.status">

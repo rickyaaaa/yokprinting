@@ -15,6 +15,7 @@ class PurchaseOrderItem extends Model
     protected $fillable = [
         'purchase_order_id',
         'product_id',
+        'supplier_price_list_id',
         'product_name_snapshot',
         'sku_snapshot',
         'unit_snapshot',
@@ -45,5 +46,14 @@ class PurchaseOrderItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * Supplier Price List quote (if any) that suggested this line's
+     * unit_price - reference only, never re-applied after the PO is saved.
+     */
+    public function supplierPriceList(): BelongsTo
+    {
+        return $this->belongsTo(SupplierPriceList::class);
     }
 }

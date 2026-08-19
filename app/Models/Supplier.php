@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Supplier extends Model
@@ -37,5 +38,13 @@ class Supplier extends Model
                 'is_primary',
             ])
             ->withTimestamps();
+    }
+
+    /**
+     * Get the supplier-quoted price history (Supplier Price List) from this supplier.
+     */
+    public function priceLists(): HasMany
+    {
+        return $this->hasMany(SupplierPriceList::class);
     }
 }

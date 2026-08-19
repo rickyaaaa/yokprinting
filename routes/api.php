@@ -46,6 +46,8 @@ use App\Http\Controllers\Api\SalesReportSummaryController;
 use App\Http\Controllers\Api\StockMovementController;
 use App\Http\Controllers\Api\StockMovementReportController;
 use App\Http\Controllers\Api\SupplierController;
+use App\Http\Controllers\Api\SupplierPriceActiveController;
+use App\Http\Controllers\Api\SupplierPriceListController;
 use App\Http\Controllers\Api\ThemeDefaultSettingController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Illuminate\Support\Facades\Route;
@@ -227,6 +229,19 @@ Route::middleware(['web', 'auth'])->group(function (): void {
     Route::post('/goods-receipts/{goods_receipt}/cancel', [GoodsReceiptCancellationController::class, 'store'])
         ->middleware('permission:goods_receipt.cancel')
         ->name('api.goods-receipts.cancel');
+
+    // Registered before the apiResource below so the literal "active"
+    // segment wins over the resource's {supplier_price} show route.
+    Route::get('/supplier-prices/active', [SupplierPriceActiveController::class, 'show'])
+        ->middleware('permission:supplier_price.view')
+        ->name('api.supplier-prices.active');
+
+    Route::apiResource('supplier-prices', SupplierPriceListController::class)
+        ->only(['index', 'store', 'show', 'update'])
+        ->middlewareFor(['index', 'show'], 'permission:supplier_price.view')
+        ->middlewareFor('store', 'permission:supplier_price.create')
+        ->middlewareFor('update', 'permission:supplier_price.update')
+        ->names('api.supplier-prices');
 
     Route::get('/roles', [RoleController::class, 'index'])
         ->middleware('permission:role.view')

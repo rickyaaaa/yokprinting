@@ -47,6 +47,12 @@
             && $currentRole->status !== \App\Models\Role::STATUS_DISABLED
             && $currentRole->permissions->contains('code', 'goods_receipt.view'))
     );
+    $canViewSupplierPrices = $currentUser?->isActive() && (
+        $currentUser->role === \App\Models\User::ROLE_OWNER
+        || ($currentRole
+            && $currentRole->status !== \App\Models\Role::STATUS_DISABLED
+            && $currentRole->permissions->contains('code', 'supplier_price.view'))
+    );
 
     $navGroups = [
         [
@@ -69,6 +75,7 @@
                 ['label' => 'Produk', 'route' => 'products.index', 'active' => ['products.*'], 'icon' => 'products'],
                 ['label' => 'Purchase Order', 'route' => 'purchase-orders.index', 'active' => ['purchase-orders.*'], 'icon' => 'purchase-order', 'visible' => $canViewPurchaseOrders],
                 ['label' => 'Penerimaan Barang', 'route' => 'goods-receipts.index', 'active' => ['goods-receipts.*'], 'icon' => 'goods-receipt', 'visible' => $canViewGoodsReceipts],
+                ['label' => 'Harga Supplier', 'route' => 'supplier-prices.index', 'active' => ['supplier-prices.*'], 'icon' => 'supplier-price', 'visible' => $canViewSupplierPrices],
                 ['label' => 'Laporan penjualan', 'route' => 'reports.sales.index', 'active' => ['reports.sales.*'], 'icon' => 'reports', 'visible' => $canViewReports],
                 ['label' => 'Laba rugi', 'route' => 'reports.profit-loss.index', 'active' => ['reports.profit-loss.*'], 'icon' => 'profit-loss', 'visible' => $canViewReports],
                 ['label' => 'Pengaturan', 'route' => 'settings.company-profile.edit', 'active' => ['settings.*'], 'icon' => 'settings'],
@@ -177,6 +184,12 @@
                                 @case('goods-receipt')
                                     <path d="M21 8 12 3 3 8m18 0-9 5m9-5v9l-9 5m0-9L3 8m9 5v9M3 8v9l9 5" stroke-linecap="round" stroke-linejoin="round"/>
                                     <path d="m8 10.5 8-4.5" stroke-linecap="round"/>
+                                    @break
+
+                                @case('supplier-price')
+                                    <path d="M12 3 4 11v9a1 1 0 0 0 1 1h6v-6h2v6h6a1 1 0 0 0 1-1v-9L12 3Z" stroke-linejoin="round"/>
+                                    <path d="M9.5 13.5h5M9.5 13.5c-.9 0-1.5-.55-1.5-1.25S8.6 11 9.5 11h2c.9 0 1.5-.55 1.5-1.25S12.4 8.5 11.5 8.5h-2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M10.5 7.5v1M10.5 13.5v1" stroke-linecap="round"/>
                                     @break
 
                                 @case('reports')

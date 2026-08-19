@@ -38,6 +38,7 @@ import { registerProfitLossComponents } from './profit-loss';
 import { registerCashBankComponents } from './cash-bank';
 import { registerPurchaseOrderComponents } from './purchase-orders';
 import { registerGoodsReceiptComponents } from './goods-receipts';
+import { registerSupplierPriceComponents } from './supplier-prices';
 
 window.Alpine = Alpine;
 
@@ -46,6 +47,7 @@ registerProfitLossComponents(Alpine);
 registerCashBankComponents(Alpine);
 registerPurchaseOrderComponents(Alpine);
 registerGoodsReceiptComponents(Alpine);
+registerSupplierPriceComponents(Alpine);
 
 Chart.register(BarController, BarElement, CategoryScale, Filler, LinearScale, LineController, LineElement, PointElement, Legend, Tooltip);
 
@@ -2872,6 +2874,9 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
     // payload. Only PostGoodsReceipt (Goods Receipt posting) ever writes these.
     lastPurchasePrice: initialForm.lastPurchasePrice ?? initialForm.last_purchase_price ?? null,
     averagePurchaseCost: initialForm.averagePurchaseCost ?? initialForm.average_purchase_cost ?? null,
+    // From Supplier Price List (what the supplier quotes), distinct from the
+    // above (what was actually paid) - see requirement 14/15.
+    lastSupplierPrice: initialForm.lastSupplierPrice ?? initialForm.last_supplier_price ?? null,
     form: {
         id: initialForm.id ?? null,
         sku: initialForm.sku ?? 'PRN-NEW-01',
@@ -2905,6 +2910,7 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
             this.form = this.normalizeProduct(response.data);
             this.lastPurchasePrice = response.data.last_purchase_price ?? null;
             this.averagePurchaseCost = response.data.average_purchase_cost ?? null;
+            this.lastSupplierPrice = response.data.last_supplier_price ?? null;
         } catch (error) {
             this.error = error?.message ?? 'Detail produk belum dapat dimuat.';
         } finally {
@@ -2941,6 +2947,25 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
 
     get formattedAveragePurchaseCost() {
         return this.averagePurchaseCost === null ? 'Belum ada data' : formatRupiah(Number(this.averagePurchaseCost));
+    },
+
+    get formattedLastSupplierPrice() {
+        return this.lastSupplierPrice ? formatRupiah(Number(this.lastSupplierPrice.price)) : 'Belum ada data';
+    },
+
+    get lastSupplierPriceCaption() {
+        if (!this.lastSupplierPrice) {
+            return '';
+        }
+
+        const statusLabels = { active: 'Aktif', upcoming: 'Akan berlaku', expired: 'Expired' };
+        const status = statusLabels[this.lastSupplierPrice.status] ?? this.lastSupplierPrice.status;
+
+        return `${this.lastSupplierPrice.supplier_name ?? 'Supplier'} - ${status}`;
+    },
+
+    get supplierPriceHistoryUrl() {
+        return `/supplier-prices?product_id=${this.form.id ?? ''}`;
     },
 
     get stockLabel() {

@@ -51,7 +51,7 @@
                             <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                 <label>
                                     <span class="mb-1.5 block text-xs font-semibold text-muted">Supplier</span>
-                                    <select class="form-control" x-model="form.supplier_id" :aria-invalid="Boolean(errors.supplier_id)" @change="clearError('supplier_id')">
+                                    <select class="form-control" x-model="form.supplier_id" :aria-invalid="Boolean(errors.supplier_id)" @change="clearError('supplier_id'); supplierChanged()">
                                         <option value="">Pilih supplier</option>
                                         <template x-for="supplier in suppliers" :key="supplier.id">
                                             <option :value="supplier.id" x-text="`${supplier.code} - ${supplier.name}`"></option>
@@ -98,6 +98,30 @@
                                                         </template>
                                                     </select>
                                                     <span class="mt-1.5 block text-xs text-red-700" x-show="errors[`items.${index}.product_id`]" x-text="errors[`items.${index}.product_id`]"></span>
+
+                                                    <div x-show="item.priceReferenceLoading" class="mt-2 text-xs text-muted">Memeriksa harga supplier...</div>
+
+                                                    <template x-if="!item.priceReferenceLoading && item.priceReference && item.priceReference.status === 'active'">
+                                                        <div class="mt-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-900">
+                                                            <p class="font-semibold">Harga Supplier Aktif: <span x-text="formatRupiah(item.priceReference.price)"></span></p>
+                                                            <p class="mt-0.5 text-green-800">Berlaku: <span x-text="formatDate(item.priceReference.valid_from)"></span> - <span x-text="item.priceReference.valid_until ? formatDate(item.priceReference.valid_until) : 'seterusnya'"></span></p>
+                                                        </div>
+                                                    </template>
+
+                                                    <template x-if="!item.priceReferenceLoading && item.priceReference && item.priceReference.status === 'upcoming'">
+                                                        <div class="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+                                                            <p class="font-semibold">Harga Supplier Akan Berlaku: <span x-text="formatRupiah(item.priceReference.price)"></span></p>
+                                                            <p class="mt-0.5 text-blue-800">Mulai: <span x-text="formatDate(item.priceReference.valid_from)"></span></p>
+                                                        </div>
+                                                    </template>
+
+                                                    <template x-if="!item.priceReferenceLoading && item.priceReference && item.priceReference.status === 'expired'">
+                                                        <div class="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900">
+                                                            <p class="font-semibold">Harga Terakhir Supplier: <span x-text="formatRupiah(item.priceReference.price)"></span></p>
+                                                            <p class="mt-0.5 text-red-800">Expired <span x-text="formatDate(item.priceReference.valid_until)"></span></p>
+                                                            <p class="mt-1 font-medium text-red-900">Harga supplier ini sudah tidak aktif. Konfirmasi kembali dengan supplier.</p>
+                                                        </div>
+                                                    </template>
                                                 </td>
                                                 <td class="px-4 py-3">
                                                     <input type="number" min="0.0001" step="0.0001" class="form-control w-28" x-model="item.quantity" @input="clearError(`items.${index}.quantity`)">

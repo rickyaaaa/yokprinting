@@ -127,6 +127,12 @@ Route::middleware('auth')->group(function () {
     Route::view('/goods-receipts/create', 'goods-receipts.create')
         ->middleware('permission:goods_receipt.create')
         ->name('goods-receipts.create');
+    Route::view('/supplier-prices', 'supplier-prices.index')
+        ->middleware('permission:supplier_price.view')
+        ->name('supplier-prices.index');
+    Route::view('/supplier-prices/create', 'supplier-prices.create')
+        ->middleware('permission:supplier_price.create')
+        ->name('supplier-prices.create');
     Route::view('/expenses', 'expenses.index')
         ->middleware('permission:expense.view')
         ->name('expenses.index');

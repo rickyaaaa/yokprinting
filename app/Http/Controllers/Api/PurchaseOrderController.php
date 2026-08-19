@@ -56,7 +56,7 @@ class PurchaseOrderController extends Controller
         $purchaseOrder = $savePurchaseOrder->create(
             $request->validated(),
             $request->user()?->getAuthIdentifier(),
-        );
+        )->load('items.supplierPriceList');
 
         return response()->json([
             'message' => 'PO berhasil disimpan sebagai draft.',
@@ -66,7 +66,7 @@ class PurchaseOrderController extends Controller
 
     public function show(PurchaseOrder $purchaseOrder): JsonResponse
     {
-        $purchaseOrder->load(['supplier', 'items.product', 'creator:id,name', 'approver:id,name', 'canceller:id,name']);
+        $purchaseOrder->load(['supplier', 'items.product', 'items.supplierPriceList', 'creator:id,name', 'approver:id,name', 'canceller:id,name']);
 
         return response()->json([
             'data' => $this->serialize($purchaseOrder, withItems: true),
@@ -78,7 +78,8 @@ class PurchaseOrderController extends Controller
         PurchaseOrder $purchaseOrder,
         SavePurchaseOrder $savePurchaseOrder,
     ): JsonResponse {
-        $updated = $savePurchaseOrder->update($purchaseOrder, $request->validated());
+        $updated = $savePurchaseOrder->update($purchaseOrder, $request->validated())
+            ->load('items.supplierPriceList');
 
         return response()->json([
             'message' => 'PO berhasil diperbarui.',
@@ -129,6 +130,16 @@ class PurchaseOrderController extends Controller
                 'unit_price' => (float) $item->unit_price,
                 'subtotal' => (float) $item->subtotal,
                 'received_quantity' => (float) $item->received_quantity,
+                'supplier_price_list_id' => $item->supplier_price_list_id,
+                // Reference only - shows which supplier quote suggested this
+                // price at PO creation time; unit_price above stays the locked
+                // transaction price regardless of what the quote looks like now.
+                'supplier_price_list' => $item->relationLoaded('supplierPriceList') && $item->supplierPriceList ? [
+                    'id' => $item->supplierPriceList->getKey(),
+                    'price' => (float) $item->supplierPriceList->price,
+                    'valid_from' => $item->supplierPriceList->valid_from?->toDateString(),
+                    'valid_until' => $item->supplierPriceList->valid_until?->toDateString(),
+                ] : null,
             ])->values();
         }
 

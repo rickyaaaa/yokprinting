@@ -38,6 +38,15 @@ class StorePurchaseOrderRequest extends FormRequest
             ],
             'items.*.quantity' => ['required', 'numeric', 'gt:0'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
+            // Reference-only pointer to the Supplier Price List quote that
+            // suggested this unit_price - never re-priced from it, see
+            // SavePurchaseOrder::snapshotItems.
+            'items.*.supplier_price_list_id' => [
+                'sometimes',
+                'nullable',
+                'integer',
+                Rule::exists('supplier_price_lists', 'id'),
+            ],
             'shipping_cost' => ['sometimes', 'numeric', 'min:0'],
             'other_cost' => ['sometimes', 'numeric', 'min:0'],
             'notes' => ['sometimes', 'nullable', 'string', 'max:2000'],

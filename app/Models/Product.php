@@ -153,6 +153,16 @@ class Product extends Model
     }
 
     /**
+     * Get the supplier-quoted price history for this product (Supplier
+     * Price List). Distinct from purchase_price/last_purchase_price, which
+     * reflect what the company actually paid, not what suppliers quoted.
+     */
+    public function supplierPriceLists(): HasMany
+    {
+        return $this->hasMany(SupplierPriceList::class);
+    }
+
+    /**
      * Get suppliers that can provide this product.
      */
     public function suppliers(): BelongsToMany
