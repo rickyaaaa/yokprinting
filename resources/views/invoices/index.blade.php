@@ -1,3 +1,16 @@
+@php
+    $currentUser = auth()->user();
+    $role = $currentUser?->role === \App\Models\User::ROLE_OWNER
+        ? null
+        : $currentUser?->roleDefinition()->with('permissions')->first();
+    $rolePermissions = $role && $role->status !== \App\Models\Role::STATUS_DISABLED
+        ? $role->permissions->pluck('code')
+        : collect();
+    $can = fn (string $permission): bool => (bool) ($currentUser?->isActive() && (
+        $currentUser->role === \App\Models\User::ROLE_OWNER || $rolePermissions->contains($permission)
+    ));
+@endphp
+
 <!DOCTYPE html>
 <html lang="id">
     <head>
@@ -155,6 +168,9 @@
                                             </td>
                                             <td class="whitespace-nowrap px-5 py-4 text-right sm:px-6">
                                                 <a :href="`/payments/invoices/${invoice.number}`" class="font-semibold text-brand-700 hover:text-brand-900">Detail</a>
+                                                <template x-if="invoice.is_editable && {{ $can('invoice.update') ? 'true' : 'false' }}">
+                                                    <a :href="`/invoices/${invoice.number}/edit`" class="ml-3 font-semibold text-ink hover:text-brand-900">Edit</a>
+                                                </template>
                                             </td>
                                         </tr>
                                     </template>

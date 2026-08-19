@@ -14,6 +14,7 @@
         'canCreate' => $can('expense.create'),
         'canUpdate' => $can('expense.update'),
         'canDelete' => $can('expense.delete'),
+        'canExport' => $can('report.export'),
         'createUrl' => route('expenses.create'),
         'editUrlTemplate' => route('expenses.edit', ['expense' => '__ID__']),
     ];
@@ -57,14 +58,26 @@
                             <h1 class="mt-3 text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Pengeluaran</h1>
                             <p class="mt-1 text-sm leading-6 text-muted">Catat dan telusuri seluruh biaya operasional dengan bukti pembayaran dan jejak audit.</p>
                         </div>
-                        <a
-                            x-show="config.canCreate"
-                            href="{{ route('expenses.create') }}"
-                            class="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800"
-                        >
-                            <span class="text-lg leading-none">+</span>
-                            Tambah pengeluaran
-                        </a>
+                        <div class="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                x-show="config.canExport"
+                                :disabled="exporting"
+                                @click="exportCsv()"
+                                class="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800 disabled:cursor-wait disabled:opacity-60"
+                            >
+                                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                <span x-text="exporting ? 'Mengekspor...' : 'Export CSV'"></span>
+                            </button>
+                            <a
+                                x-show="config.canCreate"
+                                href="{{ route('expenses.create') }}"
+                                class="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800"
+                            >
+                                <span class="text-lg leading-none">+</span>
+                                Tambah pengeluaran
+                            </a>
+                        </div>
                     </div>
 
                     <section class="mb-6 grid gap-4 sm:grid-cols-2" aria-label="Ringkasan pengeluaran">
@@ -134,7 +147,7 @@
                                             <td class="max-w-xs px-5 py-4 text-muted" x-text="expense.description"></td>
                                             <td class="px-5 py-4" x-text="expense.recipient"></td>
                                             <td class="px-5 py-4">
-                                                <span class="block" x-text="expense.payment_method"></span>
+                                                <span class="block" x-text="expense.payment_method_label"></span>
                                                 <a :href="expense.proof_download_url" class="mt-1 inline-block text-xs font-semibold text-brand-700 hover:underline">Lihat bukti</a>
                                             </td>
                                             <td class="px-5 py-4" x-text="expense.creator?.name ?? '-' "></td>

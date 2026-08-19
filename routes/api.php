@@ -87,6 +87,9 @@ Route::middleware(['web', 'auth'])->group(function (): void {
     Route::get('/cash-bank/transactions', [CashBankController::class, 'index'])
         ->middleware('permission:cash_bank.view')
         ->name('api.cash-bank.transactions.index');
+    Route::get('/cash-bank/transactions/export', [CashBankController::class, 'export'])
+        ->middleware(['permission:report.export', 'throttle:report-export'])
+        ->name('api.cash-bank.transactions.export');
     Route::post('/cash-bank/transactions', [CashBankController::class, 'store'])
         ->middleware('permission:cash_bank.create')
         ->name('api.cash-bank.transactions.store');
@@ -306,6 +309,10 @@ Route::middleware(['web', 'auth'])->group(function (): void {
     Route::post('/invoices/{invoice:invoice_number}/cancel', [InvoiceCancellationController::class, 'store'])
         ->middleware('permission:invoice.update')
         ->name('api.invoices.cancel.store');
+
+    Route::match(['put', 'patch'], '/invoices/{invoice:invoice_number}', [InvoiceDraftController::class, 'update'])
+        ->middleware('permission:invoice.update')
+        ->name('api.invoices.update');
 
     Route::get('/invoices/{invoice}/pdf', [InvoicePdfController::class, 'download'])
         ->middleware(['permission:invoice.export', 'throttle:invoice-pdf'])

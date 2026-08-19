@@ -1,3 +1,5 @@
+@props(['isEdit' => false])
+
 <section
     x-data="{
         subtotal: 21250000,
@@ -218,18 +220,20 @@
             <svg x-show="savingDraft" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <path d="M21 12a9 9 0 1 1-2.64-6.36" stroke-linecap="round"/>
             </svg>
-            <span x-text="savingDraft ? 'Menyimpan invoice…' : (draftSaved ? 'Invoice tersimpan' : 'Simpan invoice')"></span>
+            <span x-text="savingDraft ? '{{ $isEdit ? 'Menyimpan perubahan…' : 'Menyimpan invoice…' }}' : (draftSaved ? 'Invoice tersimpan' : '{{ $isEdit ? 'Simpan perubahan' : 'Simpan invoice' }}')"></span>
         </button>
-        <button
-            type="button"
-            class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-brand-300 bg-white px-4 py-3 text-sm font-semibold text-brand-800 hover:bg-brand-50"
-            @click="$dispatch('invoice-preview-requested', { url: '{{ route('invoices.preview') }}' })"
-        >
-            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" stroke-linejoin="round"/>
-                <circle cx="12" cy="12" r="2.5"/>
-            </svg>
-            Pratinjau invoice
-        </button>
+        @unless ($isEdit)
+            <button
+                type="button"
+                class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-brand-300 bg-white px-4 py-3 text-sm font-semibold text-brand-800 hover:bg-brand-50"
+                @click="$dispatch('invoice-preview-requested', { url: '{{ route('invoices.preview') }}' })"
+            >
+                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" stroke-linejoin="round"/>
+                    <circle cx="12" cy="12" r="2.5"/>
+                </svg>
+                Pratinjau invoice
+            </button>
+        @endunless
     </div>
 </section>

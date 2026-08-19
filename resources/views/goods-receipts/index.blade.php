@@ -107,7 +107,7 @@
                                                         @click="post(receipt)"
                                                     >Posting</button>
                                                     <button
-                                                        x-show="receipt.status === 'draft' && {{ $can('goods_receipt.cancel') ? 'true' : 'false' }}"
+                                                        x-show="receipt.can_be_cancelled && {{ $can('goods_receipt.cancel') ? 'true' : 'false' }}"
                                                         type="button"
                                                         class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:cursor-wait disabled:opacity-60"
                                                         :disabled="actingOn === receipt.id"

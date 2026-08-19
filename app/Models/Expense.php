@@ -30,6 +30,16 @@ class Expense extends Model
 
     public const SUBCATEGORY_OVERTIME = 'overtime';
 
+    public const METHOD_CASH = 'cash';
+
+    public const METHOD_BANK_TRANSFER = 'bank_transfer';
+
+    public const METHOD_CREDIT_CARD = 'credit_card';
+
+    public const METHOD_QRIS = 'qris';
+
+    public const METHOD_OTHER = 'other';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -109,6 +119,32 @@ class Expense extends Model
     }
 
     /**
+     * Fixed payment method vocabulary, shared with ExpenseBankMethodPolicy's
+     * bank-vs-cash bucketing so Kas & Bank categorization can never silently
+     * miscategorize a value it doesn't recognize (unlike free text before).
+     *
+     * @return array<string, string>
+     */
+    public static function paymentMethodOptions(): array
+    {
+        return [
+            self::METHOD_CASH => 'Tunai',
+            self::METHOD_BANK_TRANSFER => 'Transfer Bank',
+            self::METHOD_CREDIT_CARD => 'Kartu Kredit',
+            self::METHOD_QRIS => 'QRIS',
+            self::METHOD_OTHER => 'Lainnya',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function paymentMethods(): array
+    {
+        return array_keys(self::paymentMethodOptions());
+    }
+
+    /**
      * @return list<string>
      */
     public static function categories(): array
@@ -136,5 +172,10 @@ class Expense extends Model
         }
 
         return self::employeeSubcategoryOptions()[$this->subcategory] ?? $this->subcategory;
+    }
+
+    public function paymentMethodLabel(): string
+    {
+        return self::paymentMethodOptions()[$this->payment_method] ?? $this->payment_method;
     }
 }

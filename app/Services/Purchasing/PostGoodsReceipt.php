@@ -6,7 +6,6 @@ use App\Models\ActivityLog;
 use App\Models\GoodsReceipt;
 use App\Models\GoodsReceiptItem;
 use App\Models\Product;
-use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\StockMovement;
 use App\Models\User;
@@ -16,14 +15,16 @@ use Illuminate\Validation\ValidationException;
 
 class PostGoodsReceipt
 {
-    public function __construct(private readonly ActivityLogger $activityLogger) {}
+    public function __construct(
+        private readonly ActivityLogger $activityLogger,
+        private readonly RecalculatePurchaseOrderReceivingStatus $recalculatePurchaseOrderReceivingStatus,
+    ) {}
 
     /**
      * Post a draft goods receipt: stock, moving-average cost, and the PO's
-     * received quantities all change here, and only here. Once posted this
-     * is permanent - there's no reversal in this phase, matching the
-     * "don't build cancellation-of-posted-records without the actual
-     * reversal logic" rule we've followed elsewhere in this codebase.
+     * received quantities all change here, and only here. A posted receipt
+     * can still be voided later via CancelGoodsReceipt, but only while
+     * nothing else has touched the same product's stock/cost since.
      */
     public function handle(GoodsReceipt $goodsReceipt, User $actor): GoodsReceipt
     {
@@ -53,7 +54,7 @@ class PostGoodsReceipt
                 'posted_at' => now(),
             ])->save();
 
-            $this->updatePurchaseOrderReceivingStatus($locked->purchase_order_id);
+            $this->recalculatePurchaseOrderReceivingStatus->handle($locked->purchase_order_id);
 
             $this->activityLogger->record(
                 module: 'goods_receipt',
@@ -130,31 +131,5 @@ class PostGoodsReceipt
         $poItem->forceFill([
             'received_quantity' => round((float) $poItem->received_quantity + $quantityReceived, 4),
         ])->save();
-    }
-
-    private function updatePurchaseOrderReceivingStatus(int $purchaseOrderId): void
-    {
-        /** @var PurchaseOrder $po */
-        $po = PurchaseOrder::query()->lockForUpdate()->findOrFail($purchaseOrderId);
-
-        if (! in_array($po->status, [
-            PurchaseOrder::STATUS_APPROVED,
-            PurchaseOrder::STATUS_PARTIALLY_RECEIVED,
-            PurchaseOrder::STATUS_FULLY_RECEIVED,
-        ], true)) {
-            return;
-        }
-
-        $items = $po->items()->get(['quantity', 'received_quantity']);
-        $totalOrdered = (float) $items->sum('quantity');
-        $totalReceived = (float) $items->sum('received_quantity');
-
-        $newStatus = $totalReceived >= $totalOrdered
-            ? PurchaseOrder::STATUS_FULLY_RECEIVED
-            : PurchaseOrder::STATUS_PARTIALLY_RECEIVED;
-
-        if ($newStatus !== $po->status) {
-            $po->forceFill(['status' => $newStatus])->save();
-        }
     }
 }

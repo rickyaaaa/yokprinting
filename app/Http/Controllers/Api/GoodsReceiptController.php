@@ -92,6 +92,7 @@ class GoodsReceiptController extends Controller
             'status' => $goodsReceipt->status,
             'status_label' => $goodsReceipt->statusLabel(),
             'is_editable' => $goodsReceipt->isEditable(),
+            'can_be_cancelled' => $goodsReceipt->canBeCancelled(),
             'notes' => $goodsReceipt->notes,
             'created_by' => $goodsReceipt->relationLoaded('creator') ? $goodsReceipt->creator?->name : null,
             'posted_by' => $goodsReceipt->relationLoaded('poster') ? $goodsReceipt->poster?->name : null,

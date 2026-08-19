@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exports\ReportCsvExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ListCashBankTransactionsRequest;
 use App\Http\Requests\StoreManualCashBankTransactionRequest;
@@ -14,6 +15,7 @@ use App\Services\CashBank\CashBankService;
 use App\Services\Security\ActivityLogger;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 
 class CashBankController extends Controller
@@ -148,6 +150,52 @@ class CashBankController extends Controller
             'account_number' => $account->account_number,
             'opening_balance' => (float) $account->opening_balance,
         ]]);
+    }
+
+    /**
+     * Export the currently filtered transaction list (same filters as
+     * index) as CSV - supports the same date_from/date_to period filter.
+     */
+    public function export(ListCashBankTransactionsRequest $request, CashBankService $cashBank, ReportCsvExport $export): Response
+    {
+        $filters = $request->validated();
+        $account = $cashBank->activeAccount();
+        $search = trim($filters['search'] ?? '');
+
+        $transactions = $account->transactions()
+            ->when($filters['date_from'] ?? null, fn (Builder $query, string $date): Builder => $query->whereDate('transaction_date', '>=', $date))
+            ->when($filters['date_to'] ?? null, fn (Builder $query, string $date): Builder => $query->whereDate('transaction_date', '<=', $date))
+            ->when($filters['type'] ?? null, fn (Builder $query, string $type): Builder => $query->where('type', $type))
+            ->when($filters['category'] ?? null, fn (Builder $query, string $category): Builder => $query->where('category', $category))
+            ->when($filters['payment_method'] ?? null, fn (Builder $query, string $method): Builder => $query->where('payment_method', $method))
+            ->when($search !== '', function (Builder $query) use ($search): void {
+                $query->where(function (Builder $query) use ($search): void {
+                    $query->where('transaction_number', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhere('category', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('transaction_date')
+            ->orderBy('id')
+            ->get();
+
+        $rows = $transactions->map(fn (CashBankTransaction $transaction): array => [
+            $transaction->transaction_number,
+            $transaction->transaction_date->toDateString(),
+            $transaction->type === CashBankTransaction::TYPE_INCOME ? 'Uang Masuk' : 'Uang Keluar',
+            $this->categoryLabel($transaction->category),
+            $transaction->payment_method === CashBankTransaction::PAYMENT_METHOD_CASH ? 'Tunai' : 'Transfer',
+            $transaction->description,
+            $transaction->type === CashBankTransaction::TYPE_INCOME ? (float) $transaction->amount : 0,
+            $transaction->type === CashBankTransaction::TYPE_EXPENSE ? (float) $transaction->amount : 0,
+            $transaction->status === CashBankTransaction::STATUS_POSTED ? 'Tercatat' : 'Dibatalkan',
+        ]);
+
+        return $export->download(
+            'kas-bank-'.now()->format('Y-m-d').'.csv',
+            ['Nomor', 'Tanggal', 'Tipe', 'Kategori', 'Metode', 'Keterangan', 'Uang Masuk', 'Uang Keluar', 'Status'],
+            $rows,
+        );
     }
 
     /** @return array<string, mixed> */

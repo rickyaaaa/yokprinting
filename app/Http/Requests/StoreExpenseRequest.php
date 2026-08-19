@@ -36,7 +36,7 @@ class StoreExpenseRequest extends FormRequest
             'amount' => ['required', 'numeric', 'gt:0', 'decimal:0,2', 'max:9999999999999.99'],
             'description' => ['required', 'string', 'max:2000'],
             'recipient' => ['required', 'string', 'max:255'],
-            'payment_method' => ['required', 'string', 'max:100'],
+            'payment_method' => ['required', Rule::in(Expense::paymentMethods())],
             'proof_payment' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
         ];
     }

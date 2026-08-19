@@ -49,6 +49,8 @@
         'design_notes' => $invoiceModel->design_notes ?: 'Belum ada catatan desain.',
         'mockup_url' => $invoiceModel->mockup_url,
         'is_cancelled' => $invoiceModel->status === \App\Models\Invoice::STATUS_CANCELLED,
+        'is_draft' => $invoiceModel->status === \App\Models\Invoice::STATUS_DRAFT,
+        'is_editable' => $invoiceModel->isEditable(),
         'can_be_cancelled' => $invoiceModel->canBeCancelled(),
         'cancellation_reason' => $invoiceModel->cancellation_reason,
         'cancelled_at' => $formatDate($invoiceModel->cancelled_at),
@@ -203,6 +205,17 @@
                                     </svg>
                                     Surat jalan
                             </a>
+                            @if ($invoice['is_editable'] && $canUpdateProduction)
+                                <a
+                                    href="{{ route('invoices.edit', $invoiceModel) }}"
+                                    class="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800"
+                                >
+                                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                        <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    Edit invoice
+                                </a>
+                            @endif
                             @unless ($invoice['is_paid'] || $invoice['is_cancelled'])
                                 <div
                                     class="relative"
@@ -467,6 +480,52 @@
                                         <div>
                                             <h2 id="record-payment-heading" class="font-semibold text-red-950">Order dibatalkan</h2>
                                             <p class="mt-1 text-sm leading-6 text-red-800">Order ini sudah ditutup. Pembayaran tidak dapat dicatat.</p>
+                                        </div>
+                                    </div>
+                                </section>
+                            @elseif ($invoice['is_draft'])
+                                <section
+                                    id="record-payment"
+                                    class="rounded-xl border border-amber-200 bg-amber-50 p-5 sm:p-6"
+                                    aria-labelledby="record-payment-heading"
+                                    data-testid="payment-draft-state"
+                                >
+                                    <div class="flex items-start gap-4">
+                                        <span class="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-500 text-white" aria-hidden="true">
+                                            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M12 8v5M12 17h.01" stroke-linecap="round"/>
+                                                <circle cx="12" cy="12" r="9"/>
+                                            </svg>
+                                        </span>
+                                        <div class="min-w-0 flex-1">
+                                            <h2 id="record-payment-heading" class="font-semibold text-amber-950">Invoice masih draft</h2>
+                                            <p class="mt-1 text-sm leading-6 text-amber-900">DP/pembayaran belum bisa dicatat sebelum invoice ini dikirim ke pelanggan. Kirim dulu, baru pembayaran bisa dicatat di sini.</p>
+                                            <div
+                                                class="relative mt-4 inline-flex"
+                                                x-data="invoiceWhatsAppDelivery"
+                                                data-endpoint="{{ route('api.invoices.send-whatsapp', ['invoice' => $invoiceModel]) }}"
+                                                data-sent="false"
+                                                data-purpose="invoice"
+                                            >
+                                                <button
+                                                    type="button"
+                                                    class="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:cursor-wait disabled:opacity-70"
+                                                    :disabled="sending"
+                                                    :aria-busy="sending"
+                                                    @click="send()"
+                                                >
+                                                    <svg class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                                        <path d="M12.04 3.5a8.45 8.45 0 0 0-7.3 12.7L3.75 20l3.9-1.02A8.44 8.44 0 1 0 12.04 3.5Zm0 1.45a6.99 6.99 0 0 1 5.92 10.72 6.99 6.99 0 0 1-9.98 1.86l-.28-.17-2.31.61.62-2.25-.18-.29a7 7 0 0 1 6.21-10.48Z"/>
+                                                    </svg>
+                                                    <span x-text="sending ? 'Membuka WA…' : 'Kirim invoice via WA'">Kirim invoice via WA</span>
+                                                </button>
+                                                <p x-cloak x-show="message" x-text="message" class="absolute left-0 top-full z-10 mt-2 w-64 rounded-lg border px-3 py-2 text-xs shadow-sm" :class="messageType === 'success' ? 'border-green-200 bg-green-50 text-green-900' : 'border-red-200 bg-red-50 text-red-900'" role="status"></p>
+                                            </div>
+                                            @if ($invoice['is_editable'])
+                                                <a href="{{ route('invoices.edit', $invoiceModel) }}" class="ml-3 mt-4 inline-flex items-center gap-2 text-sm font-semibold text-amber-900 hover:text-amber-950">
+                                                    atau edit invoice ini dulu →
+                                                </a>
+                                            @endif
                                         </div>
                                     </div>
                                 </section>

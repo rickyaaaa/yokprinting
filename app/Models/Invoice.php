@@ -187,6 +187,17 @@ class Invoice extends Model
     }
 
     /**
+     * Determine whether the invoice's items/header can still be edited.
+     * Only while still draft - once sent, downstream artifacts (the PDF the
+     * customer received, any payments, the production workflow) depend on
+     * these numbers, matching PurchaseOrder::isEditable().
+     */
+    public function isEditable(): bool
+    {
+        return $this->status === self::STATUS_DRAFT;
+    }
+
+    /**
      * Determine whether the invoice can still be cancelled ("close order").
      */
     public function canBeCancelled(): bool

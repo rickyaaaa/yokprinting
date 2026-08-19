@@ -152,7 +152,7 @@ class GoodsReceiptApiTest extends TestCase
             ->assertJsonValidationErrors('status');
     }
 
-    public function test_draft_receipt_can_be_cancelled_but_posted_receipt_cannot(): void
+    public function test_draft_receipt_can_be_cancelled(): void
     {
         $po = $this->createApprovedPo(quantity: 200, unitPrice: 700);
         $poItem = $po->items->first();
@@ -161,13 +161,122 @@ class GoodsReceiptApiTest extends TestCase
         $this->postJson(route('api.goods-receipts.cancel', $draftReceipt))
             ->assertOk()
             ->assertJsonPath('data.status', GoodsReceipt::STATUS_CANCELLED);
+    }
 
-        $postedReceipt = $this->createGoodsReceipt($po, $poItem, 50);
-        $this->postJson(route('api.goods-receipts.post', $postedReceipt))->assertOk();
+    public function test_already_cancelled_receipt_cannot_be_cancelled_again(): void
+    {
+        $po = $this->createApprovedPo(quantity: 200, unitPrice: 700);
+        $receipt = $this->createGoodsReceipt($po, $po->items->first(), 50);
+        $this->postJson(route('api.goods-receipts.cancel', $receipt))->assertOk();
 
-        $this->postJson(route('api.goods-receipts.cancel', $postedReceipt))
+        $this->postJson(route('api.goods-receipts.cancel', $receipt))
             ->assertUnprocessable()
             ->assertJsonValidationErrors('status');
+    }
+
+    public function test_posted_receipt_can_be_voided_when_nothing_touched_the_product_since(): void
+    {
+        $po = $this->createApprovedPo(quantity: 100, unitPrice: 700);
+        $poItem = $po->items->first();
+        $product = $poItem->product;
+
+        $receipt = $this->createGoodsReceipt($po, $poItem, 100);
+        $this->postJson(route('api.goods-receipts.post', $receipt))->assertOk();
+
+        $product->refresh();
+        $this->assertSame('100.0000', $product->stock);
+        $this->assertSame('700.00', $product->average_purchase_cost);
+        $this->assertSame(PurchaseOrder::STATUS_FULLY_RECEIVED, $po->refresh()->status);
+
+        $this->postJson(route('api.goods-receipts.cancel', $receipt), ['reason' => 'Salah input jumlah'])
+            ->assertOk()
+            ->assertJsonPath('data.status', GoodsReceipt::STATUS_CANCELLED);
+
+        $product->refresh();
+        $this->assertSame('0.0000', $product->stock);
+        $this->assertNull($product->average_purchase_cost);
+
+        $this->assertSame('0.0000', $poItem->refresh()->received_quantity);
+        $this->assertSame(PurchaseOrder::STATUS_APPROVED, $po->refresh()->status);
+
+        $this->assertDatabaseHas('stock_movements', [
+            'product_id' => $product->id,
+            'type' => 'adjustment',
+            'quantity' => '-100.0000',
+            'reference_number' => $receipt->receipt_number,
+        ]);
+    }
+
+    public function test_voiding_the_second_of_two_receipts_reverses_the_weighted_average_back_to_the_first(): void
+    {
+        $product = $this->createProduct(purchasePrice: 0);
+        $supplier = $this->createSupplier();
+
+        $po1 = $this->createApprovedPoForProduct($supplier, $product, quantity: 10000, unitPrice: 700);
+        $receipt1 = $this->createGoodsReceipt($po1, $po1->items->first(), 10000);
+        $this->postJson(route('api.goods-receipts.post', $receipt1))->assertOk();
+
+        $po2 = $this->createApprovedPoForProduct($supplier, $product, quantity: 10000, unitPrice: 730);
+        $poItem2 = $po2->items->first();
+        $receipt2 = $this->createGoodsReceipt($po2, $poItem2, 10000);
+        $this->postJson(route('api.goods-receipts.post', $receipt2))->assertOk();
+
+        $product->refresh();
+        $this->assertSame('20000.0000', $product->stock);
+        $this->assertSame('715.00', $product->average_purchase_cost);
+
+        // Void the more recent receipt (receipt2) - safe, since nothing has
+        // touched the product since it posted.
+        $this->postJson(route('api.goods-receipts.cancel', $receipt2))->assertOk();
+
+        $product->refresh();
+        $this->assertSame('10000.0000', $product->stock);
+        $this->assertSame('700.00', $product->average_purchase_cost);
+        $this->assertSame('0.0000', $poItem2->refresh()->received_quantity);
+        $this->assertSame(PurchaseOrder::STATUS_APPROVED, $po2->refresh()->status);
+
+        // receipt1 is untouched and still fully reflects PO1.
+        $this->assertSame(PurchaseOrder::STATUS_FULLY_RECEIVED, $po1->refresh()->status);
+    }
+
+    public function test_voiding_an_earlier_receipt_is_blocked_once_a_later_receipt_built_on_top_of_it(): void
+    {
+        $product = $this->createProduct(purchasePrice: 0);
+        $supplier = $this->createSupplier();
+
+        $po1 = $this->createApprovedPoForProduct($supplier, $product, quantity: 10000, unitPrice: 700);
+        $receipt1 = $this->createGoodsReceipt($po1, $po1->items->first(), 10000);
+        $this->postJson(route('api.goods-receipts.post', $receipt1))->assertOk();
+
+        $po2 = $this->createApprovedPoForProduct($supplier, $product, quantity: 10000, unitPrice: 730);
+        $receipt2 = $this->createGoodsReceipt($po2, $po2->items->first(), 10000);
+        $this->postJson(route('api.goods-receipts.post', $receipt2))->assertOk();
+
+        // receipt1's stock movement is no longer the latest one for this
+        // product (receipt2's is), so voiding it must be rejected outright.
+        $this->postJson(route('api.goods-receipts.cancel', $receipt1))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
+
+        $product->refresh();
+        $this->assertSame('20000.0000', $product->stock);
+        $this->assertSame('715.00', $product->average_purchase_cost);
+        $this->assertSame(GoodsReceipt::STATUS_POSTED, $receipt1->refresh()->status);
+    }
+
+    public function test_voiding_a_posted_receipt_for_a_non_stock_tracked_product_only_needs_the_status_flip(): void
+    {
+        $product = $this->createProduct(purchasePrice: 700, trackStock: false);
+        $supplier = $this->createSupplier();
+        $po = $this->createApprovedPoForProduct($supplier, $product, quantity: 100, unitPrice: 750);
+        $receipt = $this->createGoodsReceipt($po, $po->items->first(), 100);
+        $this->postJson(route('api.goods-receipts.post', $receipt))->assertOk();
+
+        $this->postJson(route('api.goods-receipts.cancel', $receipt))
+            ->assertOk()
+            ->assertJsonPath('data.status', GoodsReceipt::STATUS_CANCELLED);
+
+        $this->assertDatabaseMissing('stock_movements', ['product_id' => $product->id]);
     }
 
     public function test_fully_received_po_status_transitions_correctly(): void

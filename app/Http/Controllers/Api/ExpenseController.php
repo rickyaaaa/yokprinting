@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Exceptions\ExpenseProofUnavailableException;
 use App\Exceptions\ExpenseVersionConflictException;
+use App\Exports\ReportCsvExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ListExpensesRequest;
 use App\Http\Requests\StoreExpenseRequest;
@@ -17,6 +18,7 @@ use App\Services\Security\ActivityLogger;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -81,6 +83,53 @@ class ExpenseController extends Controller
                 'reference' => $this->referenceData(),
             ],
         ]);
+    }
+
+    /**
+     * Export the currently filtered expense list (same filters as index) as
+     * CSV - supports the same date_from/date_to period filter.
+     */
+    public function export(ListExpensesRequest $request, ReportCsvExport $export): Response
+    {
+        $validated = $request->validated();
+        $search = trim($validated['search'] ?? '');
+
+        $expenses = Expense::query()
+            ->with('creator:id,name')
+            ->when(filled($validated['date_from'] ?? null), fn (Builder $builder): Builder => $builder
+                ->whereDate('expense_date', '>=', $validated['date_from']))
+            ->when(filled($validated['date_to'] ?? null), fn (Builder $builder): Builder => $builder
+                ->whereDate('expense_date', '<=', $validated['date_to']))
+            ->when(filled($validated['category'] ?? null), fn (Builder $builder): Builder => $builder
+                ->where('category', $validated['category']))
+            ->when($search !== '', function (Builder $builder) use ($search): void {
+                $builder->where(function (Builder $searchQuery) use ($search): void {
+                    $searchQuery
+                        ->where('description', 'like', "%{$search}%")
+                        ->orWhere('recipient', 'like', "%{$search}%")
+                        ->orWhere('payment_method', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('expense_date')
+            ->orderBy('id')
+            ->get();
+
+        $rows = $expenses->map(fn (Expense $expense): array => [
+            $expense->expense_date->toDateString(),
+            $expense->categoryLabel(),
+            $expense->subcategoryLabel() ?? '',
+            $expense->recipient,
+            $expense->description,
+            $expense->paymentMethodLabel(),
+            (float) $expense->amount,
+            $expense->creator?->name,
+        ]);
+
+        return $export->download(
+            'pengeluaran-'.now()->format('Y-m-d').'.csv',
+            ['Tanggal', 'Kategori', 'Subkategori', 'Penerima', 'Keterangan', 'Metode Pembayaran', 'Nominal', 'Dicatat Oleh'],
+            $rows,
+        );
     }
 
     public function store(
@@ -405,6 +454,7 @@ class ExpenseController extends Controller
             'description' => $expense->description,
             'recipient' => $expense->recipient,
             'payment_method' => $expense->payment_method,
+            'payment_method_label' => $expense->paymentMethodLabel(),
             'proof_original_name' => $expense->proof_original_name,
             'proof_mime_type' => $expense->proof_mime_type,
             'proof_download_url' => route('api.expenses.proof.download', $expense->getKey()),
@@ -420,12 +470,13 @@ class ExpenseController extends Controller
         ];
     }
 
-    /** @return array{categories: array<string, string>, employee_subcategories: array<string, string>} */
+    /** @return array{categories: array<string, string>, employee_subcategories: array<string, string>, payment_methods: array<string, string>} */
     private function referenceData(): array
     {
         return [
             'categories' => Expense::categoryOptions(),
             'employee_subcategories' => Expense::employeeSubcategoryOptions(),
+            'payment_methods' => Expense::paymentMethodOptions(),
         ];
     }
 

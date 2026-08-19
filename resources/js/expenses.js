@@ -42,6 +42,7 @@ export const registerExpenseComponents = (Alpine) => {
         expenses: [],
         loading: true,
         error: '',
+        exporting: false,
         filters: {
             search: '',
             date_from: '',
@@ -121,6 +122,51 @@ export const registerExpenseComponents = (Alpine) => {
             }
 
             this.loadExpenses(page);
+        },
+
+        async exportCsv() {
+            if (this.exporting) {
+                return;
+            }
+
+            this.exporting = true;
+            this.error = '';
+
+            const parameters = new URLSearchParams();
+
+            Object.entries(this.filters).forEach(([key, value]) => {
+                if (String(value).trim() !== '') {
+                    parameters.set(key, value);
+                }
+            });
+
+            try {
+                const response = await fetch(`/api/expenses/export?${parameters.toString()}`, {
+                    credentials: 'same-origin',
+                    headers: { Accept: 'text/csv' },
+                });
+
+                if (!response.ok) {
+                    throw new Error('Export pengeluaran belum berhasil.');
+                }
+
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const disposition = response.headers.get('Content-Disposition') ?? '';
+                const filename = disposition.match(/filename="([^"]+)"/)?.[1] ?? 'pengeluaran.csv';
+                const link = document.createElement('a');
+
+                link.href = url;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+            } catch (error) {
+                this.error = error?.message ?? 'Export pengeluaran belum berhasil.';
+            } finally {
+                this.exporting = false;
+            }
         },
 
         async deleteExpense(expense) {

@@ -116,7 +116,7 @@ class ExpenseSessionIntegrationTest extends TestCase
             'amount' => 125000,
             'description' => 'Produksi pesanan.',
             'recipient' => 'Vendor Produksi',
-            'payment_method' => 'Transfer bank',
+            'payment_method' => Expense::METHOD_BANK_TRANSFER,
             'proof_payment' => UploadedFile::fake()->image('bukti.jpg'),
         ];
     }

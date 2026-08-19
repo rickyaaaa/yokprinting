@@ -3,10 +3,6 @@
 namespace App\Services\Invoices;
 
 use App\Models\Invoice;
-use App\Models\InvoiceItem;
-use App\Models\Product;
-use App\Models\StockMovement;
-use App\Services\Inventory\RecordStockMovement;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
@@ -15,7 +11,8 @@ class CreateInvoiceDraft
     public function __construct(
         private readonly CalculateInvoiceTotals $calculateInvoiceTotals,
         private readonly GenerateInvoiceNumber $generateInvoiceNumber,
-        private readonly RecordStockMovement $recordStockMovement,
+        private readonly SnapshotInvoiceItems $snapshotInvoiceItems,
+        private readonly RecordInvoiceSaleMovements $recordInvoiceSaleMovements,
     ) {}
 
     /**
@@ -26,7 +23,7 @@ class CreateInvoiceDraft
     public function handle(array $data, ?int $creatorId = null): Invoice
     {
         return DB::transaction(function () use ($data, $creatorId): Invoice {
-            $items = $this->snapshotItemsFromProducts($data['items']);
+            $items = $this->snapshotInvoiceItems->handle($data['items']);
             $isFreeShipping = (bool) ($data['is_free_shipping'] ?? false);
             $shippingCost = $data['shipping_cost'] ?? 0;
             $shippingType = $isFreeShipping
@@ -80,7 +77,7 @@ class CreateInvoiceDraft
             ]);
 
             $createdItems = $invoice->items()->createMany($totals['items']);
-            $stockAlerts = $this->recordSaleMovements($invoice, $createdItems, $creatorId);
+            $stockAlerts = $this->recordInvoiceSaleMovements->handle($invoice, $createdItems, $creatorId);
 
             if ($stockAlerts !== []) {
                 $invoice->forceFill([
@@ -92,91 +89,5 @@ class CreateInvoiceDraft
 
             return $invoice->load('items');
         });
-    }
-
-    /**
-     * Snapshot mutable product procurement data at invoice creation time.
-     *
-     * @param  list<array<string, mixed>>  $items
-     * @return list<array<string, mixed>>
-     */
-    private function snapshotItemsFromProducts(array $items): array
-    {
-        $products = Product::query()
-            ->whereIn('id', collect($items)->pluck('product_id')->filter()->unique()->values())
-            ->get()
-            ->keyBy('id');
-
-        return collect($items)
-            ->map(function (array $item) use ($products): array {
-                $product = $products->get($item['product_id'] ?? null);
-
-                if ($product instanceof Product) {
-                    $item['product_name'] = $item['product_name'] ?? $product->name;
-                    $item['sku'] = $item['sku'] ?? $product->sku;
-                    $item['cup_size'] = $item['cup_size'] ?? $product->cup_size;
-                    $item['cup_model'] = $item['cup_model'] ?? $product->cup_model;
-                    $item['grammage'] = $item['grammage'] ?? $product->grammage;
-                    $item['screen_printing_color'] = $item['screen_printing_color'] ?? $product->screen_printing_color;
-                    $item['order_increment'] = $product->package_conversion ?: $product->order_increment ?: 500;
-                    $item['moq_quantity'] = $item['order_increment'];
-                    $item['packaging_unit'] = $product->unit ?: Product::UNIT_PCS;
-                    // Prefer the purchasing-module cost basis (built from real
-                    // PO/Goods Receipt prices) over the legacy flat field,
-                    // which nothing writes to anymore. Once written, this
-                    // snapshot never changes even if the product's cost does.
-                    $item['purchase_cost_snapshot'] = $product->average_purchase_cost
-                        ?? $product->last_purchase_price
-                        ?? $product->purchase_price;
-                }
-
-                return $item;
-            })
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @param  iterable<InvoiceItem>  $items
-     * @return list<array<string, mixed>>
-     */
-    private function recordSaleMovements(Invoice $invoice, iterable $items, ?int $creatorId): array
-    {
-        $alerts = [];
-
-        foreach ($items as $item) {
-            $product = $item->product;
-
-            if (! $product instanceof Product || ! $product->track_stock) {
-                continue;
-            }
-
-            $movement = $this->recordStockMovement->record(
-                product: $product,
-                type: StockMovement::TYPE_SALE,
-                quantity: -1 * (float) $item->quantity,
-                referenceNumber: $invoice->invoice_number,
-                notes: "Penjualan invoice {$invoice->invoice_number}",
-                userId: $creatorId,
-            );
-
-            $product->refresh();
-            $stock = (float) ($product->stock ?? 0);
-            $minimumStock = $product->minimumStockValue();
-
-            if ($stock < 0 || $stock <= $minimumStock) {
-                $alerts[] = [
-                    'product_id' => $product->getKey(),
-                    'sku' => $product->sku,
-                    'name' => $product->name,
-                    'stock' => $stock,
-                    'minimum_stock' => $minimumStock,
-                    'is_negative' => $stock < 0,
-                    'movement_id' => $movement->getKey(),
-                ];
-            }
-        }
-
-        return $alerts;
     }
 }

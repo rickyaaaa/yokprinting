@@ -33,7 +33,7 @@ class UpdateExpenseRequest extends FormRequest
             'amount' => ['sometimes', 'required', 'numeric', 'gt:0', 'decimal:0,2', 'max:9999999999999.99'],
             'description' => ['sometimes', 'required', 'string', 'max:2000'],
             'recipient' => ['sometimes', 'required', 'string', 'max:255'],
-            'payment_method' => ['sometimes', 'required', 'string', 'max:100'],
+            'payment_method' => ['sometimes', 'required', Rule::in(Expense::paymentMethods())],
             'proof_payment' => ['sometimes', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
         ];
     }

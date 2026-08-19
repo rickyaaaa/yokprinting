@@ -393,7 +393,7 @@ class ProfitLossReportTest extends TestCase
             'amount' => $amount,
             'description' => 'Biaya untuk regression test laporan',
             'recipient' => 'Penerima Test',
-            'payment_method' => 'Transfer',
+            'payment_method' => Expense::METHOD_BANK_TRANSFER,
             'proof_path' => 'expense-proofs/test.pdf',
             'proof_original_name' => 'test.pdf',
             'proof_mime_type' => 'application/pdf',

@@ -16,7 +16,7 @@ import {
 } from 'chart.js';
 import { createCustomer, deleteCustomer, listCustomers, updateCustomer } from './services/customer-api';
 import { sendInvoiceWhatsApp } from './services/invoice-delivery-api';
-import { persistInvoiceDraft, saveInvoiceDraft } from './services/invoice-api';
+import { persistInvoiceDraft, saveInvoiceDraft, updateInvoiceDraft } from './services/invoice-api';
 import { downloadInvoicePdf, downloadInvoicePreviewPdf } from './services/invoice-pdf-api';
 import {
     bulkUpdateProductStock,
@@ -283,7 +283,8 @@ const validateInvoiceDraft = (payload) => {
     return errors;
 };
 
-Alpine.data('invoiceDraftForm', () => ({
+Alpine.data('invoiceDraftForm', (config = {}) => ({
+    config,
     savingDraft: false,
     draftSaved: false,
     savedDraftId: '',
@@ -344,7 +345,18 @@ Alpine.data('invoiceDraftForm', () => ({
         }
 
         try {
-            const response = await saveInvoiceDraft(payload);
+            const response = this.config.isEdit
+                ? await updateInvoiceDraft(this.config.invoiceNumber, payload)
+                : await saveInvoiceDraft(payload);
+
+            if (this.config.isEdit) {
+                // Editing has no preview/send step of its own - the draft
+                // session state belongs to the create flow, not this one.
+                window.sessionStorage.removeItem(invoiceDraftStorageKey);
+                window.sessionStorage.removeItem(persistedInvoiceDraftStorageKey);
+                window.location.assign(this.config.indexUrl ?? '/invoices');
+                return;
+            }
 
             this.savedDraftId = response.data.id;
             this.savedAt = new Intl.DateTimeFormat('id-ID', {
@@ -362,7 +374,7 @@ Alpine.data('invoiceDraftForm', () => ({
                 }));
             }
         } catch (error) {
-            this.errorTitle = 'Invoice gagal disimpan';
+            this.errorTitle = this.config.isEdit ? 'Invoice gagal diperbarui' : 'Invoice gagal disimpan';
             this.errorMessage = error?.message ?? 'Invoice belum dapat disimpan. Coba lagi.';
             this.fieldErrors = error?.errors ?? {};
         } finally {

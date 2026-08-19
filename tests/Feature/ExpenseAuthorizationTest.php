@@ -131,7 +131,7 @@ class ExpenseAuthorizationTest extends TestCase
             'amount' => 45000,
             'description' => 'Belanja kebutuhan toko.',
             'recipient' => 'Toko ATK',
-            'payment_method' => 'Tunai',
+            'payment_method' => Expense::METHOD_CASH,
             'proof_payment' => UploadedFile::fake()->image('bukti.jpg'),
         ];
     }

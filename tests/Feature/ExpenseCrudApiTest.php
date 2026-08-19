@@ -29,7 +29,7 @@ class ExpenseCrudApiTest extends TestCase
             'amount' => '275000.50',
             'description' => 'Lembur penyelesaian pesanan akhir pekan.',
             'recipient' => 'Tim Produksi Malam',
-            'payment_method' => 'Transfer bank',
+            'payment_method' => Expense::METHOD_BANK_TRANSFER,
             'proof_payment' => UploadedFile::fake()->image('bukti-lembur.jpg'),
             'created_by' => $otherUser->id,
         ], ['Accept' => 'application/json'])
@@ -190,7 +190,7 @@ class ExpenseCrudApiTest extends TestCase
             'amount' => 100000,
             'description' => 'Pembayaran karyawan.',
             'recipient' => 'Karyawan',
-            'payment_method' => 'Tunai',
+            'payment_method' => Expense::METHOD_CASH,
             'proof_payment' => UploadedFile::fake()->image('bukti.jpg'),
         ], ['Accept' => 'application/json'])
             ->assertUnprocessable()
@@ -202,7 +202,7 @@ class ExpenseCrudApiTest extends TestCase
             'amount' => 100000,
             'description' => 'Biaya tempat.',
             'recipient' => 'Pengelola gedung',
-            'payment_method' => 'Transfer bank',
+            'payment_method' => Expense::METHOD_BANK_TRANSFER,
             'proof_payment' => UploadedFile::fake()->create('bukti.exe', 10, 'application/x-msdownload'),
         ], ['Accept' => 'application/json'])
             ->assertUnprocessable()
@@ -215,7 +215,7 @@ class ExpenseCrudApiTest extends TestCase
             'amount' => 100000,
             'description' => 'Belanja kebutuhan toko.',
             'recipient' => 'Toko ATK',
-            'payment_method' => 'Tunai',
+            'payment_method' => Expense::METHOD_CASH,
             'proof_payment' => UploadedFile::fake()->image('bukti.jpg'),
         ], ['Accept' => 'application/json'])
             ->assertUnprocessable()

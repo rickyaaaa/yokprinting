@@ -85,6 +85,19 @@ class GoodsReceipt extends Model
     }
 
     /**
+     * Whether this receipt can be voided at all. A draft can always be
+     * voided (nothing was ever posted). A posted receipt can be attempted,
+     * but CancelGoodsReceipt may still reject it if stock/average cost for
+     * one of its products has moved since - that deeper check is deferred
+     * to the actual cancel action rather than done here, to keep list pages
+     * cheap.
+     */
+    public function canBeCancelled(): bool
+    {
+        return in_array($this->status, [self::STATUS_DRAFT, self::STATUS_POSTED], true);
+    }
+
+    /**
      * @return array<string, string>
      */
     public static function statusLabels(): array

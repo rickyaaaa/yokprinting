@@ -9,6 +9,7 @@ use App\Http\Controllers\CustomerIndexPageController;
 use App\Http\Controllers\CustomerShowPageController;
 use App\Http\Controllers\DashboardPageController;
 use App\Http\Controllers\DueInvoicePageController;
+use App\Http\Controllers\InvoiceEditPageController;
 use App\Http\Controllers\InvoiceIndexPageController;
 use App\Http\Controllers\InvoicePaymentPageController;
 use App\Http\Controllers\PaymentHistoryPageController;
@@ -110,6 +111,9 @@ Route::middleware('auth')->group(function () {
     Route::view('/invoices/preview', 'invoices.preview')
         ->middleware('permission:invoice.create')
         ->name('invoices.preview');
+    Route::get('/invoices/{invoice:invoice_number}/edit', InvoiceEditPageController::class)
+        ->middleware('permission:invoice.update')
+        ->name('invoices.edit');
     Route::get('/payments/receivables', ReceivablePageController::class)
         ->middleware('permission:payment.view')
         ->name('payments.receivables.index');
@@ -152,6 +156,7 @@ Route::middleware('auth')->group(function () {
             'defaultExpenseDate' => now()->toDateString(),
             'categoryOptions' => Expense::categoryOptions(),
             'employeeSubcategoryOptions' => Expense::employeeSubcategoryOptions(),
+            'paymentMethodOptions' => Expense::paymentMethodOptions(),
         ]);
     })->middleware('permission:expense.create')->name('expenses.create');
     Route::get('/expenses/{expense}/edit', function (Expense $expense) {
@@ -160,6 +165,7 @@ Route::middleware('auth')->group(function () {
             'defaultExpenseDate' => now()->toDateString(),
             'categoryOptions' => Expense::categoryOptions(),
             'employeeSubcategoryOptions' => Expense::employeeSubcategoryOptions(),
+            'paymentMethodOptions' => Expense::paymentMethodOptions(),
         ]);
     })->middleware('permission:expense.update')->name('expenses.edit');
     Route::get('/api/expenses', [ExpenseController::class, 'index'])
@@ -168,6 +174,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/api/expenses', [ExpenseController::class, 'store'])
         ->middleware('permission:expense.create')
         ->name('api.expenses.store');
+    // Registered before the {expense} show route below so the literal
+    // "export" segment wins over route-model-binding.
+    Route::get('/api/expenses/export', [ExpenseController::class, 'export'])
+        ->middleware(['permission:report.export', 'throttle:report-export'])
+        ->name('api.expenses.export');
     Route::get('/api/expenses/{expense}', [ExpenseController::class, 'show'])
         ->middleware('permission:expense.view')
         ->name('api.expenses.show');

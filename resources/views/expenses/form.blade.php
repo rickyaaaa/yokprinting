@@ -5,6 +5,7 @@
         'categories' => $categoryOptions,
         'employeeCategory' => \App\Models\Expense::CATEGORY_EMPLOYEE,
         'employeeSubcategories' => $employeeSubcategoryOptions,
+        'paymentMethods' => $paymentMethodOptions,
         'indexUrl' => route('expenses.index'),
     ];
 @endphp
@@ -91,7 +92,12 @@
 
                             <label>
                                 <span class="mb-1.5 block text-sm font-semibold text-ink">Metode pembayaran <span class="text-red-600">*</span></span>
-                                <input type="text" maxlength="100" class="form-control" x-model="form.payment_method" @input="clearError('payment_method')" placeholder="Contoh: transfer bank atau tunai" required>
+                                <select class="form-control" x-model="form.payment_method" @change="clearError('payment_method')" required>
+                                    <option value="">Pilih metode pembayaran</option>
+                                    <template x-for="(label, value) in config.paymentMethods" :key="value">
+                                        <option :value="value" x-text="label"></option>
+                                    </template>
+                                </select>
                                 <span class="mt-1 block text-xs text-red-700" x-show="errors.payment_method" x-text="errors.payment_method"></span>
                             </label>
 

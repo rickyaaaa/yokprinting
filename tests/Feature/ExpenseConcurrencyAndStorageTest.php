@@ -197,7 +197,7 @@ class ExpenseConcurrencyAndStorageTest extends TestCase
             'amount' => 50000,
             'description' => 'Belanja kebutuhan.',
             'recipient' => 'Toko',
-            'payment_method' => 'Tunai',
+            'payment_method' => Expense::METHOD_CASH,
             'proof_payment' => UploadedFile::fake()->image('proof.jpg'),
         ];
     }

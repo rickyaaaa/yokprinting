@@ -99,7 +99,7 @@ export const registerGoodsReceiptComponents = (Alpine) => {
                 return;
             }
 
-            if (!window.confirm(`Posting ${receipt.receipt_number}? Stok dan biaya rata-rata akan diperbarui dan tidak bisa dibatalkan lagi setelah ini.`)) {
+            if (!window.confirm(`Posting ${receipt.receipt_number}? Stok dan biaya rata-rata akan diperbarui. Pembatalan setelah ini hanya bisa dilakukan selama belum ada transaksi lain menyentuh produk yang sama.`)) {
                 return;
             }
 
@@ -107,7 +107,11 @@ export const registerGoodsReceiptComponents = (Alpine) => {
         },
 
         async cancel(receipt) {
-            if (this.actingOn || !window.confirm(`Batalkan draft ${receipt.receipt_number}?`)) {
+            const confirmMessage = receipt.status === 'posted'
+                ? `Batalkan ${receipt.receipt_number} yang sudah diposting? Stok dan biaya rata-rata produk akan dikembalikan seperti sebelum penerimaan ini, kalau belum ada transaksi lain yang menyusul.`
+                : `Batalkan draft ${receipt.receipt_number}?`;
+
+            if (this.actingOn || !window.confirm(confirmMessage)) {
                 return;
             }
 

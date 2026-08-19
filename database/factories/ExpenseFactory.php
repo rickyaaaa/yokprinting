@@ -25,7 +25,7 @@ class ExpenseFactory extends Factory
             'amount' => fake()->randomFloat(2, 1000, 10000000),
             'description' => fake()->sentence(),
             'recipient' => fake()->name(),
-            'payment_method' => 'Transfer bank',
+            'payment_method' => Expense::METHOD_BANK_TRANSFER,
             'proof_path' => 'expense-proofs/'.fake()->uuid().'.pdf',
             'proof_original_name' => 'bukti-pembayaran.pdf',
             'proof_mime_type' => 'application/pdf',

@@ -28,6 +28,7 @@ class InvoiceIndexPageController extends Controller
                 'amount' => $this->rupiah((float) $invoice->total_amount),
                 'status' => $status,
                 'tone' => $tone,
+                'is_editable' => $invoice->isEditable(),
             ];
         })->values();
 

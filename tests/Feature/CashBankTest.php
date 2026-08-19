@@ -372,7 +372,7 @@ class CashBankTest extends TestCase
         Storage::fake('expense_proofs');
         $this->actingAsOwner();
         $payload = $this->expensePayload();
-        $payload['payment_method'] = 'Tunai';
+        $payload['payment_method'] = Expense::METHOD_CASH;
         $response = $this->post(route('api.expenses.store'), $payload, ['Accept' => 'application/json'])
             ->assertCreated();
         $expense = Expense::query()->findOrFail($response->json('data.id'));
@@ -381,7 +381,7 @@ class CashBankTest extends TestCase
 
         $this->patchJson(route('api.expenses.update', $expense), [
             'version' => $expense->version,
-            'payment_method' => 'Transfer bank',
+            'payment_method' => Expense::METHOD_BANK_TRANSFER,
         ])->assertOk();
 
         $this->assertDatabaseCount('cash_bank_transactions', 1);
@@ -402,7 +402,7 @@ class CashBankTest extends TestCase
 
         $this->patchJson(route('api.expenses.update', $expense), [
             'version' => $expense->version,
-            'payment_method' => 'Tunai',
+            'payment_method' => Expense::METHOD_CASH,
         ])->assertOk();
 
         $this->assertDatabaseCount('cash_bank_transactions', 1);
@@ -491,7 +491,7 @@ class CashBankTest extends TestCase
             'amount' => 750_000,
             'description' => 'Biaya bahan produksi.',
             'recipient' => 'Supplier Utama',
-            'payment_method' => 'Transfer bank',
+            'payment_method' => Expense::METHOD_BANK_TRANSFER,
             'proof_payment' => UploadedFile::fake()->image('bukti.jpg'),
         ];
     }

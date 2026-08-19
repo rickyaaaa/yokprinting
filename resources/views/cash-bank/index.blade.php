@@ -4,6 +4,7 @@
         'canCreate' => $user?->hasPermission('cash_bank.create') ?? false,
         'canUpdate' => $user?->hasPermission('cash_bank.update') ?? false,
         'canDelete' => $user?->hasPermission('cash_bank.delete') ?? false,
+        'canExport' => $user?->hasPermission('report.export') ?? false,
         'timezone' => config('app.timezone'),
     ];
 @endphp
@@ -43,6 +44,9 @@
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Pantau saldo dan seluruh uang masuk atau keluar dari rekening utama usaha.</p>
                         </div>
                         <div class="flex flex-wrap gap-2">
+                            <button x-show="config.canExport" type="button" class="min-h-11 rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:bg-canvas disabled:cursor-wait disabled:opacity-60" :disabled="exporting" @click="exportCsv()">
+                                <span x-text="exporting ? 'Mengekspor...' : 'Export CSV'"></span>
+                            </button>
                             <button x-show="config.canUpdate" type="button" class="min-h-11 rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-50" :disabled="summaryLoading || !summaryLoaded" :title="summaryLoaded ? 'Ubah rekening utama' : 'Ringkasan rekening belum tersedia'" @click="openAccountSettings()">Atur Rekening</button>
                             <button x-show="config.canCreate" type="button" class="min-h-11 rounded-lg border border-green-200 bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-800 hover:bg-green-100" @click="openCreate('income')">+ Tambah Uang Masuk</button>
                             <button x-show="config.canCreate" type="button" class="min-h-11 rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800" @click="openCreate('expense')">+ Tambah Uang Keluar</button>

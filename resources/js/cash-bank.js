@@ -24,6 +24,7 @@ export function registerCashBankComponents(Alpine) {
         transactions: [],
         meta: { current_page: 1, last_page: 1, total: 0, beginning_balance: 0 },
         filters: { search: '', date_from: '', date_to: '', type: '', category: '', payment_method: '', per_page: 15 },
+        exporting: false,
         accountSettingsOpen: false,
         accountForm: { name: '', bank_name: '', account_number: '', opening_balance: 0 },
         formOpen: false,
@@ -216,6 +217,51 @@ export function registerCashBankComponents(Alpine) {
         resetFilters() {
             this.filters = { search: '', date_from: '', date_to: '', type: '', category: '', payment_method: '', per_page: 15 };
             this.loadTransactions();
+        },
+
+        async exportCsv() {
+            if (this.exporting) {
+                return;
+            }
+
+            this.exporting = true;
+            this.error = '';
+
+            const parameters = new URLSearchParams();
+
+            Object.entries(this.filters).forEach(([key, value]) => {
+                if (String(value).trim() !== '' && key !== 'per_page') {
+                    parameters.set(key, value);
+                }
+            });
+
+            try {
+                const response = await fetch(`/api/cash-bank/transactions/export?${parameters.toString()}`, {
+                    credentials: 'same-origin',
+                    headers: { Accept: 'text/csv' },
+                });
+
+                if (!response.ok) {
+                    throw new Error('Export kas & bank belum berhasil.');
+                }
+
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const disposition = response.headers.get('Content-Disposition') ?? '';
+                const filename = disposition.match(/filename="([^"]+)"/)?.[1] ?? 'kas-bank.csv';
+                const link = document.createElement('a');
+
+                link.href = url;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+            } catch (error) {
+                this.error = error instanceof Error ? error.message : 'Export kas & bank belum berhasil.';
+            } finally {
+                this.exporting = false;
+            }
         },
 
         formatRupiah: rupiah,

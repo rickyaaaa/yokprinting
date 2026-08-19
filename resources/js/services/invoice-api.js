@@ -38,3 +38,31 @@ export async function persistInvoiceDraft(payload) {
 export async function saveInvoiceDraft(payload) {
     return persistInvoiceDraft(payload);
 }
+
+export async function updateInvoiceDraft(invoiceNumber, payload) {
+    const response = await fetch(`/api/invoices/${encodeURIComponent(invoiceNumber)}`, {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+        },
+        body: JSON.stringify(payload),
+    });
+
+    const body = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+        throw new InvoiceApiError(
+            body.message ?? 'Invoice belum dapat diperbarui. Coba lagi.',
+            response.status,
+            body.errors ?? {},
+        );
+    }
+
+    return {
+        ...body,
+        persisted: true,
+    };
+}
