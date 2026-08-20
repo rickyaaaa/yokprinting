@@ -259,8 +259,8 @@
                                                 <button type="button" class="min-h-11 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-800 hover:bg-green-100 disabled:cursor-wait disabled:opacity-70" :disabled="sending" :aria-busy="sending" @click="send()">
                                                     <span x-text="sending ? 'Membuka WA…' : 'Ingatkan via WA'">Ingatkan via WA</span>
                                                 </button>
+                                                <p x-cloak x-show="message" x-text="message" class="mt-3 rounded-lg border px-3 py-2 text-xs" :class="messageType === 'success' ? 'border-green-200 bg-green-50 text-green-900' : 'border-red-200 bg-red-50 text-red-900'" role="status"></p>
                                             </div>
-                                            <p x-cloak x-show="message" x-text="message" class="mt-3 rounded-lg border px-3 py-2 text-xs" :class="messageType === 'success' ? 'border-green-200 bg-green-50 text-green-900' : 'border-red-200 bg-red-50 text-red-900'" role="status"></p>
                                         </article>
                                     @endforeach
                                 </div>
