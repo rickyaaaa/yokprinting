@@ -36,6 +36,14 @@ class CustomerSalesProfitReportTest extends TestCase
             ->assertJsonPath('data.customers.0.margin_percent', 36.45);
     }
 
+    public function test_customer_sales_report_page_loads_for_report_viewers(): void
+    {
+        $this->get(route('reports.customer-sales.index'))
+            ->assertOk()
+            ->assertSee('Penjualan per Pelanggan')
+            ->assertSee('customerSalesReportPage');
+    }
+
     public function test_customer_report_export_respects_period_and_customer_filter(): void
     {
         $customer = Customer::query()->create(['name' => '314 Coffee']);

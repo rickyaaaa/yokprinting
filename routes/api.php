@@ -6,8 +6,8 @@ use App\Http\Controllers\Api\CompanyProfileController;
 use App\Http\Controllers\Api\CustomerActivityAlertController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\CustomerOptionController;
-use App\Http\Controllers\Api\CustomerStatementController;
 use App\Http\Controllers\Api\CustomerSalesProfitReportController;
+use App\Http\Controllers\Api\CustomerStatementController;
 use App\Http\Controllers\Api\CustomerTransactionHistoryController;
 use App\Http\Controllers\Api\DueInvoiceNotificationController;
 use App\Http\Controllers\Api\FinancialSummaryController;
@@ -20,9 +20,9 @@ use App\Http\Controllers\Api\InvoiceDeliveryController;
 use App\Http\Controllers\Api\InvoiceDeliveryNotePdfController;
 use App\Http\Controllers\Api\InvoiceDraftController;
 use App\Http\Controllers\Api\InvoiceFollowUpController;
+use App\Http\Controllers\Api\InvoiceListExportController;
 use App\Http\Controllers\Api\InvoicePaymentController;
 use App\Http\Controllers\Api\InvoicePaymentDetailController;
-use App\Http\Controllers\Api\InvoiceListExportController;
 use App\Http\Controllers\Api\InvoicePdfController;
 use App\Http\Controllers\Api\InvoicePreviewPdfController;
 use App\Http\Controllers\Api\PaymentHistoryController;
@@ -294,6 +294,12 @@ Route::middleware(['web', 'auth'])->group(function (): void {
     Route::get('/invoices/export/pdf', [InvoiceListExportController::class, 'pdf'])
         ->middleware(['permission:invoice.export', 'throttle:report-export'])
         ->name('api.invoices.export.pdf');
+    Route::get('/invoices/export/orders/csv', [InvoiceListExportController::class, 'ordersCsv'])
+        ->middleware(['permission:invoice.export', 'throttle:report-export'])
+        ->name('api.invoices.export.orders.csv');
+    Route::get('/invoices/export/orders/pdf', [InvoiceListExportController::class, 'ordersPdf'])
+        ->middleware(['permission:invoice.export', 'throttle:report-export'])
+        ->name('api.invoices.export.orders.pdf');
 
     Route::post('/stock-movements', [StockMovementController::class, 'store'])
         ->middleware('permission:product.update')

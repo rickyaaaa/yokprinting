@@ -109,7 +109,7 @@ class InvoiceIndexPageController extends Controller
             Invoice::ORDER_PROCESS_IN_PRODUCTION => ['Masih produksi', 'info'],
             Invoice::ORDER_PROCESS_READY_TO_SHIP => ['Siap dikirim', 'info'],
             Invoice::ORDER_PROCESS_COMPLETED => ['Selesai', 'success'],
-            default => ['Draft', 'brand'],
+            default => ['Menunggu diproses', 'brand'],
         };
     }
 

@@ -2210,28 +2210,13 @@ Alpine.data('salesReportTable', (periodPresets = {}) => ({
         });
 
         try {
-            const response = await fetch(`/api/reports/sales/export?${params.toString()}`, {
-                credentials: 'same-origin',
-                headers: { Accept: 'text/csv' },
-            });
-
-            if (!response.ok) {
-                throw new Error('Export laporan belum berhasil.');
-            }
-
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            const disposition = response.headers.get('Content-Disposition') ?? '';
-            const filename = disposition.match(/filename="([^"]+)"/)?.[1]
-                ?? `laporan-penjualan-${this.periodPreset}-${this.endDate}.csv`;
             const link = document.createElement('a');
-
-            link.href = url;
-            link.download = filename;
+            link.href = `/api/reports/sales/export?${params.toString()}`;
+            link.download = `laporan-penjualan-${this.periodPreset}-${this.endDate}.csv`;
+            link.rel = 'noopener';
             document.body.appendChild(link);
             link.click();
             link.remove();
-            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 
             this.exportSuccess = true;
             window.setTimeout(() => {

@@ -236,7 +236,7 @@
                                         </svg>
                                         <span x-text="sending ? 'Membuka WA…' : (sent ? 'Ingatkan via WA' : 'Kirim via WA')">Kirim via WA</span>
                                     </button>
-                                    <p x-cloak x-show="message" x-text="message" class="absolute right-0 top-full z-10 mt-2 w-64 rounded-lg border px-3 py-2 text-xs shadow-sm" :class="messageType === 'success' ? 'border-green-200 bg-green-50 text-green-900' : 'border-red-200 bg-red-50 text-red-900'" role="status"></p>
+                                    <p x-cloak x-show="this.message" x-text="this.message" class="absolute right-0 top-full z-10 mt-2 w-64 rounded-lg border px-3 py-2 text-xs shadow-sm" :class="(this.messageType ?? 'error') === 'success' ? 'border-green-200 bg-green-50 text-green-900' : 'border-red-200 bg-red-50 text-red-900'" role="status"></p>
                                 </div>
                                 <a href="#record-payment" class="inline-flex items-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800">
                                     <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -259,7 +259,7 @@
                                         </svg>
                                         <span x-text="cancelling ? 'Membatalkan...' : 'Batalkan order'"></span>
                                     </button>
-                                    <p x-cloak x-show="message" x-text="message" class="absolute right-0 top-full z-10 mt-2 w-64 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900 shadow-sm" role="alert"></p>
+                                    <p x-cloak x-show="this.message" x-text="this.message" class="absolute right-0 top-full z-10 mt-2 w-64 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900 shadow-sm" role="alert"></p>
                                 </div>
                             @endif
                         </div>
@@ -429,11 +429,11 @@
 
                                             <p
                                                 x-cloak
-                                                x-show="message"
-                                                x-text="message"
+                                                x-show="this.message"
+                                                x-text="this.message"
                                                 data-testid="production-status-notice"
                                                 class="mt-3 rounded-lg border px-3 py-2 text-sm"
-                                                :class="messageType === 'success' ? 'border-green-200 bg-green-50 text-green-900' : 'border-red-200 bg-red-50 text-red-900'"
+                                                :class="(this.messageType ?? 'error') === 'success' ? 'border-green-200 bg-green-50 text-green-900' : 'border-red-200 bg-red-50 text-red-900'"
                                                 role="status"
                                             ></p>
 
@@ -519,7 +519,7 @@
                                                     </svg>
                                                     <span x-text="sending ? 'Membuka WA…' : 'Kirim invoice via WA'">Kirim invoice via WA</span>
                                                 </button>
-                                                <p x-cloak x-show="message" x-text="message" class="absolute left-0 top-full z-10 mt-2 w-64 rounded-lg border px-3 py-2 text-xs shadow-sm" :class="messageType === 'success' ? 'border-green-200 bg-green-50 text-green-900' : 'border-red-200 bg-red-50 text-red-900'" role="status"></p>
+                                                <p x-cloak x-show="this.message" x-text="this.message" class="absolute left-0 top-full z-10 mt-2 w-64 rounded-lg border px-3 py-2 text-xs shadow-sm" :class="(this.messageType ?? 'error') === 'success' ? 'border-green-200 bg-green-50 text-green-900' : 'border-red-200 bg-red-50 text-red-900'" role="status"></p>
                                             </div>
                                             @if ($invoice['is_editable'])
                                                 <a href="{{ route('invoices.edit', $invoiceModel) }}" class="ml-3 mt-4 inline-flex items-center gap-2 text-sm font-semibold text-amber-900 hover:text-amber-950">
@@ -753,7 +753,7 @@
                                                 </svg>
                                                 <span x-text="sending ? 'Membuka WA…' : 'Kirim pengingat WA'">Kirim pengingat WA</span>
                                             </button>
-                                            <p x-cloak x-show="message" x-text="message" class="mt-2 max-w-sm rounded-lg border px-3 py-2 text-xs" :class="messageType === 'success' ? 'border-green-200 bg-green-50 text-green-900' : 'border-red-200 bg-red-50 text-red-900'" role="status"></p>
+                                            <p x-cloak x-show="this.message" x-text="this.message" class="mt-2 max-w-sm rounded-lg border px-3 py-2 text-xs" :class="(this.messageType ?? 'error') === 'success' ? 'border-green-200 bg-green-50 text-green-900' : 'border-red-200 bg-red-50 text-red-900'" role="status"></p>
                                         </div>
                                     </div>
                                 @endunless

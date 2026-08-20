@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Models\Customer;
 use App\Models\InventoryBatch;
 use App\Models\Invoice;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Models\StockMovement;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\ActsAsOwner;
 use Tests\TestCase;
@@ -16,8 +18,17 @@ class RevisionExportApiTest extends TestCase
     use ActsAsOwner;
     use RefreshDatabase;
 
+    protected function tearDown(): void
+    {
+        CarbonImmutable::setTestNow();
+
+        parent::tearDown();
+    }
+
     public function test_stock_export_contains_fifo_value_and_pdf_is_readable(): void
     {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-08-20 12:00:00', 'Asia/Jakarta'));
+
         $product = Product::query()->create([
             'name' => 'Export Product',
             'sku' => 'EXPORT-1',
@@ -63,9 +74,49 @@ class RevisionExportApiTest extends TestCase
         $this->assertStringStartsWith('%PDF', $this->get(route('api.invoices.export.pdf', $query))->assertOk()->getContent());
     }
 
-    private function invoice(Customer $customer, string $number, string $date): void
+    public function test_daily_order_export_defaults_to_today_and_contains_invoice_details_and_verified_dp(): void
     {
-        Invoice::query()->create([
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-08-20 12:00:00', 'Asia/Jakarta'));
+
+        $customer = Customer::query()->create(['name' => 'Kopi Kampus']);
+        $todayInvoice = $this->invoice($customer, 'INV-ORDER-TODAY', '2026-08-20');
+        $todayInvoice->forceFill([
+            'total_amount' => 6100000,
+            'order_process_status' => Invoice::ORDER_PROCESS_IN_PRODUCTION,
+        ])->save();
+        $todayInvoice->items()->create([
+            'product_name' => 'Cetak 1 Warna Putih',
+            'description' => 'Cup 16 Oz, 1 warna',
+            'quantity' => 10000,
+            'unit' => 'Pcs',
+            'unit_price' => 610,
+            'subtotal' => 6100000,
+            'total_amount' => 6100000,
+        ]);
+        $todayInvoice->payments()->create([
+            'payment_number' => 'PAY-ORDER-TODAY',
+            'payment_date' => '2026-08-20',
+            'method' => Payment::METHOD_TRANSFER_BCA,
+            'amount' => 3050000,
+            'status' => Payment::STATUS_VERIFIED,
+        ]);
+        $this->invoice($customer, 'INV-ORDER-YESTERDAY', '2026-08-19');
+
+        $csv = $this->get(route('api.invoices.export.orders.csv'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('INV-ORDER-TODAY', $csv);
+        $this->assertStringContainsString('Cetak 1 Warna Putih', $csv);
+        $this->assertStringContainsString('Masih produksi', $csv);
+        $this->assertStringContainsString('3050000', $csv);
+        $this->assertStringNotContainsString('INV-ORDER-YESTERDAY', $csv);
+        $this->assertStringStartsWith('%PDF', $this->get(route('api.invoices.export.orders.pdf'))->assertOk()->getContent());
+    }
+
+    private function invoice(Customer $customer, string $number, string $date): Invoice
+    {
+        return Invoice::query()->create([
             'customer_id' => $customer->id,
             'invoice_number' => $number,
             'issue_date' => $date,

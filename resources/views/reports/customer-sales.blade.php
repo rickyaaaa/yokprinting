@@ -1,3 +1,15 @@
+@php
+    $reportConfig = [
+        'endpoint' => route('api.reports.customer-sales.index'),
+        'dateFrom' => now()->startOfMonth()->toDateString(),
+        'dateTo' => now()->toDateString(),
+        'exportEndpoints' => [
+            'csv' => route('api.reports.customer-sales.export'),
+            'pdf' => route('api.reports.customer-sales.pdf'),
+        ],
+    ];
+@endphp
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -11,12 +23,7 @@
 <div class="min-h-screen lg:flex" x-data="{ sidebarOpen: false }">
     <div class="fixed inset-0 z-30 bg-ink/45 lg:hidden" x-cloak x-show="sidebarOpen" @click="sidebarOpen = false"></div>
     <x-app-sidebar />
-    <main class="min-w-0 flex-1" x-data='customerSalesReportPage(@json([
-        "endpoint" => route("api.reports.customer-sales.index"),
-        "dateFrom" => now()->startOfMonth()->toDateString(),
-        "dateTo" => now()->toDateString(),
-        "exportEndpoints" => ["csv" => route("api.reports.customer-sales.export"), "pdf" => route("api.reports.customer-sales.pdf")],
-    ]))' x-init="init()">
+    <main class="min-w-0 flex-1" x-data='customerSalesReportPage(@json($reportConfig))' x-init="init()">
         <header class="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-white/95 px-4 sm:px-6 lg:px-8">
             <button type="button" class="mr-3 rounded-lg p-2 text-muted hover:bg-brand-50 lg:hidden" @click="sidebarOpen = true" aria-label="Buka navigasi">☰</button>
             <div class="flex items-center gap-2 text-sm"><a class="text-muted hover:text-ink" href="{{ route('reports.sales.index') }}">Laporan penjualan</a><span class="text-line">/</span><span class="font-medium text-ink">Penjualan per Pelanggan</span></div>
