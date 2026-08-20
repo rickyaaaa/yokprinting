@@ -79,7 +79,7 @@
                                 <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Daftar invoice</span>
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Daftar Invoice</h1>
-                            <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Pantau invoice terbit, status pembayaran, jatuh tempo, dan akses cepat ke detail pembayaran.</p>
+                            <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Pantau invoice terbit, status pembayaran, progres pesanan, jatuh tempo, dan akses cepat ke detail pembayaran.</p>
                         </div>
                         <a href="{{ route('invoices.create') }}" class="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-700">
                             <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -105,6 +105,14 @@
                                 <h2 id="invoice-table-heading" class="font-semibold text-ink">Semua invoice</h2>
                                 <p class="mt-1 text-sm text-muted">Cari berdasarkan nomor invoice, pelanggan, email, atau status.</p>
                             </div>
+                            <form method="get" class="flex flex-wrap items-end gap-2">
+                                <label class="text-left text-xs font-semibold text-muted">Dari<input name="date_from" type="date" value="{{ $filters['date_from'] }}" class="form-control mt-1 text-sm"></label>
+                                <label class="text-left text-xs font-semibold text-muted">Sampai<input name="date_to" type="date" value="{{ $filters['date_to'] }}" class="form-control mt-1 text-sm"></label>
+                                <label class="text-left text-xs font-semibold text-muted">Status<select name="status" class="form-control mt-1 text-sm"><option value="all">Semua</option><option value="draft" @selected($filters['status'] === 'draft')>Draft</option><option value="sent" @selected($filters['status'] === 'sent')>Terkirim</option><option value="unpaid" @selected($filters['status'] === 'unpaid')>Belum bayar</option><option value="partial" @selected($filters['status'] === 'partial')>Parsial</option><option value="paid" @selected($filters['status'] === 'paid')>Lunas</option><option value="cancelled" @selected($filters['status'] === 'cancelled')>Dibatalkan</option></select></label>
+                                <button type="submit" class="rounded-lg bg-ink px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800">Terapkan</button>
+                                <a href="{{ route('api.invoices.export.pdf', request()->query()) }}" class="rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-canvas">Export PDF</a>
+                                <a href="{{ route('api.invoices.export.csv', request()->query()) }}" class="rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-canvas">Export CSV</a>
+                            </form>
                             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
                                 <label class="sr-only" for="invoice-search">Cari invoice</label>
                                 <input id="invoice-search" x-model.debounce.150ms="query" type="search" class="form-control sm:w-72" placeholder="Cari invoice atau pelanggan">
@@ -130,6 +138,7 @@
                                         <th class="px-5 py-3 sm:px-6">Jatuh tempo</th>
                                         <th class="px-5 py-3 text-right sm:px-6">Total</th>
                                         <th class="px-5 py-3 sm:px-6">Status pembayaran</th>
+                                        <th class="px-5 py-3 sm:px-6">Status pesanan</th>
                                         <th class="px-5 py-3 text-right sm:px-6">Aksi</th>
                                     </tr>
                                 </thead>
@@ -138,7 +147,7 @@
                                         x-for="invoice in invoices.filter((row) => {
                                             const keyword = query.trim().toLowerCase();
                                             const matchesStatus = status === 'all' || row.status === status;
-                                            const matchesKeyword = ! keyword || `${row.number} ${row.customer} ${row.email} ${row.status}`.toLowerCase().includes(keyword);
+                                            const matchesKeyword = ! keyword || `${row.number} ${row.customer} ${row.email} ${row.status} ${row.order_status}`.toLowerCase().includes(keyword);
 
                                             return matchesStatus && matchesKeyword;
                                         })"
@@ -164,6 +173,18 @@
                                                         'bg-blue-100 text-blue-800': invoice.tone === 'info'
                                                     }"
                                                     x-text="invoice.status"
+                                                ></span>
+                                            </td>
+                                            <td class="whitespace-nowrap px-5 py-4 sm:px-6">
+                                                <span
+                                                    class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
+                                                    :class="{
+                                                        'bg-green-100 text-green-800': invoice.order_tone === 'success',
+                                                        'bg-yellow-100 text-yellow-900': invoice.order_tone === 'warning',
+                                                        'bg-brand-100 text-brand-800': invoice.order_tone === 'brand',
+                                                        'bg-blue-100 text-blue-800': invoice.order_tone === 'info'
+                                                    }"
+                                                    x-text="invoice.order_status"
                                                 ></span>
                                             </td>
                                             <td class="whitespace-nowrap px-5 py-4 text-right sm:px-6">

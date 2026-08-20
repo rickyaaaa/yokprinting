@@ -9,8 +9,13 @@ class ProductIndexPageController extends Controller
 {
     public function __invoke(): View
     {
-        $models = Product::query()->withCount('invoiceItems')->orderBy('sku')->get();
-        $costBasis = fn (Product $product): float => (float) ($product->average_purchase_cost ?? $product->last_purchase_price ?? $product->purchase_price);
+        $models = Product::query()->withCount('invoiceItems')->with('inventoryBatches')->orderBy('sku')->get();
+        $fifoValue = fn (Product $product): float => round((float) $product->inventoryBatches->sum(
+            fn ($batch): float => (float) $batch->qty_remaining * (float) $batch->unit_cost,
+        ), 2);
+        $costBasis = fn (Product $product): float => (float) (($product->stock ?? 0) > 0 && $fifoValue($product) > 0
+            ? $fifoValue($product) / (float) $product->stock
+            : ($product->last_purchase_price ?? $product->purchase_price));
         $products = $models->map(function (Product $product) use ($costBasis): array {
             $stock = (float) ($product->stock ?? 0);
             $minimum = $product->minimumStockValue();
@@ -44,7 +49,7 @@ class ProductIndexPageController extends Controller
             'summaryCards' => [
                 ['label' => 'Total produk', 'value' => (string) $models->count(), 'caption' => $active->count().' aktif dijual', 'tone' => 'brand'],
                 ['label' => 'Stok menipis', 'value' => (string) $lowStock->count(), 'caption' => 'Di bawah minimum', 'tone' => 'warning'],
-                ['label' => 'Nilai persediaan', 'value' => $this->rupiah($inventoryValue), 'caption' => 'Berdasarkan biaya rata-rata stok', 'tone' => 'success'],
+                ['label' => 'Nilai persediaan', 'value' => $this->rupiah($inventoryValue), 'caption' => 'Berdasarkan layer HPP FIFO aktif', 'tone' => 'success'],
                 ['label' => 'Produk terlaris', 'value' => $bestSeller?->name ?? '-', 'caption' => ($bestSeller?->invoice_items_count ?? 0).' transaksi', 'tone' => 'brand'],
             ],
         ]);

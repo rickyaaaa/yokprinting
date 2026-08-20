@@ -177,7 +177,7 @@
                                         <p class="mt-1 font-semibold text-ink" x-text="formattedLastPurchasePrice"></p>
                                     </div>
                                     <div class="block rounded-lg border border-line bg-canvas p-3">
-                                        <span class="text-sm font-medium text-muted">Rata-rata biaya (average cost)</span>
+                                        <span class="text-sm font-medium text-muted">HPP FIFO per unit</span>
                                         <p class="mt-1 font-semibold text-ink" x-text="formattedAveragePurchaseCost"></p>
                                     </div>
                                     <div class="block rounded-lg border border-line bg-canvas p-3 md:col-span-2">
@@ -249,7 +249,7 @@
                                             <dd class="font-medium text-ink" x-text="form.category"></dd>
                                         </div>
                                         <div class="flex justify-between gap-3">
-                                            <dt class="text-muted">Rata-rata biaya</dt>
+                                            <dt class="text-muted">HPP FIFO per unit</dt>
                                             <dd class="font-semibold text-ink" x-text="formattedAveragePurchaseCost"></dd>
                                         </div>
                                         <div class="flex justify-between gap-3">

@@ -40,6 +40,7 @@ import { registerPurchaseOrderComponents } from './purchase-orders';
 import { registerGoodsReceiptComponents } from './goods-receipts';
 import { registerSupplierPriceComponents } from './supplier-prices';
 import { registerSupplierComponents } from './suppliers';
+import { registerCustomerSalesReportComponents } from './customer-sales-report';
 
 window.Alpine = Alpine;
 
@@ -50,6 +51,7 @@ registerPurchaseOrderComponents(Alpine);
 registerGoodsReceiptComponents(Alpine);
 registerSupplierPriceComponents(Alpine);
 registerSupplierComponents(Alpine);
+registerCustomerSalesReportComponents(Alpine);
 
 Chart.register(BarController, BarElement, CategoryScale, Filler, LinearScale, LineController, LineElement, PointElement, Legend, Tooltip);
 

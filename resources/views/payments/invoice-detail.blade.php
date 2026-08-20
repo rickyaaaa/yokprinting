@@ -594,7 +594,7 @@
                                     <div class="grid gap-5 md:grid-cols-2">
                                         <div>
                                             <div class="mb-2 flex items-center justify-between gap-3">
-                                                <label for="payment-amount" class="block text-sm font-medium text-ink">Nominal pembayaran</label>
+                                                <label for="payment-amount" class="block text-sm font-medium text-ink">Nominal pembayaran / DP</label>
                                                 <button type="button" class="text-xs font-semibold text-brand-800 hover:text-brand-900" @click="useRemainingAmount()">Gunakan sisa</button>
                                             </div>
                                             <input
@@ -609,7 +609,7 @@
                                                 @input="clearFieldError('amount')"
                                                 aria-describedby="payment-amount-help payment-amount-error"
                                             >
-                                            <p id="payment-amount-help" class="mt-1.5 text-xs text-muted">Sisa tagihan: {{ $invoice['remaining'] }}. Nilai saat ini: <span x-text="formattedAmount"></span>.</p>
+                                            <p id="payment-amount-help" class="mt-1.5 text-xs text-muted">DP dicatat sebagai payment record. Sisa tagihan: {{ $invoice['remaining'] }}. Nilai saat ini: <span x-text="formattedAmount"></span>.</p>
                                             <p id="payment-amount-error" x-show="fieldErrors.amount" x-text="fieldErrors.amount" class="mt-1.5 text-xs font-medium text-red-700"></p>
                                         </div>
 

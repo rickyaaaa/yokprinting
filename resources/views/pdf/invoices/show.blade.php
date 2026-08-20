@@ -390,6 +390,11 @@
                         <td class="muted">Ongkir</td>
                         <td>{{ $invoice->currency }} {{ number_format((float) $invoice->shipping_cost, 0, ',', '.') }}</td>
                     </tr>
+                @elseif ($invoice->is_free_shipping || $invoice->shipping_type === \App\Models\Invoice::SHIPPING_COMPANY_FREE_SHIPPING)
+                    <tr>
+                        <td class="muted">Ongkir</td>
+                        <td>Rp0 - Free Ongkir</td>
+                    </tr>
                 @endif
                 <tr class="total">
                     <td>Total</td>

@@ -21,7 +21,10 @@ class StockMovementReportController extends Controller
         $products = Product::query()
             ->when($filters['product_id'] ?? null, fn ($query, int $productId) => $query->whereKey($productId))
             ->whereHas('stockMovements', fn ($query) => $query->where('created_at', '<=', $end))
-            ->with(['stockMovements' => fn ($query) => $query->where('created_at', '<=', $end)->orderBy('created_at')->orderBy('id')])
+            ->with([
+                'stockMovements' => fn ($query) => $query->where('created_at', '<=', $end)->orderBy('created_at')->orderBy('id'),
+                'inventoryBatches' => fn ($query) => $query->where('qty_remaining', '>', 0),
+            ])
             ->orderBy('name')
             ->get();
 
@@ -51,6 +54,9 @@ class StockMovementReportController extends Controller
                 'adjustments' => round($adjustments, 4),
                 'closing_balance' => round($closing, 4),
                 'current_stock' => $product->stock === null ? null : (float) $product->stock,
+                'fifo_inventory_value' => round((float) $product->inventoryBatches->sum(
+                    fn ($batch): float => (float) $batch->qty_remaining * (float) $batch->unit_cost,
+                ), 2),
             ];
         })->values();
 

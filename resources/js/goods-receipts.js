@@ -99,7 +99,7 @@ export const registerGoodsReceiptComponents = (Alpine) => {
                 return;
             }
 
-            if (!window.confirm(`Posting ${receipt.receipt_number}? Stok dan biaya rata-rata akan diperbarui. Pembatalan setelah ini hanya bisa dilakukan selama belum ada transaksi lain menyentuh produk yang sama.`)) {
+            if (!window.confirm(`Posting ${receipt.receipt_number}? Stok dan layer HPP FIFO akan diperbarui. Pembatalan setelah ini hanya bisa dilakukan selama belum ada transaksi lain menyentuh produk yang sama.`)) {
                 return;
             }
 
@@ -108,7 +108,7 @@ export const registerGoodsReceiptComponents = (Alpine) => {
 
         async cancel(receipt) {
             const confirmMessage = receipt.status === 'posted'
-                ? `Batalkan ${receipt.receipt_number} yang sudah diposting? Stok dan biaya rata-rata produk akan dikembalikan seperti sebelum penerimaan ini, kalau belum ada transaksi lain yang menyusul.`
+                ? `Batalkan ${receipt.receipt_number} yang sudah diposting? Stok dan layer HPP FIFO produk akan dikembalikan seperti sebelum penerimaan ini, kalau belum ada transaksi lain yang menyusul.`
                 : `Batalkan draft ${receipt.receipt_number}?`;
 
             if (this.actingOn || !window.confirm(confirmMessage)) {

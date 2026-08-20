@@ -90,13 +90,18 @@
                                     <tbody class="divide-y divide-line">
                                         <template x-for="(item, index) in items" :key="index">
                                             <tr>
-                                                <td class="px-5 py-3 sm:px-6">
-                                                    <select class="form-control" x-model="item.product_id" @change="productChanged(index); clearError(`items.${index}.product_id`)">
-                                                        <option value="">Pilih barang</option>
-                                                        <template x-for="product in products" :key="product.id">
-                                                            <option :value="product.id" x-text="`${product.sku} - ${product.name}`"></option>
+                                                <td class="relative px-5 py-3 sm:px-6" @click.outside="item.productPickerOpen = false">
+                                                    <input class="form-control" type="search" placeholder="Ketik nama atau SKU barang..." x-model="item.productSearch" @focus="item.productPickerOpen = true" @input="item.productPickerOpen = true; item.product_id = ''">
+                                                    <div x-show="item.productPickerOpen" x-cloak class="absolute left-5 right-5 top-[calc(100%-0.25rem)] z-20 max-h-64 overflow-y-auto rounded-lg border border-line bg-white p-1 shadow-lg sm:left-6 sm:right-6">
+                                                        <button type="button" class="block w-full rounded-md px-3 py-2 text-left text-xs text-muted hover:bg-brand-50" x-show="filteredProducts(item).length === 0">Produk tidak ditemukan.</button>
+                                                        <template x-for="product in filteredProducts(item)" :key="product.id">
+                                                            <button type="button" class="block w-full rounded-md px-3 py-2 text-left hover:bg-brand-50" @click="selectProduct(index, product)">
+                                                                <span class="block truncate text-sm font-semibold text-ink" x-text="`${product.sku} - ${product.name}`"></span>
+                                                                <span class="block truncate text-xs text-muted" x-text="product.category || 'Tanpa kategori'"></span>
+                                                            </button>
                                                         </template>
-                                                    </select>
+                                                    </div>
+                                                    <input type="hidden" :name="`items.${index}.product_id`" :value="item.product_id">
                                                     <span class="mt-1.5 block text-xs text-red-700" x-show="errors[`items.${index}.product_id`]" x-text="errors[`items.${index}.product_id`]"></span>
 
                                                     <div x-show="item.priceReferenceLoading" class="mt-2 text-xs text-muted">Memeriksa harga supplier...</div>

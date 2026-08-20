@@ -6,12 +6,16 @@ use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\User;
 use App\Services\Security\ActivityLogger;
+use App\Services\Inventory\FifoInventoryService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CancelInvoice
 {
-    public function __construct(private readonly ActivityLogger $activityLogger) {}
+    public function __construct(
+        private readonly ActivityLogger $activityLogger,
+        private readonly FifoInventoryService $fifoInventory,
+    ) {}
 
     /**
      * Close an order by cancelling its invoice, e.g. when the order falls through.
@@ -42,6 +46,8 @@ class CancelInvoice
                     'status' => 'Invoice ini sudah punya pembayaran tercatat. Hapus atau batalkan pembayarannya terlebih dahulu sebelum membatalkan order.',
                 ]);
             }
+
+            $this->fifoInventory->restoreInvoice($lockedInvoice, $actor->getKey());
 
             $previousStatus = $lockedInvoice->status;
 

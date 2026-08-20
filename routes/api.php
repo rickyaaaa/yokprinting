@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\CustomerActivityAlertController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\CustomerOptionController;
 use App\Http\Controllers\Api\CustomerStatementController;
+use App\Http\Controllers\Api\CustomerSalesProfitReportController;
 use App\Http\Controllers\Api\CustomerTransactionHistoryController;
 use App\Http\Controllers\Api\DueInvoiceNotificationController;
 use App\Http\Controllers\Api\FinancialSummaryController;
@@ -21,6 +22,7 @@ use App\Http\Controllers\Api\InvoiceDraftController;
 use App\Http\Controllers\Api\InvoiceFollowUpController;
 use App\Http\Controllers\Api\InvoicePaymentController;
 use App\Http\Controllers\Api\InvoicePaymentDetailController;
+use App\Http\Controllers\Api\InvoiceListExportController;
 use App\Http\Controllers\Api\InvoicePdfController;
 use App\Http\Controllers\Api\InvoicePreviewPdfController;
 use App\Http\Controllers\Api\PaymentHistoryController;
@@ -45,6 +47,7 @@ use App\Http\Controllers\Api\SalesReportRevenueChartController;
 use App\Http\Controllers\Api\SalesReportSummaryController;
 use App\Http\Controllers\Api\StockMovementController;
 use App\Http\Controllers\Api\StockMovementReportController;
+use App\Http\Controllers\Api\StockReportExportController;
 use App\Http\Controllers\Api\SupplierController;
 use App\Http\Controllers\Api\SupplierPriceActiveController;
 use App\Http\Controllers\Api\SupplierPriceListController;
@@ -285,6 +288,12 @@ Route::middleware(['web', 'auth'])->group(function (): void {
     Route::post('/invoices/drafts', [InvoiceDraftController::class, 'store'])
         ->middleware('permission:invoice.create')
         ->name('api.invoices.drafts.store');
+    Route::get('/invoices/export/csv', [InvoiceListExportController::class, 'csv'])
+        ->middleware(['permission:invoice.export', 'throttle:report-export'])
+        ->name('api.invoices.export.csv');
+    Route::get('/invoices/export/pdf', [InvoiceListExportController::class, 'pdf'])
+        ->middleware(['permission:invoice.export', 'throttle:report-export'])
+        ->name('api.invoices.export.pdf');
 
     Route::post('/stock-movements', [StockMovementController::class, 'store'])
         ->middleware('permission:product.update')
@@ -358,6 +367,16 @@ Route::middleware(['web', 'auth'])->group(function (): void {
         ->middleware(['permission:report.export', 'throttle:report-export'])
         ->name('api.reports.gross-profit.export');
 
+    Route::get('/reports/customer-sales', [CustomerSalesProfitReportController::class, 'index'])
+        ->middleware('permission:report.view')
+        ->name('api.reports.customer-sales.index');
+    Route::get('/reports/customer-sales/export', [CustomerSalesProfitReportController::class, 'export'])
+        ->middleware(['permission:report.export', 'throttle:report-export'])
+        ->name('api.reports.customer-sales.export');
+    Route::get('/reports/customer-sales/pdf', [CustomerSalesProfitReportController::class, 'pdf'])
+        ->middleware(['permission:report.export', 'throttle:report-export'])
+        ->name('api.reports.customer-sales.pdf');
+
     Route::get('/reports/outstanding-payments', [ReceivableController::class, 'index'])
         ->middleware('permission:report.view')
         ->name('api.reports.outstanding-payments.index');
@@ -390,7 +409,13 @@ Route::middleware(['web', 'auth'])->group(function (): void {
         ->middleware('permission:report.view')
         ->name('api.reports.stock-mutations.index');
 
-    Route::get('/reports/stock-mutations/export', [ReportExportController::class, 'stockMutations'])
+    Route::get('/reports/stock-mutations/export', [StockReportExportController::class, 'csv'])
         ->middleware(['permission:report.export', 'throttle:report-export'])
         ->name('api.reports.stock-mutations.export');
+    Route::get('/reports/stock-mutations/csv', [StockReportExportController::class, 'csv'])
+        ->middleware(['permission:report.export', 'throttle:report-export'])
+        ->name('api.reports.stock-mutations.csv');
+    Route::get('/reports/stock-mutations/pdf', [StockReportExportController::class, 'pdf'])
+        ->middleware(['permission:report.export', 'throttle:report-export'])
+        ->name('api.reports.stock-mutations.pdf');
 });

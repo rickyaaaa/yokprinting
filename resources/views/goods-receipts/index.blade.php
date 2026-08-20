@@ -43,7 +43,7 @@
                         <div>
                             <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Pembelian</span>
                             <h1 class="mt-3 text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Penerimaan Barang</h1>
-                            <p class="mt-1 text-sm leading-6 text-muted">Draft belum memengaruhi stok - stok dan biaya rata-rata baru berubah setelah diposting.</p>
+                            <p class="mt-1 text-sm leading-6 text-muted">Draft belum memengaruhi stok - stok dan layer HPP FIFO baru berubah setelah diposting.</p>
                         </div>
                         <a href="{{ route('purchase-orders.index') }}" class="inline-flex w-fit items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
                             Buat dari Purchase Order

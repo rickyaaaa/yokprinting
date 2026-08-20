@@ -3,9 +3,7 @@
 namespace App\Services\Invoices;
 
 use App\Models\Invoice;
-use App\Models\Product;
-use App\Models\StockMovement;
-use App\Services\Inventory\RecordStockMovement;
+use App\Services\Inventory\FifoInventoryService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -15,7 +13,7 @@ class UpdateInvoiceDraft
         private readonly CalculateInvoiceTotals $calculateInvoiceTotals,
         private readonly SnapshotInvoiceItems $snapshotInvoiceItems,
         private readonly RecordInvoiceSaleMovements $recordInvoiceSaleMovements,
-        private readonly RecordStockMovement $recordStockMovement,
+        private readonly FifoInventoryService $fifoInventory,
     ) {}
 
     /**
@@ -45,7 +43,7 @@ class UpdateInvoiceDraft
                 ]);
             }
 
-            $this->reverseSaleMovements($locked, $actorId);
+            $this->fifoInventory->restoreInvoice($locked, $actorId);
 
             $items = $this->snapshotInvoiceItems->handle($data['items']);
             $isFreeShipping = (bool) ($data['is_free_shipping'] ?? false);
@@ -99,33 +97,21 @@ class UpdateInvoiceDraft
 
             $stockAlerts = $this->recordInvoiceSaleMovements->handle($locked, $createdItems, $actorId);
 
+            $totalHpp = (float) $locked->items()->sum('hpp_total');
+            $companyShipping = $locked->shipping_type === Invoice::SHIPPING_COMPANY_FREE_SHIPPING
+                ? (float) $locked->shipping_cost
+                : 0;
+
             $locked->forceFill([
                 'metadata' => array_merge($locked->metadata ?? [], [
                     'inventory_alerts' => $stockAlerts,
                 ]),
+                'total_hpp' => round($totalHpp, 2),
+                'gross_profit' => round((float) $locked->total_amount - $totalHpp - $companyShipping, 2),
             ])->save();
 
             return $locked->refresh()->load('items');
         });
     }
 
-    private function reverseSaleMovements(Invoice $invoice, ?int $actorId): void
-    {
-        foreach ($invoice->items as $item) {
-            $product = Product::query()->find($item->product_id);
-
-            if (! $product instanceof Product || ! $product->track_stock) {
-                continue;
-            }
-
-            $this->recordStockMovement->record(
-                product: $product,
-                type: StockMovement::TYPE_ADJUSTMENT,
-                quantity: (float) $item->quantity,
-                referenceNumber: $invoice->invoice_number,
-                notes: "Koreksi edit invoice {$invoice->invoice_number} - stok item lama dikembalikan.",
-                userId: $actorId,
-            );
-        }
-    }
 }

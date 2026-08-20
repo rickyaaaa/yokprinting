@@ -177,7 +177,7 @@
                 <tr><td class="muted">Subtotal</td><td>{{ $money($preview['subtotal']) }}</td></tr>
                 <tr class="discount"><td>{{ $discountLabel }}</td><td>- {{ $money($preview['discount_amount']) }}</td></tr>
                 <tr><td class="muted">{{ $taxLabel }}</td><td>{{ $money($preview['tax_amount']) }}</td></tr>
-                @if ((float) ($preview['shipping_cost'] ?? 0) > 0)
+                @if ((float) ($preview['shipping_cost'] ?? 0) > 0 || ($preview['is_free_shipping'] ?? false))
                     <tr><td class="muted">{{ ($preview['is_free_shipping'] ?? false) ? 'Free ongkir' : 'Ongkir' }}</td><td>{{ $money($preview['shipping_cost']) }}</td></tr>
                 @endif
                 <tr class="total"><td>Total tagihan</td><td>{{ $money($preview['total_amount']) }}</td></tr>

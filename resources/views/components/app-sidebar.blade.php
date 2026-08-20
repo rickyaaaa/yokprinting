@@ -84,6 +84,7 @@
                 ['label' => 'Penerimaan Barang', 'route' => 'goods-receipts.index', 'active' => ['goods-receipts.*'], 'icon' => 'goods-receipt', 'visible' => $canViewGoodsReceipts],
                 ['label' => 'Harga Supplier', 'route' => 'supplier-prices.index', 'active' => ['supplier-prices.*'], 'icon' => 'supplier-price', 'visible' => $canViewSupplierPrices],
                 ['label' => 'Laporan penjualan', 'route' => 'reports.sales.index', 'active' => ['reports.sales.*'], 'icon' => 'reports', 'visible' => $canViewReports],
+                ['label' => 'Penjualan per pelanggan', 'route' => 'reports.customer-sales.index', 'active' => ['reports.customer-sales.*'], 'icon' => 'reports', 'visible' => $canViewReports],
                 ['label' => 'Laba rugi', 'route' => 'reports.profit-loss.index', 'active' => ['reports.profit-loss.*'], 'icon' => 'profit-loss', 'visible' => $canViewReports],
                 ['label' => 'Pengaturan', 'route' => 'settings.company-profile.edit', 'active' => ['settings.*'], 'icon' => 'settings'],
             ],

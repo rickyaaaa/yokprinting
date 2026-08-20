@@ -4,6 +4,7 @@ namespace App\Services\Inventory;
 
 use App\Models\Product;
 use App\Models\StockMovement;
+use App\Models\InventoryBatch;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -19,12 +20,13 @@ class RecordStockMovement
         ?string $referenceNumber = null,
         ?string $notes = null,
         ?int $userId = null,
+        bool $syncFifo = true,
     ): StockMovement {
         if (! in_array($type, $this->allowedTypes(), true)) {
             throw new InvalidArgumentException("Jenis mutasi stok tidak dikenal: {$type}");
         }
 
-        return DB::transaction(function () use ($product, $type, $quantity, $referenceNumber, $notes, $userId): StockMovement {
+        return DB::transaction(function () use ($product, $type, $quantity, $referenceNumber, $notes, $userId, $syncFifo): StockMovement {
             /** @var Product $lockedProduct */
             $lockedProduct = Product::query()
                 ->whereKey($product->getKey())
@@ -48,8 +50,54 @@ class RecordStockMovement
 
             $lockedProduct->forceFill(['stock' => $stockAfter])->save();
 
+            if ($syncFifo && $lockedProduct->track_stock && ! in_array($type, [
+                StockMovement::TYPE_PURCHASE,
+                StockMovement::TYPE_SALE,
+            ], true)) {
+                $this->syncFifoAdjustment($lockedProduct, $signedQuantity, $referenceNumber);
+            }
+
             return $movement;
         });
+    }
+
+    private function syncFifoAdjustment(Product $product, float $quantity, ?string $referenceNumber): void
+    {
+        if ($quantity > 0) {
+            InventoryBatch::query()->create([
+                'product_id' => $product->getKey(),
+                'purchase_date' => now()->toDateString(),
+                'qty_received' => $quantity,
+                'qty_remaining' => $quantity,
+                'unit_cost' => (float) ($product->average_purchase_cost
+                    ?? $product->last_purchase_price
+                    ?? $product->purchase_price
+                    ?? 0),
+                'source_type' => 'stock_adjustment',
+                'source_reference' => $referenceNumber,
+            ]);
+
+            return;
+        }
+
+        $remaining = abs($quantity);
+        $batches = InventoryBatch::query()
+            ->where('product_id', $product->getKey())
+            ->where('qty_remaining', '>', 0)
+            ->orderBy('purchase_date')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($batches as $batch) {
+            if ($remaining <= 0) {
+                break;
+            }
+
+            $consumed = min($remaining, (float) $batch->qty_remaining);
+            $batch->decrement('qty_remaining', $consumed);
+            $remaining = round($remaining - $consumed, 4);
+        }
     }
 
     /**

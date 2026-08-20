@@ -152,6 +152,11 @@ class Product extends Model
         return $this->hasMany(StockMovement::class);
     }
 
+    public function inventoryBatches(): HasMany
+    {
+        return $this->hasMany(InventoryBatch::class);
+    }
+
     /**
      * Get the supplier-quoted price history for this product (Supplier
      * Price List). Distinct from purchase_price/last_purchase_price, which

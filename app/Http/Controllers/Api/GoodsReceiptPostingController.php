@@ -19,7 +19,7 @@ class GoodsReceiptPostingController extends Controller
         $updated = $postGoodsReceipt->handle($goodsReceipt, $actor);
 
         return response()->json([
-            'message' => 'Penerimaan barang berhasil diposting. Stok dan biaya rata-rata sudah diperbarui.',
+            'message' => 'Penerimaan barang berhasil diposting. Stok dan layer HPP FIFO sudah diperbarui.',
             'data' => [
                 'status' => $updated->status,
                 'status_label' => $updated->statusLabel(),

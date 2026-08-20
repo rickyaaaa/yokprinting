@@ -124,7 +124,7 @@
                                         <th class="px-5 py-3 sm:px-6">Produk</th>
                                         <th class="px-5 py-3">Kategori</th>
                                         <th class="px-5 py-3">Unit</th>
-                                        <th class="px-5 py-3 text-right">Biaya rata-rata</th>
+                                        <th class="px-5 py-3 text-right">HPP FIFO</th>
                                         <th class="px-5 py-3 text-right">Stok</th>
                                         <th class="px-5 py-3 text-right">Terjual</th>
                                         <th class="px-5 py-3 text-right">Status</th>

@@ -17,6 +17,7 @@ use App\Http\Controllers\ProductIndexPageController;
 use App\Http\Controllers\ProfitLossReportPageController;
 use App\Http\Controllers\ReceivablePageController;
 use App\Models\Expense;
+use App\Models\Customer;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -197,6 +198,14 @@ Route::middleware('auth')->group(function () {
     Route::view('/reports/sales', 'reports.sales')
         ->middleware('permission:report.view')
         ->name('reports.sales.index');
+    Route::get('/reports/customer-sales', function () {
+        return view('reports.customer-sales', [
+            'customers' => Customer::query()
+                ->where('status', Customer::STATUS_ACTIVE)
+                ->orderBy('name')
+                ->get(['id', 'name']),
+        ]);
+    })->middleware('permission:report.view')->name('reports.customer-sales.index');
     Route::get('/reports/profit-loss', ProfitLossReportPageController::class)
         ->middleware('permission:report.view')
         ->name('reports.profit-loss.index');

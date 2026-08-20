@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class GoodsReceiptItem extends Model
 {
@@ -46,5 +47,10 @@ class GoodsReceiptItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function inventoryBatch(): HasOne
+    {
+        return $this->hasOne(InventoryBatch::class);
     }
 }

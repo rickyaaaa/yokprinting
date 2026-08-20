@@ -5,6 +5,7 @@ namespace App\Services\Purchasing;
 use App\Models\ActivityLog;
 use App\Models\GoodsReceipt;
 use App\Models\GoodsReceiptItem;
+use App\Models\InventoryBatch;
 use App\Models\Product;
 use App\Models\PurchaseOrderItem;
 use App\Models\StockMovement;
@@ -105,6 +106,16 @@ class CancelGoodsReceipt
                 ]);
             }
 
+            $batch = InventoryBatch::query()
+                ->where('goods_receipt_item_id', $item->getKey())
+                ->first();
+
+            if ($batch && (float) $batch->qty_remaining !== (float) $batch->qty_received) {
+                throw ValidationException::withMessages([
+                    'status' => "Layer FIFO {$product->name} sudah dipakai transaksi penjualan, jadi penerimaan ini tidak bisa dibatalkan otomatis.",
+                ]);
+            }
+
             $latestMovementId = (int) StockMovement::query()
                 ->where('product_id', $product->getKey())
                 ->max('id');
@@ -156,7 +167,13 @@ class CancelGoodsReceipt
             referenceNumber: $goodsReceipt->receipt_number,
             notes: "Pembatalan penerimaan barang {$goodsReceipt->receipt_number}.",
             userId: $actor->getKey(),
+            syncFifo: false,
         );
+
+        $batch = InventoryBatch::query()
+            ->where('goods_receipt_item_id', $item->getKey())
+            ->first();
+        $batch?->delete();
 
         $product->forceFill(['average_purchase_cost' => $restoredAverageCost])->save();
     }

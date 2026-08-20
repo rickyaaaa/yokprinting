@@ -10,6 +10,7 @@ use App\Models\PurchaseOrderItem;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Services\Security\ActivityLogger;
+use App\Services\Inventory\FifoInventoryService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -18,10 +19,11 @@ class PostGoodsReceipt
     public function __construct(
         private readonly ActivityLogger $activityLogger,
         private readonly RecalculatePurchaseOrderReceivingStatus $recalculatePurchaseOrderReceivingStatus,
+        private readonly FifoInventoryService $fifoInventory,
     ) {}
 
     /**
-     * Post a draft goods receipt: stock, moving-average cost, and the PO's
+     * Post a draft goods receipt: stock, FIFO layer, and the PO's
      * received quantities all change here, and only here. A posted receipt
      * can still be voided later via CancelGoodsReceipt, but only while
      * nothing else has touched the same product's stock/cost since.
@@ -121,6 +123,8 @@ class PostGoodsReceipt
             'average_purchase_cost' => $newAverageCost,
             'last_purchase_price' => $unitPrice,
         ])->save();
+
+        $this->fifoInventory->receive($item, $goodsReceipt);
     }
 
     private function incrementPurchaseOrderItemReceived(int $purchaseOrderItemId, float $quantityReceived): void

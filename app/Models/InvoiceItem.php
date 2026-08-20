@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class InvoiceItem extends Model
 {
@@ -48,6 +49,8 @@ class InvoiceItem extends Model
         'unit',
         'unit_price',
         'purchase_cost_snapshot',
+        'hpp_total',
+        'unit_hpp',
         'discount_type',
         'discount_value',
         'discount_amount',
@@ -70,6 +73,8 @@ class InvoiceItem extends Model
             'quantity' => 'decimal:4',
             'unit_price' => 'decimal:2',
             'purchase_cost_snapshot' => 'decimal:2',
+            'hpp_total' => 'decimal:2',
+            'unit_hpp' => 'decimal:2',
             'discount_value' => 'decimal:2',
             'discount_amount' => 'decimal:2',
             'tax_rate' => 'decimal:2',
@@ -109,6 +114,11 @@ class InvoiceItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function costLayers(): HasMany
+    {
+        return $this->hasMany(InvoiceItemCostLayer::class);
     }
 
     /**

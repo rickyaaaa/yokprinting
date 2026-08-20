@@ -5,12 +5,11 @@ namespace App\Services\Invoices;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Product;
-use App\Models\StockMovement;
-use App\Services\Inventory\RecordStockMovement;
+use App\Services\Inventory\FifoInventoryService;
 
 class RecordInvoiceSaleMovements
 {
-    public function __construct(private readonly RecordStockMovement $recordStockMovement) {}
+    public function __construct(private readonly FifoInventoryService $fifoInventory) {}
 
     /**
      * Deduct stock for each tracked item and collect low/negative-stock
@@ -30,14 +29,7 @@ class RecordInvoiceSaleMovements
                 continue;
             }
 
-            $movement = $this->recordStockMovement->record(
-                product: $product,
-                type: StockMovement::TYPE_SALE,
-                quantity: -1 * (float) $item->quantity,
-                referenceNumber: $invoice->invoice_number,
-                notes: "Penjualan invoice {$invoice->invoice_number}",
-                userId: $actorId,
-            );
+            $this->fifoInventory->consume($invoice, $item, $actorId);
 
             $product->refresh();
             $stock = (float) ($product->stock ?? 0);
@@ -51,7 +43,6 @@ class RecordInvoiceSaleMovements
                     'stock' => $stock,
                     'minimum_stock' => $minimumStock,
                     'is_negative' => $stock < 0,
-                    'movement_id' => $movement->getKey(),
                 ];
             }
         }

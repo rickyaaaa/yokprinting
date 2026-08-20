@@ -200,7 +200,7 @@ export const registerPurchaseOrderComponents = (Alpine) => {
             other_cost: 0,
             notes: '',
         },
-        items: [{ product_id: '', quantity: '', unit_price: '', supplier_price_list_id: null, priceReference: null, priceReferenceLoading: false }],
+        items: [{ product_id: '', productSearch: '', productPickerOpen: false, quantity: '', unit_price: '', supplier_price_list_id: null, priceReference: null, priceReferenceLoading: false }],
 
         async init() {
             this.loadingOptions = true;
@@ -227,7 +227,7 @@ export const registerPurchaseOrderComponents = (Alpine) => {
         },
 
         addItem() {
-            this.items.push({ product_id: '', quantity: '', unit_price: '', supplier_price_list_id: null, priceReference: null, priceReferenceLoading: false });
+            this.items.push({ product_id: '', productSearch: '', productPickerOpen: false, quantity: '', unit_price: '', supplier_price_list_id: null, priceReference: null, priceReferenceLoading: false });
         },
 
         removeItem(index) {
@@ -262,6 +262,25 @@ export const registerPurchaseOrderComponents = (Alpine) => {
                 // fallback for products that have never been purchased yet.
                 item.unit_price = product.last_purchase_price || product.average_purchase_cost || product.purchase_price || '';
             }
+        },
+
+        filteredProducts(item) {
+            const keyword = String(item.productSearch ?? '').trim().toLowerCase();
+
+            if (!keyword) {
+                return this.products.slice(0, 30);
+            }
+
+            return this.products.filter((product) => `${product.sku} ${product.name} ${product.category ?? ''}`.toLowerCase().includes(keyword)).slice(0, 30);
+        },
+
+        selectProduct(index, product) {
+            const item = this.items[index];
+            item.product_id = String(product.id);
+            item.productSearch = `${product.sku} - ${product.name}`;
+            item.productPickerOpen = false;
+            this.clearError(`items.${index}.product_id`);
+            this.productChanged(index);
         },
 
         /**

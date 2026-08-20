@@ -39,9 +39,11 @@ class SnapshotInvoiceItems
                     // PO/Goods Receipt prices) over the legacy flat field,
                     // which nothing writes to anymore. Once written, this
                     // snapshot never changes even if the product's cost does.
-                    $item['purchase_cost_snapshot'] = $product->average_purchase_cost
-                        ?? $product->last_purchase_price
-                        ?? $product->purchase_price;
+                    $item['purchase_cost_snapshot'] = $product->track_stock
+                        ? 0
+                        : ($product->average_purchase_cost
+                            ?? $product->last_purchase_price
+                            ?? $product->purchase_price);
                 }
 
                 return $item;
