@@ -89,7 +89,7 @@
                     <button
                         type="button"
                         class="hidden items-center gap-2 rounded-lg border border-brand-300 bg-white px-3.5 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-50 lg:inline-flex"
-                        onclick="window.print()"
+                        @click="window.print()"
                         aria-label="Cetak invoice"
                     >
                         <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -136,7 +136,7 @@
                 <button
                     type="button"
                     class="inline-flex items-center justify-center gap-2 px-2 py-2.5 text-xs font-semibold text-brand-800 hover:bg-brand-50 sm:text-sm"
-                    onclick="window.print()"
+                    @click="window.print()"
                     aria-label="Cetak invoice"
                 >
                     <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">

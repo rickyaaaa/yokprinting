@@ -5,9 +5,12 @@ namespace Tests\Feature;
 use App\Jobs\PurgeExpiredExpensesJob;
 use App\Jobs\RetryExpenseProofCleanupJob;
 use App\Models\ActivityLog;
+use App\Models\BankAccount;
+use App\Models\CashBankTransaction;
 use App\Models\Expense;
 use App\Models\ExpenseProofCleanupTask;
 use App\Models\User;
+use App\Services\CashBank\CashBankService;
 use App\Services\Expenses\ExpenseProofCleanup;
 use App\Services\Security\ActivityLogger;
 use Illuminate\Filesystem\FilesystemAdapter;
@@ -50,6 +53,35 @@ class ExpenseLifecycleTest extends TestCase
             'action' => 'restore',
             'subject_id' => $expense->getKey(),
         ]);
+    }
+
+    public function test_restoring_an_expense_reposts_its_cash_bank_transaction(): void
+    {
+        Storage::fake('expense_proofs');
+        $owner = User::factory()->create(['role' => User::ROLE_OWNER]);
+        $account = BankAccount::query()->firstOrFail();
+        $account->update(['opening_balance' => 1_000_000]);
+        $expense = Expense::factory()->create([
+            'created_by' => $owner->id,
+            'amount' => 200_000,
+            'expense_date' => '2026-08-20',
+        ]);
+        Storage::disk('expense_proofs')->put($expense->proof_path, 'audit-proof');
+
+        $transaction = app(CashBankService::class)->recordExpense($expense);
+        $this->assertNotNull($transaction);
+        $this->assertSame(800_000.0, app(CashBankService::class)->calculateBalance($account->fresh()));
+
+        $expense->delete();
+        app(CashBankService::class)->cancelExpenseTransaction($expense, $owner->id);
+        $this->assertSame(CashBankTransaction::STATUS_CANCELLED, $transaction->fresh()->status);
+
+        $this->actingAs($owner)
+            ->postJson(route('api.expenses.restore', $expense->getKey()))
+            ->assertOk();
+
+        $this->assertSame(CashBankTransaction::STATUS_POSTED, $transaction->fresh()->status);
+        $this->assertSame(800_000.0, app(CashBankService::class)->calculateBalance($account->fresh()));
     }
 
     public function test_scheduled_purge_uses_configured_retention_boundary_and_deletes_record_and_proof(): void

@@ -316,10 +316,13 @@ class ExpenseController extends Controller
         return response()->json(status: 204);
     }
 
-    public function restore(string $expense, ActivityLogger $activityLogger): JsonResponse
-    {
+    public function restore(
+        string $expense,
+        ActivityLogger $activityLogger,
+        CashBankService $cashBank,
+    ): JsonResponse {
         try {
-            $restored = DB::transaction(function () use ($expense, $activityLogger): Expense {
+            $restored = DB::transaction(function () use ($expense, $activityLogger, $cashBank): Expense {
                 $locked = Expense::onlyTrashed()->lockForUpdate()->findOrFail($expense);
 
                 if (! Storage::disk($this->proofDisk())->exists($locked->proof_path)) {
@@ -329,6 +332,7 @@ class ExpenseController extends Controller
                 $locked->restore();
                 $locked->increment('version');
                 $locked->refresh();
+                $cashBank->syncExpense($locked);
 
                 $activityLogger->record(
                     module: 'expense',

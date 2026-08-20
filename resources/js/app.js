@@ -80,6 +80,29 @@ const emptyDashboardRevenueDataset = () => ({
 const invoicePreviewStorageKey = 'yokprinting.invoice.previewDraft';
 const invoiceDraftStorageKey = 'yokprinting.invoice.editorDraft';
 const persistedInvoiceDraftStorageKey = 'yokprinting.invoice.persistedDraft';
+const seedInvoiceEditorDraft = () => {
+    const encodedPayload = document.querySelector('meta[name="invoice-editor-draft"]')?.content;
+
+    if (!encodedPayload) {
+        return;
+    }
+
+    try {
+        window.sessionStorage.setItem(invoiceDraftStorageKey, JSON.stringify(
+            JSON.parse(window.atob(encodedPayload)),
+        ));
+        window.sessionStorage.removeItem(persistedInvoiceDraftStorageKey);
+
+        if (window.location.hash !== '#restore-draft') {
+            window.location.hash = 'restore-draft';
+        }
+    } catch {
+        window.sessionStorage.removeItem(invoiceDraftStorageKey);
+    }
+};
+
+seedInvoiceEditorDraft();
+
 const shouldRestoreInvoiceEditorDraft = () => {
     if (!window.sessionStorage.getItem(invoiceDraftStorageKey)) {
         return false;

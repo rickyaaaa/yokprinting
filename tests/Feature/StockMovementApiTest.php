@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\InventoryBatch;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\User;
@@ -43,6 +44,15 @@ class StockMovementApiTest extends TestCase
             'minimum_stock' => 12,
             'track_stock' => true,
         ]);
+        InventoryBatch::query()->create([
+            'product_id' => $product->id,
+            'purchase_date' => '2026-07-01',
+            'qty_received' => 6,
+            'qty_remaining' => 6,
+            'unit_cost' => 500,
+            'source_type' => 'opening_balance',
+            'source_reference' => 'TEST-OPENING',
+        ]);
 
         $this->actingAs($user)
             ->postJson(route('api.stock-movements.store'), [
@@ -69,6 +79,77 @@ class StockMovementApiTest extends TestCase
             'user_id' => $user->id,
         ]);
         $this->assertSame('4.0000', $product->refresh()->stock);
+    }
+
+    public function test_tracked_stock_cannot_become_negative_or_partially_consume_fifo(): void
+    {
+        $user = User::factory()->create();
+        $product = Product::query()->create([
+            'sku' => 'CUP-NEGATIVE-01',
+            'name' => 'Cup Negative Guard',
+            'stock' => 6,
+            'track_stock' => true,
+        ]);
+        $batch = InventoryBatch::query()->create([
+            'product_id' => $product->id,
+            'purchase_date' => '2026-07-01',
+            'qty_received' => 6,
+            'qty_remaining' => 6,
+            'unit_cost' => 500,
+            'source_type' => 'opening_balance',
+            'source_reference' => 'TEST-OPENING',
+        ]);
+
+        $this->actingAs($user)
+            ->postJson(route('api.stock-movements.store'), [
+                'product_id' => $product->id,
+                'type' => StockMovement::TYPE_ADJUSTMENT,
+                'quantity' => -7,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('quantity');
+
+        $this->assertDatabaseMissing('stock_movements', [
+            'product_id' => $product->id,
+            'type' => StockMovement::TYPE_ADJUSTMENT,
+        ]);
+        $this->assertSame('6.0000', $product->refresh()->stock);
+        $this->assertSame('6.0000', $batch->refresh()->qty_remaining);
+    }
+
+    public function test_stock_opname_uses_locked_stock_and_updates_the_matching_fifo_delta(): void
+    {
+        $user = User::factory()->create();
+        $product = Product::query()->create([
+            'sku' => 'CUP-OPNAME-01',
+            'name' => 'Cup Stock Opname',
+            'stock' => 6,
+            'track_stock' => true,
+        ]);
+        $batch = InventoryBatch::query()->create([
+            'product_id' => $product->id,
+            'purchase_date' => '2026-07-01',
+            'qty_received' => 6,
+            'qty_remaining' => 6,
+            'unit_cost' => 500,
+            'source_type' => 'opening_balance',
+            'source_reference' => 'TEST-OPENING',
+        ]);
+
+        $this->actingAs($user)
+            ->postJson(route('api.stock-movements.store'), [
+                'product_id' => $product->id,
+                'type' => StockMovement::TYPE_STOCK_OPNAME,
+                'quantity' => 4,
+                'reference_number' => 'OPNAME-001',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.quantity', -2)
+            ->assertJsonPath('data.stock_before', 6)
+            ->assertJsonPath('data.stock_after', 4);
+
+        $this->assertSame('4.0000', $product->refresh()->stock);
+        $this->assertSame('4.0000', $batch->refresh()->qty_remaining);
     }
 
     public function test_invoice_draft_records_sale_stock_movement_and_returns_low_stock_alert(): void

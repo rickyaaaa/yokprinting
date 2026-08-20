@@ -1,3 +1,7 @@
+@php
+    $invoiceEditorDraft = base64_encode(json_encode($draftPayload, JSON_THROW_ON_ERROR));
+@endphp
+
 <!DOCTYPE html>
 <html lang="id">
     <head>
@@ -8,22 +12,7 @@
 
         <title>Edit Invoice {{ $invoiceModel->invoice_number }} — YokPrinting.ID</title>
 
-        <script>
-            // Seed the same session-draft the create form's preview-and-back
-            // flow uses, so the existing restore logic in invoiceDraftForm /
-            // customerPicker / invoiceItems (resources/js/app.js) populates
-            // this form from the invoice's current data - no separate
-            // edit-mode data-loading code needed.
-            window.sessionStorage.setItem(
-                'yokprinting.invoice.editorDraft',
-                JSON.stringify(@json($draftPayload)),
-            );
-            window.sessionStorage.removeItem('yokprinting.invoice.persistedDraft');
-
-            if (window.location.hash !== '#restore-draft') {
-                window.location.hash = 'restore-draft';
-            }
-        </script>
+        <meta name="invoice-editor-draft" content="{{ $invoiceEditorDraft }}">
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>

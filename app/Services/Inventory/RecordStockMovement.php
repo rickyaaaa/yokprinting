@@ -2,10 +2,11 @@
 
 namespace App\Services\Inventory;
 
+use App\Models\InventoryBatch;
 use App\Models\Product;
 use App\Models\StockMovement;
-use App\Models\InventoryBatch;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 class RecordStockMovement
@@ -33,32 +34,58 @@ class RecordStockMovement
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $stockBefore = (float) ($lockedProduct->stock ?? 0);
-            $signedQuantity = round((float) $quantity, 4);
-            $stockAfter = round($stockBefore + $signedQuantity, 4);
-
-            $movement = StockMovement::query()->create([
-                'product_id' => $lockedProduct->getKey(),
-                'type' => $type,
-                'quantity' => $signedQuantity,
-                'stock_before' => $stockBefore,
-                'stock_after' => $stockAfter,
-                'reference_number' => $referenceNumber,
-                'notes' => $notes,
-                'user_id' => $userId,
-            ]);
-
-            $lockedProduct->forceFill(['stock' => $stockAfter])->save();
-
-            if ($syncFifo && $lockedProduct->track_stock && ! in_array($type, [
-                StockMovement::TYPE_PURCHASE,
-                StockMovement::TYPE_SALE,
-            ], true)) {
-                $this->syncFifoAdjustment($lockedProduct, $signedQuantity, $referenceNumber);
-            }
-
-            return $movement;
+            return $this->recordLocked(
+                product: $lockedProduct,
+                type: $type,
+                quantity: $quantity,
+                referenceNumber: $referenceNumber,
+                notes: $notes,
+                userId: $userId,
+                syncFifo: $syncFifo,
+            );
         });
+    }
+
+    private function recordLocked(
+        Product $product,
+        string $type,
+        int|float|string $quantity,
+        ?string $referenceNumber,
+        ?string $notes,
+        ?int $userId,
+        bool $syncFifo,
+    ): StockMovement {
+        $stockBefore = (float) ($product->stock ?? 0);
+        $signedQuantity = round((float) $quantity, 4);
+        $stockAfter = round($stockBefore + $signedQuantity, 4);
+
+        if ($product->track_stock && $stockAfter < 0) {
+            throw ValidationException::withMessages([
+                'quantity' => "Stok {$product->name} tidak boleh negatif. Stok tersedia: {$this->formatQuantity($stockBefore)}.",
+            ]);
+        }
+
+        $movement = StockMovement::query()->create([
+            'product_id' => $product->getKey(),
+            'type' => $type,
+            'quantity' => $signedQuantity,
+            'stock_before' => $stockBefore,
+            'stock_after' => $stockAfter,
+            'reference_number' => $referenceNumber,
+            'notes' => $notes,
+            'user_id' => $userId,
+        ]);
+
+        $product->forceFill(['stock' => $stockAfter])->save();
+
+        if ($syncFifo && $product->track_stock && ! in_array($type, [
+            StockMovement::TYPE_PURCHASE,
+            StockMovement::TYPE_SALE,
+        ], true)) {
+            $this->syncFifoAdjustment($product, $signedQuantity, $referenceNumber);
+        }
+
+        return $movement;
     }
 
     private function syncFifoAdjustment(Product $product, float $quantity, ?string $referenceNumber): void
@@ -89,6 +116,14 @@ class RecordStockMovement
             ->lockForUpdate()
             ->get();
 
+        $available = round((float) $batches->sum('qty_remaining'), 4);
+
+        if ($available < $remaining) {
+            throw ValidationException::withMessages([
+                'quantity' => "Layer FIFO {$product->name} tidak mencukupi. Tersedia: {$this->formatQuantity($available)}.",
+            ]);
+        }
+
         foreach ($batches as $batch) {
             if ($remaining <= 0) {
                 break;
@@ -110,17 +145,31 @@ class RecordStockMovement
         ?string $notes = null,
         ?int $userId = null,
     ): StockMovement {
-        $currentStock = (float) ($product->refresh()->stock ?? 0);
-        $delta = round((float) $countedStock - $currentStock, 4);
+        return DB::transaction(function () use ($product, $countedStock, $referenceNumber, $notes, $userId): StockMovement {
+            /** @var Product $lockedProduct */
+            $lockedProduct = Product::query()
+                ->whereKey($product->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        return $this->record(
-            $product,
-            StockMovement::TYPE_STOCK_OPNAME,
-            $delta,
-            $referenceNumber,
-            $notes,
-            $userId,
-        );
+            $currentStock = (float) ($lockedProduct->stock ?? 0);
+            $delta = round((float) $countedStock - $currentStock, 4);
+
+            return $this->recordLocked(
+                product: $lockedProduct,
+                type: StockMovement::TYPE_STOCK_OPNAME,
+                quantity: $delta,
+                referenceNumber: $referenceNumber,
+                notes: $notes,
+                userId: $userId,
+                syncFifo: true,
+            );
+        });
+    }
+
+    private function formatQuantity(float $quantity): string
+    {
+        return rtrim(rtrim(number_format($quantity, 4, ',', '.'), '0'), ',');
     }
 
     /**

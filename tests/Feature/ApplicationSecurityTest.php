@@ -33,12 +33,16 @@ class ApplicationSecurityTest extends TestCase
 
     public function test_browser_security_headers_are_present(): void
     {
-        $this->get(route('login'))
+        $response = $this->get(route('login'))
             ->assertOk()
             ->assertHeader('X-Content-Type-Options', 'nosniff')
             ->assertHeader('X-Frame-Options', 'DENY')
             ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
             ->assertHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
             ->assertHeader('Content-Security-Policy');
+
+        $this->assertStringContainsString("script-src 'self' 'unsafe-eval'", $response->headers->get('Content-Security-Policy'));
+        $this->assertStringNotContainsString("script-src 'self' 'unsafe-inline'", $response->headers->get('Content-Security-Policy'));
+        $this->assertStringNotContainsString('onclick=', $response->getContent());
     }
 }
