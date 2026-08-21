@@ -9,8 +9,8 @@ use App\Models\Product;
 use App\Models\PurchaseOrderItem;
 use App\Models\StockMovement;
 use App\Models\User;
-use App\Services\Security\ActivityLogger;
 use App\Services\Inventory\FifoInventoryService;
+use App\Services\Security\ActivityLogger;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 

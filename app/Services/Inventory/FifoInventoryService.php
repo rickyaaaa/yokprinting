@@ -10,7 +10,6 @@ use App\Models\InvoiceItem;
 use App\Models\Product;
 use App\Models\StockMovement;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class FifoInventoryService
@@ -114,7 +113,15 @@ class FifoInventoryService
                 continue;
             }
 
-            $layers = $item->costLayers->whereNull('reversed_at');
+            $allLayers = $item->costLayers;
+            $layers = $allLayers->whereNull('reversed_at');
+
+            // A restored item may be encountered again by a retry or a
+            // repeated lifecycle call. Once it has cost layers but none are
+            // active, restoring it again must not create legacy stock.
+            if ($allLayers->isNotEmpty() && $layers->isEmpty()) {
+                continue;
+            }
 
             if ($layers->isEmpty()) {
                 $legacyUnitCost = (float) ($item->unit_hpp

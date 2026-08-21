@@ -126,6 +126,49 @@ class RoleCrudApiTest extends TestCase
         ]);
     }
 
+    public function test_role_code_cannot_change_while_users_are_assigned(): void
+    {
+        $role = Role::factory()->create(['code' => 'ops_team']);
+        User::factory()->create(['role' => $role->code]);
+
+        $this->patchJson(route('api.roles.update', $role->code), [
+            'code' => 'ops_team_v2',
+        ])
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'Kode role tidak dapat diubah selama masih dipakai user. Pindahkan user terlebih dahulu.');
+
+        $this->assertDatabaseHas('roles', [
+            'id' => $role->id,
+            'code' => 'ops_team',
+        ]);
+    }
+
+    public function test_role_with_assigned_users_cannot_be_deleted(): void
+    {
+        $role = Role::factory()->create(['code' => 'warehouse_team']);
+        User::factory()->create(['role' => $role->code]);
+
+        $this->deleteJson(route('api.roles.destroy', $role->code))
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'Role yang masih dipakai user tidak dapat dihapus. Pindahkan user terlebih dahulu.');
+
+        $this->assertDatabaseHas('roles', [
+            'id' => $role->id,
+            'deleted_at' => null,
+        ]);
+    }
+
+    public function test_system_flag_cannot_be_changed_through_role_api(): void
+    {
+        $role = Role::factory()->system()->create(['code' => Role::CODE_OWNER]);
+
+        $this->patchJson(route('api.roles.update', $role->code), [
+            'is_system' => false,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('is_system');
+    }
+
     public function test_role_payload_and_query_are_validated(): void
     {
         Role::factory()->create(['code' => Role::CODE_FINANCE_ADMIN]);
@@ -134,11 +177,12 @@ class RoleCrudApiTest extends TestCase
             'name' => '',
             'code' => Role::CODE_FINANCE_ADMIN,
             'status' => 'archived',
+            'is_system' => true,
             'permission_ids' => [999],
             'permissions' => ['invoice.fly'],
         ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['name', 'code', 'status', 'permission_ids.0', 'permissions.0']);
+            ->assertJsonValidationErrors(['name', 'code', 'status', 'is_system', 'permission_ids.0', 'permissions.0']);
 
         $this->getJson(route('api.roles.index', [
             'status' => 'archived',

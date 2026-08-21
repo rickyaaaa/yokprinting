@@ -113,5 +113,4 @@ class UpdateInvoiceDraft
             return $locked->refresh()->load('items');
         });
     }
-
 }

@@ -117,6 +117,14 @@ class RoleController extends Controller
         $original = $role->only(['name', 'code', 'scope', 'status', 'is_system', 'sort_order']);
         [$payload, $permissionIds] = $this->splitRolePayload($request->validated());
 
+        if (array_key_exists('code', $payload)
+            && $payload['code'] !== $role->code
+            && $role->users()->exists()) {
+            return response()->json([
+                'message' => 'Kode role tidak dapat diubah selama masih dipakai user. Pindahkan user terlebih dahulu.',
+            ], 409);
+        }
+
         $role->update($payload);
 
         if ($permissionIds !== null) {
@@ -151,6 +159,12 @@ class RoleController extends Controller
         if ($role->is_system) {
             return response()->json([
                 'message' => 'System roles cannot be deleted.',
+            ], 409);
+        }
+
+        if ($role->users()->exists()) {
+            return response()->json([
+                'message' => 'Role yang masih dipakai user tidak dapat dihapus. Pindahkan user terlebih dahulu.',
             ], 409);
         }
 

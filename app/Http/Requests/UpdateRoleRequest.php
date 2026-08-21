@@ -38,7 +38,9 @@ class UpdateRoleRequest extends FormRequest
                 Role::STATUS_LIMITED,
                 Role::STATUS_DISABLED,
             ])],
-            'is_system' => ['sometimes', 'boolean'],
+            // Keep the system-role boundary under application provisioning,
+            // not under a mutable dashboard payload.
+            'is_system' => ['prohibited'],
             'sort_order' => ['sometimes', 'integer', 'min:0', 'max:65535'],
             'permission_ids' => ['sometimes', 'array'],
             'permission_ids.*' => ['integer', 'exists:permissions,id'],

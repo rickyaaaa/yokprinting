@@ -35,7 +35,9 @@ class StoreRoleRequest extends FormRequest
                 Role::STATUS_LIMITED,
                 Role::STATUS_DISABLED,
             ])],
-            'is_system' => ['sometimes', 'boolean'],
+            // System roles are provisioned by seeders and must not be
+            // created or promoted through the public role-management API.
+            'is_system' => ['prohibited'],
             'sort_order' => ['sometimes', 'integer', 'min:0', 'max:65535'],
             'permission_ids' => ['sometimes', 'array'],
             'permission_ids.*' => ['integer', 'exists:permissions,id'],

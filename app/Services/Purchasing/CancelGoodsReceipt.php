@@ -88,7 +88,11 @@ class CancelGoodsReceipt
         // stock/average-cost impact to reverse (see PostGoodsReceipt), so
         // they're skipped here and in the reversal pass below.
         foreach ($items as $item) {
-            $product = Product::query()->whereKey($item->product_id)->firstOrFail();
+            // Keep the product lock held from validation through reversal.
+            // Otherwise a sale or receipt can append a newer movement between
+            // this check and reverseItem(), invalidating the latest-movement
+            // guarantee used to invert the weighted average safely.
+            $product = Product::query()->whereKey($item->product_id)->lockForUpdate()->firstOrFail();
 
             if (! $product->track_stock) {
                 continue;

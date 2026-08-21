@@ -60,7 +60,7 @@ class CalculateInvoiceTotals
                     'quantity' => $quantity,
                     'unit' => 'Pcs',
                     'unit_price' => $unitPrice,
-                     'purchase_cost_snapshot' => $purchaseCostSnapshot,
+                    'purchase_cost_snapshot' => $purchaseCostSnapshot,
                     'hpp_total' => $this->money($quantity * $purchaseCostSnapshot),
                     'unit_hpp' => $purchaseCostSnapshot,
                     'subtotal' => $subtotal,

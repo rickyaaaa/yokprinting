@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Customer;
 use App\Models\InventoryBatch;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\Product;
 use App\Services\Inventory\FifoInventoryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -69,7 +70,27 @@ class FifoInventoryTest extends TestCase
         $this->assertSame(90000.0, $oldHpp);
     }
 
-    /** @return array{0: Product, 1: Invoice, 2: \App\Models\InvoiceItem} */
+    public function test_restoring_an_invoice_is_idempotent_after_its_layers_are_reversed(): void
+    {
+        [$product, $invoice, $item] = $this->saleContext(quantity: 100);
+        $batch = $this->batch($product, '2026-08-01', 100, 900);
+        $product->forceFill(['stock' => 100])->save();
+
+        $service = app(FifoInventoryService::class);
+        $service->consume($invoice, $item);
+        $service->restoreInvoice($invoice);
+
+        $this->assertSame('100.0000', $product->refresh()->stock);
+        $this->assertSame('100.0000', $batch->refresh()->qty_remaining);
+
+        $service->restoreInvoice($invoice->refresh());
+
+        $this->assertSame('100.0000', $product->refresh()->stock);
+        $this->assertSame('100.0000', $batch->refresh()->qty_remaining);
+        $this->assertDatabaseCount('inventory_batches', 1);
+    }
+
+    /** @return array{0: Product, 1: Invoice, 2: InvoiceItem} */
     private function saleContext(float $quantity): array
     {
         $customer = Customer::query()->create(['name' => 'FIFO Customer']);
