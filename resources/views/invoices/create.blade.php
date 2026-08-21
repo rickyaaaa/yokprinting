@@ -165,7 +165,7 @@
                                 </div>
                             </section>
 
-                            <x-invoice-items />
+                            <x-invoice-items :hide-legacy-specs="true" />
 
                             <section class="rounded-xl bg-white p-5 border border-line sm:p-6" aria-labelledby="additional-info-heading">
                                 <h2 id="additional-info-heading" class="font-semibold text-ink">Informasi tambahan</h2>
