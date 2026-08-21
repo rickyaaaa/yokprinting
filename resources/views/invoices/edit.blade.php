@@ -37,21 +37,17 @@
                 <header class="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
                     <button
                         type="button"
-                        class="mr-3 rounded-lg p-2 text-muted hover:bg-brand-50 hover:text-brand-800 lg:hidden"
+                        class="btn-icon mr-3 border-transparent lg:hidden"
                         @click="sidebarOpen = true"
                         aria-controls="app-sidebar"
                         :aria-expanded="sidebarOpen"
                         aria-label="Buka navigasi"
                     >
-                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/>
-                        </svg>
+                        <i class="iconify tabler--align-left text-xl"></i>
                     </button>
                     <div class="flex min-w-0 items-center gap-2 text-sm">
                         <a href="{{ route('invoices.index') }}" class="hidden text-muted hover:text-ink sm:inline">Invoice</a>
-                        <svg class="hidden size-4 text-line sm:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="m9 18 6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                        <i class="iconify tabler--chevron-right hidden text-sm text-line sm:block"></i>
                         <span class="truncate font-medium text-ink">Edit {{ $invoiceModel->invoice_number }}</span>
                     </div>
                 </header>
@@ -60,13 +56,13 @@
                     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <div class="mb-2 flex items-center gap-2">
-                                <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Edit invoice draft</span>
+                                <span class="badge badge-brand">Edit invoice draft</span>
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Edit {{ $invoiceModel->invoice_number }}</h1>
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Invoice ini masih draft - item, harga, dan detailnya masih bisa diubah. Setelah dikirim ke pelanggan, invoice terkunci dan tidak bisa diedit lagi.</p>
                         </div>
-                        <a href="{{ route('invoices.index') }}" class="inline-flex w-fit items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
-                            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m15 18-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        <a href="{{ route('invoices.index') }}" class="btn btn-outline w-fit">
+                            <i class="iconify tabler--chevron-left text-base"></i>
                             Kembali ke daftar
                         </a>
                     </div>
@@ -98,7 +94,7 @@
                         </div>
 
                         <div class="min-w-0 space-y-6">
-                            <section class="rounded-xl bg-white border border-line" aria-labelledby="invoice-details-heading">
+                            <section class="card" aria-labelledby="invoice-details-heading">
                                 <div class="border-b border-line px-5 py-4 sm:px-6">
                                     <h2 id="invoice-details-heading" class="font-semibold text-ink">Detail invoice</h2>
                                     <p class="mt-1 text-sm text-muted">Informasi utama yang akan tampil pada dokumen invoice.</p>
@@ -121,9 +117,7 @@
                                                     class="form-control pr-10 bg-canvas font-medium text-muted"
                                                     aria-describedby="invoice-number-error"
                                                 >
-                                                <svg class="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
-                                                    <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" stroke-linecap="round"/>
-                                                </svg>
+                                                <i class="iconify tabler--lock pointer-events-none absolute right-3 top-1/2 text-base -translate-y-1/2 text-muted"></i>
                                             </div>
                                             <p class="mt-1.5 text-xs text-muted">Nomor invoice terkunci, tidak berubah walau diedit.</p>
                                         </div>
@@ -163,7 +157,7 @@
 
                             <x-invoice-items />
 
-                            <section class="rounded-xl bg-white p-5 border border-line sm:p-6" aria-labelledby="additional-info-heading">
+                            <section class="card p-5 sm:p-6" aria-labelledby="additional-info-heading">
                                 <h2 id="additional-info-heading" class="font-semibold text-ink">Informasi tambahan</h2>
                                 <div class="mt-5 grid gap-5 md:grid-cols-2">
                                     <div>
@@ -218,10 +212,7 @@
                             <x-invoice-totals :is-edit="true" />
 
                             <div class="flex items-start gap-3 rounded-xl border border-brand-200 bg-brand-50 p-4 text-sm text-brand-900">
-                                <svg class="mt-0.5 size-5 shrink-0 text-brand-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                    <circle cx="12" cy="12" r="9"/>
-                                    <path d="M12 10v6M12 7h.01" stroke-linecap="round"/>
-                                </svg>
+                                <i class="iconify tabler--info-circle mt-0.5 text-lg shrink-0 text-brand-700"></i>
                                 <p class="leading-5">Perubahan menggantikan item invoice ini sepenuhnya - stok yang sudah dikurangi untuk item lama otomatis dikembalikan sebelum item baru dicatat.</p>
                             </div>
                         </aside>
@@ -242,13 +233,8 @@
                             data-testid="draft-api-notice"
                         >
                             <span class="grid size-8 shrink-0 place-items-center rounded-full bg-white/15">
-                                <svg x-show="! errorMessage" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                    <path d="m5 12 4 4L19 6" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                                <svg x-show="errorMessage" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                    <path d="M12 8v5M12 17h.01" stroke-linecap="round"/>
-                                    <circle cx="12" cy="12" r="9"/>
-                                </svg>
+                                <i x-show="! errorMessage" class="iconify tabler--check text-base"></i>
+                                <i x-show="errorMessage" class="iconify tabler--alert-circle text-base"></i>
                             </span>
                             <div class="min-w-0 flex-1">
                                 <p class="text-sm font-semibold" x-text="errorMessage ? (errorTitle || 'Invoice gagal disimpan') : 'Invoice tersimpan'"></p>
@@ -258,9 +244,7 @@
                                 ></p>
                             </div>
                             <button type="button" class="rounded-lg p-1.5 text-white/80 hover:bg-white/10 hover:text-white" @click="dismissDraftNotice()" aria-label="Tutup notifikasi draft">
-                                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                    <path d="M6 6l12 12M18 6 6 18" stroke-linecap="round"/>
-                                </svg>
+                                <i class="iconify tabler--x text-base"></i>
                             </button>
                         </div>
                     </form>

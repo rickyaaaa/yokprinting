@@ -158,17 +158,17 @@ export const registerPurchaseOrderComponents = (Alpine) => {
 
         statusClass(status) {
             return {
-                draft: 'bg-canvas text-muted',
-                waiting_approval: 'bg-yellow-100 text-yellow-900',
-                approved: 'bg-green-100 text-green-800',
-                partially_received: 'bg-blue-100 text-blue-800',
-                fully_received: 'bg-blue-100 text-blue-800',
-                invoiced: 'bg-accent-soft text-accent',
-                partially_paid: 'bg-accent-soft text-accent',
-                paid: 'bg-green-100 text-green-800',
-                closed: 'bg-canvas text-muted',
-                cancelled: 'bg-red-100 text-red-800',
-            }[status] ?? 'bg-canvas text-muted';
+                draft: 'badge-default',
+                waiting_approval: 'badge-warning',
+                approved: 'badge-success',
+                partially_received: 'badge-info',
+                fully_received: 'badge-info',
+                invoiced: 'badge-accent',
+                partially_paid: 'badge-accent',
+                paid: 'badge-success',
+                closed: 'badge-default',
+                cancelled: 'badge-danger',
+            }[status] ?? 'badge-default';
         },
 
         formatRupiah(value) {
@@ -570,25 +570,25 @@ export const registerPurchaseOrderComponents = (Alpine) => {
 
         statusClass(status) {
             return {
-                draft: 'bg-canvas text-muted',
-                waiting_approval: 'bg-yellow-100 text-yellow-900',
-                approved: 'bg-green-100 text-green-800',
-                partially_received: 'bg-blue-100 text-blue-800',
-                fully_received: 'bg-blue-100 text-blue-800',
-                invoiced: 'bg-accent-soft text-accent',
-                partially_paid: 'bg-accent-soft text-accent',
-                paid: 'bg-green-100 text-green-800',
-                closed: 'bg-canvas text-muted',
-                cancelled: 'bg-red-100 text-red-800',
-            }[status] ?? 'bg-canvas text-muted';
+                draft: 'badge-default',
+                waiting_approval: 'badge-warning',
+                approved: 'badge-success',
+                partially_received: 'badge-info',
+                fully_received: 'badge-info',
+                invoiced: 'badge-accent',
+                partially_paid: 'badge-accent',
+                paid: 'badge-success',
+                closed: 'badge-default',
+                cancelled: 'badge-danger',
+            }[status] ?? 'badge-default';
         },
 
         receiptStatusClass(status) {
             return {
-                draft: 'bg-canvas text-muted',
-                posted: 'bg-green-100 text-green-800',
-                cancelled: 'bg-red-100 text-red-800',
-            }[status] ?? 'bg-canvas text-muted';
+                draft: 'badge-default',
+                posted: 'badge-success',
+                cancelled: 'badge-danger',
+            }[status] ?? 'badge-default';
         },
 
         formatRupiah(value) {

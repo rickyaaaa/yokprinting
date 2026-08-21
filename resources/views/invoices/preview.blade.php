@@ -23,9 +23,7 @@
                     href="{{ route('invoices.create') }}#restore-draft"
                     class="inline-flex items-center gap-2 rounded-lg p-2 text-sm font-medium text-muted hover:bg-brand-50 hover:text-brand-800 sm:px-3"
                 >
-                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                        <path d="m15 18-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
+                    <i class="iconify tabler--chevron-left text-base"></i>
                     <span class="hidden sm:inline">Kembali ke editor</span>
                     <span class="sm:hidden">Kembali</span>
                 </a>
@@ -46,12 +44,8 @@
                         :disabled="savingDraft"
                         @click="saveDraft()"
                     >
-                        <svg x-show="! savingDraft" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="M5 4h12l2 2v14H5V4Zm3 0v6h8V4M8 16h8" stroke-linejoin="round"/>
-                        </svg>
-                        <svg x-show="savingDraft" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M21 12a9 9 0 1 1-2.64-6.36" stroke-linecap="round"/>
-                        </svg>
+                        <i x-show="! savingDraft" class="iconify tabler--device-floppy text-base"></i>
+                        <i x-show="savingDraft" class="iconify tabler--loader-2 animate-spin text-base"></i>
                         <span x-text="savingDraft ? 'Menyimpan…' : (draftSaved ? 'Tersimpan' : 'Simpan invoice')"></span>
                     </button>
                     <button
@@ -62,12 +56,8 @@
                         :aria-busy="sendingWhatsApp"
                         @click="sendWhatsApp()"
                     >
-                        <svg x-show="! sendingWhatsApp" class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                            <path d="M4 5h16v14H4zM4 7l8 6 8-6" stroke-linejoin="round"/>
-                        </svg>
-                        <svg x-show="sendingWhatsApp" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M21 12a9 9 0 1 1-2.64-6.36" stroke-linecap="round"/>
-                        </svg>
+                        <i x-show="! sendingWhatsApp" class="iconify tabler--brand-whatsapp text-base"></i>
+                        <i x-show="sendingWhatsApp" class="iconify tabler--loader-2 animate-spin text-base"></i>
                         <span x-text="sendingWhatsApp ? 'Membuka WA…' : (invoiceStatus === 'Terkirim' ? 'Sudah terkirim' : 'Kirim via WA')"></span>
                     </button>
                     <button
@@ -78,12 +68,8 @@
                         :aria-busy="downloadingPdf"
                         @click="downloadPdf()"
                     >
-                        <svg x-show="! downloadingPdf" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="M7 3h7l4 4v14H7zM14 3v5h4M10 13h5M10 17h3" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                        <svg x-show="downloadingPdf" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M21 12a9 9 0 1 1-2.64-6.36" stroke-linecap="round"/>
-                        </svg>
+                        <i x-show="! downloadingPdf" class="iconify tabler--download text-base"></i>
+                        <i x-show="downloadingPdf" class="iconify tabler--loader-2 animate-spin text-base"></i>
                         <span x-text="downloadingPdf ? 'Menyiapkan…' : (pdfDownloaded ? 'PDF terunduh' : 'Unduh PDF')"></span>
                     </button>
                     <button
@@ -92,9 +78,7 @@
                         @click="window.print()"
                         aria-label="Cetak invoice"
                     >
-                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z" stroke-linejoin="round"/>
-                        </svg>
+                        <i class="iconify tabler--printer text-base"></i>
                         <span class="hidden sm:inline">Cetak</span>
                     </button>
                 </div>
@@ -109,12 +93,8 @@
                     :aria-busy="sendingWhatsApp"
                     @click="sendWhatsApp()"
                 >
-                    <svg x-show="! sendingWhatsApp" class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                        <path d="M4 5h16v14H4zM4 7l8 6 8-6" stroke-linejoin="round"/>
-                    </svg>
-                    <svg x-show="sendingWhatsApp" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                        <path d="M21 12a9 9 0 1 1-2.64-6.36" stroke-linecap="round"/>
-                    </svg>
+                    <i x-show="! sendingWhatsApp" class="iconify tabler--brand-whatsapp text-base"></i>
+                    <i x-show="sendingWhatsApp" class="iconify tabler--loader-2 animate-spin text-base"></i>
                     <span x-text="sendingWhatsApp ? 'Membuka WA…' : (invoiceStatus === 'Terkirim' ? 'Terkirim' : 'Kirim WA')"></span>
                 </button>
                 <button
@@ -125,12 +105,8 @@
                     :aria-busy="downloadingPdf"
                     @click="downloadPdf()"
                 >
-                    <svg x-show="! downloadingPdf" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                        <path d="M7 3h7l4 4v14H7zM14 3v5h4M10 13h5M10 17h3" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    <svg x-show="downloadingPdf" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                        <path d="M21 12a9 9 0 1 1-2.64-6.36" stroke-linecap="round"/>
-                    </svg>
+                    <i x-show="! downloadingPdf" class="iconify tabler--download text-base"></i>
+                    <i x-show="downloadingPdf" class="iconify tabler--loader-2 animate-spin text-base"></i>
                     <span x-text="downloadingPdf ? 'Menyiapkan…' : (pdfDownloaded ? 'Terunduh' : 'Unduh PDF')"></span>
                 </button>
                 <button
@@ -139,9 +115,7 @@
                     @click="window.print()"
                     aria-label="Cetak invoice"
                 >
-                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                        <path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z" stroke-linejoin="round"/>
-                    </svg>
+                    <i class="iconify tabler--printer text-base"></i>
                     Cetak
                 </button>
             </div>
@@ -320,21 +294,15 @@
                 class="grid size-8 shrink-0 place-items-center rounded-full"
                 :class="notice?.type === 'error' ? 'bg-red-200 text-red-900' : 'bg-brand-300 text-brand-900'"
             >
-                <svg x-show="notice?.type !== 'error'" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <path d="m5 12 4 4L19 6" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <svg x-show="notice?.type === 'error'" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <path d="M7 7l10 10M17 7 7 17" stroke-linecap="round"/>
-                </svg>
+                <i x-show="notice?.type !== 'error'" class="iconify tabler--check text-base"></i>
+                <i x-show="notice?.type === 'error'" class="iconify tabler--x text-base"></i>
             </span>
             <div class="min-w-0 flex-1">
                 <p class="text-sm font-semibold" x-text="notice?.title"></p>
                 <p class="mt-1 text-xs leading-5 text-brand-100" x-text="notice?.description"></p>
             </div>
             <button type="button" class="rounded-lg p-1.5 text-brand-100 hover:bg-white/10 hover:text-white" @click="notice = null" aria-label="Tutup notifikasi">
-                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                    <path d="M6 6l12 12M18 6 6 18" stroke-linecap="round"/>
-                </svg>
+                <i class="iconify tabler--x text-base"></i>
             </button>
         </div>
     </body>

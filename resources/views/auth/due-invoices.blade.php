@@ -15,9 +15,7 @@
             <header class="border-b border-line bg-white/95 px-4 py-4 backdrop-blur-sm sm:px-6 lg:px-8">
                 <div class="mx-auto flex w-full max-w-[1280px] items-center justify-between gap-4">
                     <a href="{{ route('dashboard') }}" class="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 hover:text-brand-800">
-                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="m15 18-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                        <i class="iconify tabler--chevron-left text-base"></i>
                         Kembali ke dashboard
                     </a>
                     <a href="{{ route('payments.receivables.index') }}" class="hidden text-sm font-semibold text-muted hover:text-ink sm:inline">Halaman piutang</a>
@@ -28,7 +26,7 @@
                 <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                         <div class="mb-2 flex flex-wrap items-center gap-2">
-                            <span class="rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-800">Dari notifikasi</span>
+                            <span class="badge badge-danger">Dari notifikasi</span>
                         </div>
                         <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Daftar invoice jatuh tempo</h1>
                         <p class="mt-1 max-w-3xl text-sm leading-6 text-muted">Daftar tindak lanjut dari notifikasi dashboard untuk invoice overdue dan invoice yang segera jatuh tempo.</p>
@@ -37,7 +35,7 @@
 
                 <section class="mb-6 grid gap-4 md:grid-cols-4" aria-label="Ringkasan invoice jatuh tempo">
                     @foreach ($summaryCards as $card)
-                        <article class="rounded-xl bg-white p-5 border border-line">
+                        <article class="card p-5">
                             <p class="text-xs font-semibold text-muted">{{ $card['label'] }}</p>
                             <p class="mt-2 text-2xl font-semibold {{ ($card['tone'] ?? null) === 'danger' ? 'text-red-800' : 'text-ink' }}">{{ $card['value'] }}</p>
                         </article>
@@ -45,7 +43,7 @@
                 </section>
 
                 <section
-                    class="rounded-xl bg-white border border-line"
+                    class="card"
                     aria-labelledby="due-invoice-table-heading"
                     x-data='dueInvoiceFollowUpTable(@json($dueInvoices))'
                 >
@@ -119,17 +117,17 @@
                                         </td>
                                         <td class="px-4 py-4 font-semibold text-ink" x-text="invoice.amount"></td>
                                         <td class="px-4 py-4">
-                                            <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold" :class="statusClass(invoice.status)" x-text="invoice.status"></span>
+                                            <span class="badge" :class="statusClass(invoice.status)" x-text="invoice.status"></span>
                                         </td>
                                         <td class="px-4 py-4 text-xs text-muted" x-text="invoice.lastFollowUpLabel"></td>
                                         <td class="px-4 py-4">
                                             <div class="flex flex-col items-start gap-1">
-                                                <a :href="`/payments/invoices/${invoice.invoice}`" class="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
+                                                <a :href="`/payments/invoices/${invoice.invoice}`" class="btn btn-sm btn-outline">
                                                     Lihat invoice
                                                 </a>
                                                 <button
                                                     type="button"
-                                                    class="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:bg-brand-50 hover:text-brand-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                                    class="btn btn-sm btn-outline disabled:cursor-not-allowed"
                                                     :disabled="markingInvoice === invoice.invoice"
                                                     @click="markFollowUp(invoice)"
                                                 >

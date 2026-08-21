@@ -30,21 +30,17 @@
                 <header class="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
                     <button
                         type="button"
-                        class="mr-3 rounded-lg p-2 text-muted hover:bg-brand-50 hover:text-brand-800 lg:hidden"
+                        class="btn-icon mr-3 border-transparent lg:hidden"
                         @click="sidebarOpen = true"
                         aria-controls="app-sidebar"
                         :aria-expanded="sidebarOpen"
                         aria-label="Buka navigasi"
                     >
-                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/>
-                        </svg>
+                        <i class="iconify tabler--align-left text-xl"></i>
                     </button>
                     <div class="flex min-w-0 items-center gap-2 text-sm">
                         <a href="{{ route('payments.receivables.index') }}" class="hidden text-muted hover:text-ink sm:inline">Pembayaran</a>
-                        <svg class="hidden size-4 text-line sm:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="m9 18 6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                        <i class="iconify tabler--chevron-right hidden text-sm text-line sm:block"></i>
                         <span class="truncate font-medium text-ink">Riwayat pembayaran</span>
                     </div>
                     <div class="ml-auto flex items-center gap-2">
@@ -58,22 +54,18 @@
                     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <div class="mb-2 flex flex-wrap items-center gap-2">
-                                <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Manajemen pembayaran</span>
+                                <span class="badge badge-brand">Manajemen pembayaran</span>
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Riwayat pembayaran</h1>
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Lihat transaksi pembayaran masuk, status verifikasi, dan referensi invoice terkait.</p>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
-                            <a href="{{ route('payments.receivables.index') }}" class="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
-                                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                    <path d="m15 18-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
+                            <a href="{{ route('payments.receivables.index') }}" class="btn btn-outline">
+                                <i class="iconify tabler--chevron-left text-base"></i>
                                 Daftar piutang
                             </a>
-                            <button type="button" class="inline-flex items-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800">
-                                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                    <path d="M4 20h16M8 16V8M12 16V4M16 16v-5" stroke-linecap="round"/>
-                                </svg>
+                            <button type="button" class="btn btn-primary">
+                                <i class="iconify tabler--download text-base"></i>
                                 Export
                             </button>
                         </div>
@@ -83,21 +75,21 @@
                         @foreach ($summaryCards as $card)
                             @php
                                 $toneClass = match ($card['tone']) {
-                                    'success' => 'bg-green-100 text-green-800',
-                                    'warning' => 'bg-yellow-100 text-yellow-900',
-                                    default => 'bg-brand-100 text-brand-800',
+                                    'success' => 'badge-success',
+                                    'warning' => 'badge-warning',
+                                    default => 'badge-brand',
                                 };
                             @endphp
-                            <article class="rounded-xl bg-white p-5 border border-line">
+                            <article class="card p-5">
                                 <p class="text-sm font-medium text-muted">{{ $card['label'] }}</p>
                                 <p class="mt-3 text-2xl font-semibold tracking-[-0.025em] text-ink">{{ $card['value'] }}</p>
-                                <span class="mt-5 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $toneClass }}">{{ $card['caption'] }}</span>
+                                <span class="badge mt-5 {{ $toneClass }}">{{ $card['caption'] }}</span>
                             </article>
                         @endforeach
                     </section>
 
                     <section
-                        class="mt-6 rounded-xl bg-white border border-line"
+                        class="mt-6 card"
                         aria-labelledby="payment-history-page-heading"
                         x-data='paymentHistoryTable(@json($payments))'
                     >
@@ -132,9 +124,7 @@
                                 </div>
                                 <label class="relative block min-w-64">
                                     <span class="sr-only">Cari riwayat pembayaran</span>
-                                    <svg class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                        <path d="m21 21-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" stroke-linecap="round"/>
-                                    </svg>
+                                    <i class="iconify tabler--search pointer-events-none absolute left-3 top-1/2 text-base -translate-y-1/2 text-muted"></i>
                                     <input type="search" class="form-control pl-9" placeholder="Cari pelanggan, invoice, referensi" x-model.debounce.150ms="query">
                                 </label>
                                 <button
@@ -144,9 +134,7 @@
                                     x-cloak
                                     @click="resetFilters()"
                                 >
-                                    <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                        <path d="M6 18L18 6M6 6l12 12" stroke-linecap="round"/>
-                                    </svg>
+                                    <i class="iconify tabler--x text-sm"></i>
                                     Reset
                                 </button>
                             </div>
@@ -180,7 +168,7 @@
                                             <td class="px-5 py-4 font-mono text-xs text-muted" x-text="payment.reference"></td>
                                             <td class="px-5 py-4 text-right font-semibold text-ink" x-text="payment.amount"></td>
                                             <td class="px-5 py-4 text-right sm:px-6">
-                                                <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold" :class="statusClass(payment.status)" x-text="payment.status"></span>
+                                                <span class="badge" :class="statusClass(payment.status)" x-text="payment.status"></span>
                                             </td>
                                         </tr>
                                     </template>

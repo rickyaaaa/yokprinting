@@ -75,9 +75,7 @@
             <header class="border-b border-line bg-white/95 px-4 py-4 backdrop-blur-sm sm:px-6 lg:px-8">
                 <div class="mx-auto flex w-full max-w-[1280px] items-center justify-between gap-4">
                     <a href="{{ route('roles.index') }}" class="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 hover:text-brand-800">
-                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="m15 18-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                        <i class="iconify tabler--chevron-left text-base"></i>
                         Kembali ke daftar peran
                     </a>
                     <a href="{{ route('roles.edit', $role['code']) }}" class="hidden text-sm font-semibold text-muted hover:text-ink sm:inline">Edit info peran</a>
@@ -98,12 +96,12 @@
                 <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div>
                         <div class="mb-2 flex flex-wrap items-center gap-2">
-                            <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Permission detail</span>
+                            <span class="badge badge-brand">Permission detail</span>
                         </div>
                         <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Pengaturan izin {{ $role['name'] }}</h1>
                         <p class="mt-1 max-w-3xl text-sm leading-6 text-muted">{{ $role['description'] }} Pilih aksi yang boleh dilakukan di tiap modul.</p>
                     </div>
-                    <button type="submit" class="inline-flex w-fit items-center rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-wait disabled:opacity-70" data-testid="save-permissions-button" :disabled="saving">
+                    <button type="submit" class="btn btn-primary w-fit disabled:cursor-wait" data-testid="save-permissions-button" :disabled="saving">
                         <span x-text="saving ? 'Menyimpan...' : 'Simpan izin'"></span>
                     </button>
                 </div>
@@ -119,24 +117,24 @@
                 </div>
 
                 <section class="mb-6 grid gap-4 md:grid-cols-3" aria-label="Ringkasan izin peran">
-                    <article class="rounded-xl bg-white p-5 border border-line">
+                    <article class="card p-5">
                         <p class="text-xs font-semibold text-muted">Role aktif</p>
                         <h2 class="mt-2 text-lg font-semibold text-ink">{{ $role['name'] }}</h2>
                         <p class="mt-1 font-mono text-xs text-muted">{{ $role['code'] }}</p>
                     </article>
-                    <article class="rounded-xl bg-white p-5 border border-line">
+                    <article class="card p-5">
                         <p class="text-xs font-semibold text-muted">Risiko perubahan</p>
                         <h2 class="mt-2 text-lg font-semibold {{ $role['risk'] === 'Tinggi' ? 'text-red-800' : ($role['risk'] === 'Sedang' ? 'text-yellow-900' : 'text-green-800') }}">{{ $role['risk'] }}</h2>
                         <p class="mt-1 text-xs text-muted">Periksa ulang sebelum memberi akses hapus/export.</p>
                     </article>
-                    <article class="rounded-xl bg-white p-5 border border-line">
+                    <article class="card p-5">
                         <p class="text-xs font-semibold text-muted">Status halaman</p>
                         <h2 class="mt-2 text-lg font-semibold text-ink">Backend aktif</h2>
                         <p class="mt-1 text-xs text-muted">Perubahan disimpan ke matrix permission role.</p>
                     </article>
                 </section>
 
-                <section class="rounded-xl bg-white border border-line" aria-labelledby="permission-matrix-heading">
+                <section class="card" aria-labelledby="permission-matrix-heading">
                     <div class="border-b border-line px-5 py-4 sm:px-6">
                         <h2 id="permission-matrix-heading" class="font-semibold text-ink">Matrix izin per modul</h2>
                         <p class="mt-1 text-sm text-muted">Kolom aksi dibuat eksplisit agar admin bisa membedakan akses lihat, tambah, ubah, hapus, dan export.</p>

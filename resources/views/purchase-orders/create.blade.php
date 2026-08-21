@@ -15,8 +15,8 @@
 
             <div class="min-w-0 flex-1">
                 <header class="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
-                    <button type="button" class="mr-3 rounded-lg p-2 text-muted hover:bg-brand-50 hover:text-brand-800 lg:hidden" @click="sidebarOpen = true" aria-label="Buka navigasi">
-                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg>
+                    <button type="button" class="btn-icon mr-3 border-transparent lg:hidden" @click="sidebarOpen = true" aria-label="Buka navigasi">
+                        <i class="iconify tabler--align-left text-xl"></i>
                     </button>
                     <div class="flex items-center gap-2 text-sm">
                         <a href="{{ route('purchase-orders.index') }}" class="hidden text-muted hover:text-ink sm:inline">Purchase Order</a>
@@ -32,21 +32,21 @@
                 >
                     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <div>
-                            <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Pembelian</span>
+                            <span class="badge badge-brand">Pembelian</span>
                             <h1 class="mt-3 text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Buat Purchase Order</h1>
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">PO tersimpan sebagai draft dulu - harga per barang terkunci begitu disimpan dan tidak berubah lagi walau harga master barang berubah.</p>
                         </div>
-                        <a href="{{ route('purchase-orders.index') }}" class="inline-flex w-fit items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
-                            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m15 18-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        <a href="{{ route('purchase-orders.index') }}" class="btn btn-outline w-fit">
+                            <i class="iconify tabler--chevron-left text-base"></i>
                             Kembali ke daftar
                         </a>
                     </div>
 
                     <div x-show="generalError" x-cloak class="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900" x-text="generalError" role="alert"></div>
-                    <div x-show="loadingOptions" class="mb-4 rounded-xl border border-line bg-white p-4 text-sm text-muted">Memuat data supplier dan barang...</div>
+                    <div x-show="loadingOptions" class="mb-4 card p-4 text-sm text-muted">Memuat data supplier dan barang...</div>
 
                     <form class="space-y-6" @submit.prevent="submit()" x-show="!loadingOptions">
-                        <section class="rounded-xl border border-line bg-white p-5 sm:p-6">
+                        <section class="card p-5 sm:p-6">
                             <h2 class="font-semibold text-ink">Informasi PO</h2>
                             <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                 <label>
@@ -71,10 +71,13 @@
                             </div>
                         </section>
 
-                        <section class="rounded-xl border border-line bg-white">
+                        <section class="card">
                             <div class="flex items-center justify-between gap-4 border-b border-line px-5 py-4 sm:px-6">
                                 <h2 class="font-semibold text-ink">Daftar barang</h2>
-                                <button type="button" class="rounded-lg border border-line px-3 py-2 text-xs font-semibold text-ink hover:bg-canvas" @click="addItem()">+ Tambah baris</button>
+                                <button type="button" class="btn btn-sm btn-outline" @click="addItem()">
+                                    <i class="iconify tabler--plus text-sm"></i>
+                                    Tambah baris
+                                </button>
                             </div>
                             <div class="overflow-x-auto">
                                 <table class="w-full min-w-[720px] text-left text-sm">
@@ -148,7 +151,7 @@
                                                 </td>
                                                 <td class="px-4 py-3 text-right font-semibold text-ink" x-text="formatRupiah(itemSubtotal(item))"></td>
                                                 <td class="px-4 py-3 text-right">
-                                                    <button type="button" class="rounded-lg border border-line px-2.5 py-1.5 text-xs font-semibold text-muted hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-40" :disabled="items.length === 1" @click="removeItem(index)">Hapus</button>
+                                                    <button type="button" class="btn btn-sm btn-danger-outline disabled:cursor-not-allowed" :disabled="items.length === 1" @click="removeItem(index)">Hapus</button>
                                                 </td>
                                             </tr>
                                         </template>
@@ -158,12 +161,12 @@
                         </section>
 
                         <section class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-                            <label class="block rounded-xl border border-line bg-white p-5 sm:p-6">
+                            <label class="block card p-5 sm:p-6">
                                 <span class="mb-1.5 block text-xs font-semibold text-muted">Catatan <span class="font-normal text-muted">(opsional)</span></span>
                                 <textarea class="form-control min-h-24" x-model="form.notes" placeholder="Catatan untuk supplier atau tim internal"></textarea>
                             </label>
 
-                            <div class="rounded-xl border border-line bg-white p-5 sm:p-6">
+                            <div class="card p-5 sm:p-6">
                                 <div class="space-y-3 text-sm">
                                     <div class="flex items-center justify-between gap-4">
                                         <span class="text-muted">Subtotal barang</span>
@@ -184,7 +187,7 @@
                                 </div>
                                 <button
                                     type="submit"
-                                    class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-wait disabled:opacity-60"
+                                    class="btn btn-primary mt-5 w-full disabled:cursor-wait"
                                     :disabled="saving"
                                     x-text="saving ? 'Menyimpan...' : 'Simpan sebagai Draft'"
                                 ></button>

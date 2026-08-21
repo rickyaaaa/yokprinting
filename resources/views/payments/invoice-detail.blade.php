@@ -128,21 +128,17 @@
                 <header class="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
                     <button
                         type="button"
-                        class="mr-3 rounded-lg p-2 text-muted hover:bg-brand-50 hover:text-brand-800 lg:hidden"
+                        class="btn-icon mr-3 border-transparent lg:hidden"
                         @click="sidebarOpen = true"
                         aria-controls="app-sidebar"
                         :aria-expanded="sidebarOpen"
                         aria-label="Buka navigasi"
                     >
-                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/>
-                        </svg>
+                        <i class="iconify tabler--align-left text-xl"></i>
                     </button>
                     <div class="flex min-w-0 items-center gap-2 text-sm">
                         <a href="{{ route('dashboard') }}" class="hidden text-muted hover:text-ink sm:inline">Dashboard</a>
-                        <svg class="hidden size-4 text-line sm:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="m9 18 6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                        <i class="iconify tabler--chevron-right hidden text-sm text-line sm:block"></i>
                         <span class="truncate font-medium text-ink">Detail pembayaran</span>
                     </div>
                     <div class="ml-auto flex items-center gap-2">
@@ -156,14 +152,14 @@
                     <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                         <div>
                             <div class="mb-2 flex flex-wrap items-center gap-2">
-                                <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Manajemen pembayaran</span>
+                                <span class="badge badge-brand">Manajemen pembayaran</span>
                                 <span @class([
-                                    'rounded-full px-2.5 py-1 text-xs font-semibold',
-                                    'bg-green-100 text-green-800' => $invoice['is_paid'],
-                                    'bg-yellow-100 text-yellow-900' => ! $invoice['is_paid'],
+                                    'badge',
+                                    'badge-success' => $invoice['is_paid'],
+                                    'badge-warning' => ! $invoice['is_paid'],
                                 ])>{{ $invoice['status'] }}</span>
                                 @if ($invoice['is_cancelled'])
-                                    <span class="rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-800">Order dibatalkan</span>
+                                    <span class="badge badge-danger">Order dibatalkan</span>
                                 @endif
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Detail {{ $invoice['number'] }}</h1>
@@ -183,31 +179,25 @@
                             x-data="{ deliveryNoteAvailable: @js($deliveryNoteAvailable) }"
                             @invoice-production-status-updated.window="deliveryNoteAvailable = ['ready_for_pickup', 'completed'].includes($event.detail)"
                         >
-                            <a href="{{ route('api.invoices.pdf.download', ['invoice' => $invoiceModel]) }}" class="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
-                                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                    <path d="M7 3h7l4 4v14H7zM14 3v5h4M10 13h5M10 17h3" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
+                            <a href="{{ route('api.invoices.pdf.download', ['invoice' => $invoiceModel]) }}" class="btn btn-outline">
+                                <i class="iconify tabler--file-text text-base"></i>
                                 Lihat invoice
                             </a>
                             <a
                                 href="{{ route('api.invoices.delivery-note.pdf.download', ['invoice' => $invoiceModel]) }}"
                                 x-cloak
                                 x-show="deliveryNoteAvailable"
-                                class="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800"
+                                class="btn btn-outline"
                             >
-                                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                        <path d="M9 17h6m-6-4h6m2 8H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" stroke-linecap="round" stroke-linejoin="round"/>
-                                    </svg>
+                                    <i class="iconify tabler--truck-delivery text-base"></i>
                                     Surat jalan
                             </a>
                             @if ($invoice['is_editable'] && $canUpdateProduction)
                                 <a
                                     href="{{ route('invoices.edit', $invoiceModel) }}"
-                                    class="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800"
+                                    class="btn btn-outline"
                                 >
-                                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                        <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" stroke-linecap="round" stroke-linejoin="round"/>
-                                    </svg>
+                                    <i class="iconify tabler--edit text-base"></i>
                                     Edit invoice
                                 </a>
                             @endif
@@ -221,22 +211,18 @@
                                 >
                                     <button
                                         type="button"
-                                        class="inline-flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3.5 py-2 text-sm font-semibold text-green-800 hover:bg-green-100 disabled:cursor-wait disabled:opacity-70"
+                                        class="btn border-green-200 bg-green-50 text-green-800 hover:bg-green-100 disabled:cursor-wait"
                                         :disabled="sending"
                                         :aria-busy="sending"
                                         @click="send()"
                                     >
-                                        <svg class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                            <path d="M12.04 3.5a8.45 8.45 0 0 0-7.3 12.7L3.75 20l3.9-1.02A8.44 8.44 0 1 0 12.04 3.5Zm0 1.45a6.99 6.99 0 0 1 5.92 10.72 6.99 6.99 0 0 1-9.98 1.86l-.28-.17-2.31.61.62-2.25-.18-.29a7 7 0 0 1 6.21-10.48Z"/>
-                                        </svg>
+                                        <i class="iconify tabler--brand-whatsapp text-base"></i>
                                         <span x-text="sending ? 'Membuka WA…' : (sent ? 'Ingatkan via WA' : 'Kirim via WA')">Kirim via WA</span>
                                     </button>
                                     <p x-cloak x-show="this.message" x-text="this.message" class="absolute right-0 top-full z-10 mt-2 w-64 rounded-lg border px-3 py-2 text-xs shadow-sm" :class="(this.messageType ?? 'error') === 'success' ? 'border-green-200 bg-green-50 text-green-900' : 'border-red-200 bg-red-50 text-red-900'" role="status"></p>
                                 </div>
-                                <a href="#record-payment" class="inline-flex items-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800">
-                                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                        <path d="M12 5v14M5 12h14" stroke-linecap="round"/>
-                                    </svg>
+                                <a href="#record-payment" class="btn btn-primary">
+                                    <i class="iconify tabler--plus text-base"></i>
                                     Catat pembayaran
                                 </a>
                             @endunless
@@ -244,14 +230,12 @@
                                 <div class="relative" x-data="cancelOrderAction" data-endpoint="{{ route('api.invoices.cancel.store', ['invoice' => $invoiceModel]) }}">
                                     <button
                                         type="button"
-                                        class="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3.5 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:cursor-wait disabled:opacity-70"
+                                        class="btn btn-danger-outline disabled:cursor-wait"
                                         :disabled="cancelling"
                                         :aria-busy="cancelling"
                                         @click="cancel()"
                                     >
-                                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                            <path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/>
-                                        </svg>
+                                        <i class="iconify tabler--x text-base"></i>
                                         <span x-text="cancelling ? 'Membatalkan...' : 'Batalkan order'"></span>
                                     </button>
                                     <p x-cloak x-show="this.message" x-text="this.message" class="absolute right-0 top-full z-10 mt-2 w-64 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900 shadow-sm" role="alert"></p>
@@ -262,7 +246,7 @@
 
                     <div class="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
                         <div class="min-w-0 space-y-6">
-                            <section class="rounded-xl bg-white border border-line" aria-labelledby="invoice-info-heading">
+                            <section class="card" aria-labelledby="invoice-info-heading">
                                 <div class="border-b border-line px-5 py-4 sm:px-6">
                                     <h2 id="invoice-info-heading" class="font-semibold text-ink">Informasi invoice</h2>
                                     <p class="mt-1 text-sm text-muted">Detail pelanggan, tanggal, dan termin pembayaran.</p>
@@ -290,7 +274,7 @@
                                 </div>
                             </section>
 
-                            <section class="rounded-xl bg-white border border-line" aria-labelledby="invoice-items-heading">
+                            <section class="card" aria-labelledby="invoice-items-heading">
                                 <div class="border-b border-line px-5 py-4 sm:px-6">
                                     <h2 id="invoice-items-heading" class="font-semibold text-ink">Rincian tagihan</h2>
                                     <p class="mt-1 text-sm text-muted">Item invoice dan total yang perlu diselesaikan.</p>
@@ -341,7 +325,7 @@
                             </section>
 
                             <section
-                                class="rounded-xl bg-white border border-line"
+                                class="card"
                                 aria-labelledby="production-workflow-heading"
                                 x-data="productionStatusForm"
                                 data-current-status="{{ $invoice['production_status_key'] }}"
@@ -355,7 +339,7 @@
                                             <p class="mt-1 text-sm text-muted">Pantau alur dari DP, ACC desain, sablon/cetak, sampai pengiriman.</p>
                                         </div>
                                         <span
-                                            class="inline-flex w-fit rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800"
+                                            class="badge badge-brand w-fit"
                                             x-text="currentLabel"
                                         >{{ $invoice['production_status'] }}</span>
                                     </div>
@@ -411,12 +395,10 @@
                                                         type="submit"
                                                         aria-label="Simpan status produksi"
                                                         data-testid="production-status-submit"
-                                                        class="inline-flex min-w-32 items-center justify-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                                        class="btn btn-primary min-w-32 disabled:cursor-not-allowed"
                                                         :disabled="saving || selectedStatus === currentStatus"
                                                     >
-                                                        <svg x-show="saving" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                                            <path d="M21 12a9 9 0 1 1-2.64-6.36" stroke-linecap="round"/>
-                                                        </svg>
+                                                        <i x-show="saving" class="iconify tabler--loader-2 animate-spin text-base"></i>
                                                         <span x-text="saving ? 'Menyimpan...' : 'Simpan status'">Simpan status</span>
                                                     </button>
                                                 </div>
@@ -468,9 +450,7 @@
                                 >
                                     <div class="flex items-start gap-4">
                                         <span class="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-red-600 text-white" aria-hidden="true">
-                                            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/>
-                                            </svg>
+                                            <i class="iconify tabler--x text-lg"></i>
                                         </span>
                                         <div>
                                             <h2 id="record-payment-heading" class="font-semibold text-red-950">Order dibatalkan</h2>
@@ -487,10 +467,7 @@
                                 >
                                     <div class="flex items-start gap-4">
                                         <span class="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-500 text-white" aria-hidden="true">
-                                            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M12 8v5M12 17h.01" stroke-linecap="round"/>
-                                                <circle cx="12" cy="12" r="9"/>
-                                            </svg>
+                                            <i class="iconify tabler--alert-circle text-lg"></i>
                                         </span>
                                         <div class="min-w-0 flex-1">
                                             <h2 id="record-payment-heading" class="font-semibold text-amber-950">Invoice masih draft</h2>
@@ -504,14 +481,12 @@
                                             >
                                                 <button
                                                     type="button"
-                                                    class="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:cursor-wait disabled:opacity-70"
+                                                    class="btn bg-amber-600 text-white hover:bg-amber-700 disabled:cursor-wait"
                                                     :disabled="sending"
                                                     :aria-busy="sending"
                                                     @click="send()"
                                                 >
-                                                    <svg class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                                        <path d="M12.04 3.5a8.45 8.45 0 0 0-7.3 12.7L3.75 20l3.9-1.02A8.44 8.44 0 1 0 12.04 3.5Zm0 1.45a6.99 6.99 0 0 1 5.92 10.72 6.99 6.99 0 0 1-9.98 1.86l-.28-.17-2.31.61.62-2.25-.18-.29a7 7 0 0 1 6.21-10.48Z"/>
-                                                    </svg>
+                                                    <i class="iconify tabler--brand-whatsapp text-base"></i>
                                                     <span x-text="sending ? 'Membuka WA…' : 'Kirim invoice via WA'">Kirim invoice via WA</span>
                                                 </button>
                                                 <p x-cloak x-show="this.message" x-text="this.message" class="absolute left-0 top-full z-10 mt-2 w-64 rounded-lg border px-3 py-2 text-xs shadow-sm" :class="(this.messageType ?? 'error') === 'success' ? 'border-green-200 bg-green-50 text-green-900' : 'border-red-200 bg-red-50 text-red-900'" role="status"></p>
@@ -533,9 +508,7 @@
                                 >
                                     <div class="flex items-start gap-4">
                                         <span class="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-green-600 text-white" aria-hidden="true">
-                                            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="m5 12 4 4L19 6" stroke-linecap="round" stroke-linejoin="round"/>
-                                            </svg>
+                                            <i class="iconify tabler--check text-lg"></i>
                                         </span>
                                         <div>
                                             <h2 id="record-payment-heading" class="font-semibold text-green-950">Invoice sudah lunas</h2>
@@ -546,7 +519,7 @@
                             @else
                                 <section
                                     id="record-payment"
-                                    class="rounded-xl bg-white border border-line"
+                                    class="card"
                                     aria-labelledby="record-payment-heading"
                                     x-data="recordPaymentForm({
                                         remainingAmount: @js($invoice['remaining_amount']),
@@ -666,15 +639,11 @@
                                         <p class="text-xs leading-5 text-muted">Pembayaran tersimpan ke invoice dan langsung memperbarui status piutang.</p>
                                         <button
                                             type="submit"
-                                            class="inline-flex min-w-40 items-center justify-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-wait disabled:opacity-70"
+                                            class="btn btn-primary min-w-40 disabled:cursor-wait"
                                             :disabled="saving"
                                         >
-                                            <svg x-show="! saving" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                                <path d="m5 12 4 4L19 6" stroke-linecap="round" stroke-linejoin="round"/>
-                                            </svg>
-                                            <svg x-show="saving" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                                <path d="M21 12a9 9 0 1 1-2.64-6.36" stroke-linecap="round"/>
-                                            </svg>
+                                            <i x-show="! saving" class="iconify tabler--check text-base"></i>
+                                            <i x-show="saving" class="iconify tabler--loader-2 animate-spin text-base"></i>
                                             <span x-text="saving ? 'Mencatat...' : 'Simpan pembayaran'"></span>
                                         </button>
                                     </div>
@@ -684,16 +653,16 @@
                         </div>
 
                         <aside class="space-y-6 xl:sticky xl:top-22" aria-label="Section pembayaran">
-                            <section class="rounded-xl bg-white p-5 border border-line sm:p-6" aria-labelledby="payment-summary-heading">
+                            <section class="card p-5 sm:p-6" aria-labelledby="payment-summary-heading">
                                 <div class="flex items-start justify-between gap-4">
                                     <div>
                                         <h2 id="payment-summary-heading" class="font-semibold text-ink">Pembayaran</h2>
                                         <p class="mt-1 text-sm text-muted">Status pelunasan invoice ini.</p>
                                     </div>
                                     <span @class([
-                                        'rounded-full px-2.5 py-1 text-xs font-semibold',
-                                        'bg-green-100 text-green-800' => $invoice['is_paid'],
-                                        'bg-yellow-100 text-yellow-900' => ! $invoice['is_paid'],
+                                        'badge',
+                                        'badge-success' => $invoice['is_paid'],
+                                        'badge-warning' => ! $invoice['is_paid'],
                                     ])>{{ $invoice['is_paid'] ? 'Lunas' : 'Outstanding' }}</span>
                                 </div>
 
@@ -730,10 +699,8 @@
 
                                 @unless ($invoice['is_paid'])
                                     <div class="mt-5 grid gap-2">
-                                        <a href="#record-payment" class="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800">
-                                            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                                <path d="M12 5v14M5 12h14" stroke-linecap="round"/>
-                                            </svg>
+                                        <a href="#record-payment" class="btn btn-primary">
+                                            <i class="iconify tabler--plus text-base"></i>
                                             Catat pembayaran
                                         </a>
                                         <div
@@ -742,10 +709,8 @@
                                             data-sent="{{ $invoiceModel->status === \App\Models\Invoice::STATUS_SENT ? 'true' : 'false' }}"
                                             data-purpose="reminder"
                                         >
-                                            <button type="button" class="inline-flex items-center justify-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3.5 py-2 text-sm font-semibold text-green-800 hover:bg-green-100 disabled:cursor-wait disabled:opacity-70" :disabled="sending" :aria-busy="sending" @click="send()">
-                                                <svg class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                                    <path d="M12.04 3.5a8.45 8.45 0 0 0-7.3 12.7L3.75 20l3.9-1.02A8.44 8.44 0 1 0 12.04 3.5Z"/>
-                                                </svg>
+                                            <button type="button" class="btn border-green-200 bg-green-50 text-green-800 hover:bg-green-100 disabled:cursor-wait" :disabled="sending" :aria-busy="sending" @click="send()">
+                                                <i class="iconify tabler--brand-whatsapp text-base"></i>
                                                 <span x-text="sending ? 'Membuka WA…' : 'Kirim pengingat WA'">Kirim pengingat WA</span>
                                             </button>
                                             <p x-cloak x-show="this.message" x-text="this.message" class="mt-2 max-w-sm rounded-lg border px-3 py-2 text-xs" :class="(this.messageType ?? 'error') === 'success' ? 'border-green-200 bg-green-50 text-green-900' : 'border-red-200 bg-red-50 text-red-900'" role="status"></p>
@@ -754,7 +719,7 @@
                                 @endunless
                             </section>
 
-                            <section class="rounded-xl bg-white border border-line" aria-labelledby="payment-history-heading">
+                            <section class="card" aria-labelledby="payment-history-heading">
                                 <div class="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
                                     <div>
                                         <h2 id="payment-history-heading" class="font-semibold text-ink">Riwayat pembayaran</h2>
@@ -770,7 +735,7 @@
                                                     <p class="text-sm font-semibold text-ink">{{ $payment['method'] }}</p>
                                                     <p class="mt-1 text-xs text-muted">{{ $payment['date'] }} - {{ $payment['reference'] }}</p>
                                                 </div>
-                                                <span class="rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-800">{{ $payment['status'] }}</span>
+                                                <span class="badge badge-success">{{ $payment['status'] }}</span>
                                             </div>
                                             <p class="mt-3 text-sm font-semibold text-brand-800">{{ $payment['amount'] }}</p>
                                         </li>

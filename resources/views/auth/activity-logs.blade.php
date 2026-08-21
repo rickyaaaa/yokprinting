@@ -28,16 +28,12 @@
 
             <div class="min-w-0 flex-1">
                 <header class="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
-                    <button type="button" class="mr-3 rounded-lg p-2 text-muted hover:bg-brand-50 hover:text-brand-800 lg:hidden" @click="sidebarOpen = true" aria-controls="app-sidebar" :aria-expanded="sidebarOpen" aria-label="Buka navigasi">
-                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/>
-                        </svg>
+                    <button type="button" class="btn-icon mr-3 border-transparent lg:hidden" @click="sidebarOpen = true" aria-controls="app-sidebar" :aria-expanded="sidebarOpen" aria-label="Buka navigasi">
+                        <i class="iconify tabler--align-left text-xl"></i>
                     </button>
                     <div class="flex min-w-0 items-center gap-2 text-sm">
                         <a href="{{ route('dashboard') }}" class="hidden text-muted hover:text-ink sm:inline">Dashboard</a>
-                        <svg class="hidden size-4 text-line sm:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="m9 18 6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                        <i class="iconify tabler--chevron-right hidden text-sm text-line sm:block"></i>
                         <span class="truncate font-medium text-ink">Log aktivitas</span>
                     </div>
                     <a href="{{ route('roles.index') }}" class="ml-auto hidden text-sm font-semibold text-muted hover:text-ink sm:inline">Peran & akses</a>
@@ -47,35 +43,35 @@
                 <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                         <div class="mb-2 flex flex-wrap items-center gap-2">
-                            <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Audit log</span>
+                            <span class="badge badge-brand">Audit log</span>
                         </div>
                         <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Log aktivitas</h1>
                         <p class="mt-1 max-w-3xl text-sm leading-6 text-muted">Pantau aktivitas login, perubahan data, update permission, dan event keamanan penting.</p>
                     </div>
-                    <button type="button" class="inline-flex w-fit items-center rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800" data-testid="export-activity-log-placeholder">
+                    <button type="button" class="btn btn-outline w-fit" data-testid="export-activity-log-placeholder">
                         Export log
                     </button>
                 </div>
 
                 <section class="mb-6 grid gap-4 md:grid-cols-3" aria-label="Ringkasan log aktivitas">
-                    <article class="rounded-xl bg-white p-5 border border-line">
+                    <article class="card p-5">
                         <p class="text-xs font-semibold text-muted">Total event hari ini</p>
                         <p class="mt-2 text-2xl font-semibold text-ink">42</p>
                         <p class="mt-1 text-xs text-muted">Termasuk login, invoice, dan role.</p>
                     </article>
-                    <article class="rounded-xl bg-white p-5 border border-line">
+                    <article class="card p-5">
                         <p class="text-xs font-semibold text-muted">Risiko tinggi</p>
                         <p class="mt-2 text-2xl font-semibold text-red-800">1</p>
                         <p class="mt-1 text-xs text-muted">Percobaan login gagal dari IP asing.</p>
                     </article>
-                    <article class="rounded-xl bg-white p-5 border border-line">
+                    <article class="card p-5">
                         <p class="text-xs font-semibold text-muted">Event permission</p>
                         <p class="mt-2 text-2xl font-semibold text-ink">6</p>
                         <p class="mt-1 text-xs text-muted">Perubahan role dan akses modul.</p>
                     </article>
                 </section>
 
-                <section class="rounded-xl bg-white border border-line" aria-labelledby="activity-filter-heading" x-data="{ type: 'all', module: 'all' }">
+                <section class="card" aria-labelledby="activity-filter-heading" x-data="{ type: 'all', module: 'all' }">
                     <div class="border-b border-line px-5 py-4 sm:px-6">
                         <h2 id="activity-filter-heading" class="font-semibold text-ink">Filter log aktivitas</h2>
                         <p class="mt-1 text-sm text-muted">Kontrol filter masih visual, disiapkan untuk query backend audit log.</p>
@@ -138,7 +134,7 @@
                                             <span class="mt-1 block text-xs text-muted">{{ $log['role'] }}</span>
                                         </td>
                                         <td class="px-4 py-4">
-                                            <span class="rounded-full bg-canvas px-2.5 py-1 text-xs font-semibold text-muted">{{ $log['module'] }}</span>
+                                            <span class="badge badge-default">{{ $log['module'] }}</span>
                                         </td>
                                         <td class="px-4 py-4">
                                             <span class="block font-semibold text-ink">{{ $log['type'] }}</span>
@@ -146,7 +142,7 @@
                                         </td>
                                         <td class="px-4 py-4 font-mono text-xs text-muted">{{ $log['ip'] }}</td>
                                         <td class="px-4 py-4">
-                                            <span class="rounded-full {{ $log['risk'] === 'Tinggi' ? 'bg-red-100 text-red-800' : ($log['risk'] === 'Sedang' ? 'bg-yellow-100 text-yellow-900' : 'bg-green-100 text-green-800') }} px-2.5 py-1 text-xs font-semibold">{{ $log['risk'] }}</span>
+                                            <span class="badge {{ $log['risk'] === 'Tinggi' ? 'badge-danger' : ($log['risk'] === 'Sedang' ? 'badge-warning' : 'badge-success') }}">{{ $log['risk'] }}</span>
                                         </td>
                                     </tr>
                                 @endforeach

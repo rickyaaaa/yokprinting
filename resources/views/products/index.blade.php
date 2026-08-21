@@ -18,16 +18,12 @@
 
             <div class="min-w-0 flex-1">
                 <header class="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
-                    <button type="button" class="mr-3 rounded-lg p-2 text-muted hover:bg-brand-50 hover:text-brand-800 lg:hidden" @click="sidebarOpen = true" aria-controls="app-sidebar" :aria-expanded="sidebarOpen" aria-label="Buka navigasi">
-                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/>
-                        </svg>
+                    <button type="button" class="btn-icon mr-3 border-transparent lg:hidden" @click="sidebarOpen = true" aria-controls="app-sidebar" :aria-expanded="sidebarOpen" aria-label="Buka navigasi">
+                        <i class="iconify tabler--align-left text-xl"></i>
                     </button>
                     <div class="flex min-w-0 items-center gap-2 text-sm">
                         <a href="{{ route('dashboard') }}" class="hidden text-muted hover:text-ink sm:inline">Dashboard</a>
-                        <svg class="hidden size-4 text-line sm:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="m9 18 6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                        <i class="iconify tabler--chevron-right hidden text-sm text-line sm:block"></i>
                         <span class="truncate font-medium text-ink">Data produk</span>
                     </div>
                     <div class="ml-auto hidden text-sm text-muted sm:block">{{ now(config('app.timezone'))->locale('id')->translatedFormat('l, j F Y') }}</div>
@@ -37,16 +33,17 @@
                     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <div class="mb-2 flex flex-wrap items-center gap-2">
-                                <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Data produk</span>
+                                <span class="badge badge-brand">Data produk</span>
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Daftar produk</h1>
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Kelola katalog produk cetak, harga beli, stok, dan performa transaksi. Harga jual diatur langsung di item invoice.</p>
                         </div>
                         <div class="flex flex-wrap gap-2">
-                            <button type="button" class="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800" @click="$dispatch('open-product-bulk-stock')">
+                            <button type="button" class="btn btn-outline" @click="$dispatch('open-product-bulk-stock')">
                                 Bulk edit stok
                             </button>
-                            <a href="{{ route('products.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800">
+                            <a href="{{ route('products.create') }}" class="btn btn-primary">
+                                <i class="iconify tabler--plus text-base"></i>
                                 Tambah produk
                             </a>
                         </div>
@@ -56,21 +53,21 @@
                         @foreach ($summaryCards as $card)
                             @php
                                 $toneClass = match ($card['tone']) {
-                                    'success' => 'bg-green-100 text-green-800',
-                                    'warning' => 'bg-yellow-100 text-yellow-900',
-                                    default => 'bg-brand-100 text-brand-800',
+                                    'success' => 'badge-success',
+                                    'warning' => 'badge-warning',
+                                    default => 'badge-brand',
                                 };
                             @endphp
-                            <article class="rounded-xl bg-white p-5 border border-line">
+                            <article class="card p-5">
                                 <p class="text-sm font-medium text-muted">{{ $card['label'] }}</p>
                                 <p class="mt-3 text-2xl font-semibold tracking-[-0.025em] text-ink">{{ $card['value'] }}</p>
-                                <span class="mt-5 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $toneClass }}">{{ $card['caption'] }}</span>
+                                <span class="badge mt-5 {{ $toneClass }}">{{ $card['caption'] }}</span>
                             </article>
                         @endforeach
                     </section>
 
                     <section
-                        class="mt-6 rounded-xl bg-white border border-line"
+                        class="mt-6 card"
                         aria-labelledby="products-heading"
                         x-data='productIndexTable(@json($products))'
                         @open-product-bulk-stock.window="openBulkStockEditor()"
@@ -96,9 +93,7 @@
                                 </select>
                                 <label class="relative block min-w-0">
                                     <span class="sr-only">Cari produk</span>
-                                    <svg class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                        <path d="m21 21-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" stroke-linecap="round"/>
-                                    </svg>
+                                    <i class="iconify tabler--search pointer-events-none absolute left-3 top-1/2 text-base -translate-y-1/2 text-muted"></i>
                                     <input type="search" class="form-control pl-9" placeholder="Cari produk, SKU, kategori..." x-model.debounce.150ms="query">
                                 </label>
                                 <button type="button" class="inline-flex items-center justify-center rounded-lg border border-line bg-canvas px-3 py-2 text-xs font-semibold text-muted hover:bg-white hover:text-ink" x-show="isFiltered" x-cloak @click="resetFilters()">Reset</button>
@@ -111,7 +106,7 @@
                                     <p class="font-semibold">Penanda stok menipis aktif</p>
                                     <p class="mt-1 leading-6" x-text="lowStockSummary"></p>
                                 </div>
-                                <button type="button" class="inline-flex w-fit items-center rounded-lg bg-yellow-100 px-3 py-2 text-xs font-semibold text-yellow-950 hover:bg-yellow-200" @click="setStatusFilter('Stok menipis')">
+                                <button type="button" class="btn btn-sm bg-yellow-100 text-yellow-950 hover:bg-yellow-200 w-fit" @click="setStatusFilter('Stok menipis')">
                                     Lihat stok menipis
                                 </button>
                             </div>
@@ -144,18 +139,18 @@
                                             <td class="px-5 py-4 text-right">
                                                 <p class="font-medium" :class="isLowStock(product) ? 'text-yellow-900' : 'text-muted'" x-text="product.stock"></p>
                                                 <p class="mt-1 text-xs text-muted" x-show="product.minimumStock > 0">Minimum <span x-text="product.minimumStock"></span> <span x-text="product.unit"></span></p>
-                                                <span class="mt-2 inline-flex rounded-full bg-yellow-100 px-2 py-0.5 text-[0.7rem] font-semibold text-yellow-900" x-show="isLowStock(product)">
+                                                <span class="badge badge-warning mt-2 !py-0.5 !text-[0.7rem]" x-show="isLowStock(product)">
                                                     Di bawah minimum
                                                 </span>
                                             </td>
                                             <td class="px-5 py-4 text-right text-muted" x-text="product.sales"></td>
                                             <td class="px-5 py-4 text-right">
-                                                <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold" :class="statusClass(product.status)" x-text="product.status"></span>
+                                                <span class="badge" :class="statusClass(product.status)" x-text="product.status"></span>
                                             </td>
                                             <td class="px-5 py-4 text-right sm:px-6">
                                                 <div class="flex justify-end gap-3">
-                                                    <a :href="`/products/${product.id}/edit`" class="text-xs font-semibold text-brand-700 hover:text-brand-900">Edit</a>
-                                                    <button type="button" class="text-xs font-semibold text-red-700 hover:text-red-900" @click="deleteProduct(product)">Hapus</button>
+                                                    <a :href="`/products/${product.id}/edit`" class="btn btn-sm btn-outline">Edit</a>
+                                                    <button type="button" class="btn btn-sm btn-danger-outline" @click="deleteProduct(product)">Hapus</button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -190,10 +185,8 @@
                                         <h3 id="bulk-stock-heading" class="font-semibold text-ink">Bulk edit stok produk</h3>
                                         <p class="mt-1 text-sm text-muted">Terapkan perubahan ke produk yang sedang tampil dari filter saat ini.</p>
                                     </div>
-                                    <button type="button" class="rounded-lg p-2 text-muted hover:bg-canvas hover:text-ink" @click="closeBulkStockEditor()" aria-label="Tutup bulk edit stok">
-                                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                            <path d="M6 18L18 6M6 6l12 12" stroke-linecap="round"/>
-                                        </svg>
+                                    <button type="button" class="btn-icon border-transparent" @click="closeBulkStockEditor()" aria-label="Tutup bulk edit stok">
+                                        <i class="iconify tabler--x text-base"></i>
                                     </button>
                                 </div>
                                 <div class="space-y-4 px-5 py-5">
@@ -216,10 +209,10 @@
                                     <p x-show="bulkStockSuccess" x-text="bulkStockSuccess" class="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800"></p>
                                 </div>
                                 <div class="flex flex-col-reverse gap-2 border-t border-line bg-canvas px-5 py-4 sm:flex-row sm:justify-end">
-                                    <button type="button" class="rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-ink hover:bg-brand-50" @click="closeBulkStockEditor()" :disabled="bulkSaving">
+                                    <button type="button" class="btn btn-outline" @click="closeBulkStockEditor()" :disabled="bulkSaving">
                                         Batal
                                     </button>
-                                    <button type="button" class="rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-wait disabled:opacity-70" @click="applyBulkStock()" :disabled="bulkSaving || filteredProducts.length === 0">
+                                    <button type="button" class="btn btn-primary disabled:cursor-wait" @click="applyBulkStock()" :disabled="bulkSaving || filteredProducts.length === 0">
                                         <span x-text="bulkSaving ? 'Menyimpan...' : 'Terapkan perubahan'"></span>
                                     </button>
                                 </div>

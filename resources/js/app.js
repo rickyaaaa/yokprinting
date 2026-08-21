@@ -1205,10 +1205,10 @@ Alpine.data('receivablesTable', (receivables = []) => ({
 
     statusClass(status) {
         return {
-            Overdue: 'bg-red-100 text-red-800',
-            Parsial: 'bg-brand-100 text-brand-800',
-            Menunggu: 'bg-yellow-100 text-yellow-900',
-        }[status] ?? 'bg-canvas text-muted';
+            Overdue: 'badge-danger',
+            Parsial: 'badge-brand',
+            Menunggu: 'badge-warning',
+        }[status] ?? 'badge-default';
     },
 }));
 
@@ -1321,10 +1321,10 @@ Alpine.data('dueInvoiceFollowUpTable', (dueInvoices = []) => ({
 
     statusClass(status) {
         return {
-            Overdue: 'bg-red-100 text-red-800',
-            'Due soon': 'bg-yellow-100 text-yellow-900',
-            Scheduled: 'bg-accent-soft text-accent',
-        }[status] ?? 'bg-canvas text-muted';
+            Overdue: 'badge-danger',
+            'Due soon': 'badge-warning',
+            Scheduled: 'badge-accent',
+        }[status] ?? 'badge-default';
     },
 
     async markFollowUp(invoice) {
@@ -1429,8 +1429,8 @@ Alpine.data('paymentHistoryTable', (payments = []) => ({
 
     statusClass(status) {
         return status === 'Terverifikasi'
-            ? 'bg-green-100 text-green-800'
-            : 'bg-yellow-100 text-yellow-900';
+            ? 'badge-success'
+            : 'badge-warning';
     },
 }));
 
@@ -2329,18 +2329,18 @@ Alpine.data('salesReportTable', (periodPresets = {}) => ({
 
     statusClass(status) {
         return {
-            Lunas: 'bg-green-100 text-green-800',
-            Overdue: 'bg-red-100 text-red-800',
-            Parsial: 'bg-brand-100 text-brand-800',
-            Menunggu: 'bg-yellow-100 text-yellow-900',
-        }[status] ?? 'bg-canvas text-muted';
+            Lunas: 'badge-success',
+            Overdue: 'badge-danger',
+            Parsial: 'badge-brand',
+            Menunggu: 'badge-warning',
+        }[status] ?? 'badge-default';
     },
 
     summaryToneClass(tone) {
         return {
-            success: 'bg-green-100 text-green-800',
-            warning: 'bg-yellow-100 text-yellow-900',
-        }[tone] ?? 'bg-brand-100 text-brand-800';
+            success: 'badge-success',
+            warning: 'badge-warning',
+        }[tone] ?? 'badge-brand';
     },
 }));
 
@@ -2508,10 +2508,10 @@ Alpine.data('customerIndexTable', (initialCustomers = []) => ({
 
     statusClass(status) {
         return {
-            Aktif: 'bg-green-100 text-green-800',
-            'Perlu follow-up': 'bg-yellow-100 text-yellow-900',
-            Prospek: 'bg-accent-soft text-accent',
-        }[status] ?? 'bg-canvas text-muted';
+            Aktif: 'badge-success',
+            'Perlu follow-up': 'badge-warning',
+            Prospek: 'badge-accent',
+        }[status] ?? 'badge-default';
     },
 }));
 
@@ -2660,11 +2660,11 @@ Alpine.data('customerForm', (initialForm = {}, isEditMode = false, customerId = 
 
     statusClass(status) {
         return {
-            Aktif: 'bg-green-100 text-green-800',
-            'Perlu follow-up': 'bg-yellow-100 text-yellow-900',
-            Prospek: 'bg-accent-soft text-accent',
-            Nonaktif: 'bg-canvas text-muted',
-        }[status] ?? 'bg-canvas text-muted';
+            Aktif: 'badge-success',
+            'Perlu follow-up': 'badge-warning',
+            Prospek: 'badge-accent',
+            Nonaktif: 'badge-default',
+        }[status] ?? 'badge-default';
     },
 }));
 
@@ -2955,10 +2955,10 @@ Alpine.data('productIndexTable', (initialProducts = []) => ({
 
     statusClass(status) {
         return {
-            Aktif: 'bg-green-100 text-green-800',
-            'Stok menipis': 'bg-yellow-100 text-yellow-900',
-            Nonaktif: 'bg-canvas text-muted',
-        }[status] ?? 'bg-canvas text-muted';
+            Aktif: 'badge-success',
+            'Stok menipis': 'badge-warning',
+            Nonaktif: 'badge-default',
+        }[status] ?? 'badge-default';
     },
 }));
 
@@ -3173,10 +3173,10 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
 
     statusClass(status) {
         return {
-            Aktif: 'bg-green-100 text-green-800',
-            'Stok menipis': 'bg-yellow-100 text-yellow-900',
-            Nonaktif: 'bg-canvas text-muted',
-        }[status] ?? 'bg-canvas text-muted';
+            Aktif: 'badge-success',
+            'Stok menipis': 'badge-warning',
+            Nonaktif: 'badge-default',
+        }[status] ?? 'badge-default';
     },
 }));
 

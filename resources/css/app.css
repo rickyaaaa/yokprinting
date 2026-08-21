@@ -218,6 +218,49 @@
         @apply inline-flex justify-center items-center rounded-lg border border-line bg-white p-2 text-default-600 transition-all hover:bg-default-50 aria-expanded:bg-default-100 disabled:opacity-50 disabled:pointer-events-none;
     }
 
+    .btn-danger {
+        @apply bg-danger text-white hover:bg-danger/90;
+    }
+
+    .btn-danger-outline {
+        @apply border-danger/30 bg-white text-danger hover:bg-danger/10;
+    }
+
+    /* Status pills: base + semantic tone modifiers, replacing the hand-rolled
+       "rounded-full px-2.5 py-1 text-xs font-semibold bg-*-100 text-*-800" recipe
+       that used to be copy-pasted per page. */
+    .badge {
+        @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap;
+    }
+
+    .badge-brand {
+        @apply bg-brand-100 text-brand-800;
+    }
+
+    .badge-success {
+        @apply bg-success/15 text-success;
+    }
+
+    .badge-warning {
+        @apply bg-warning/20 text-yellow-900;
+    }
+
+    .badge-danger {
+        @apply bg-danger/15 text-danger;
+    }
+
+    .badge-info {
+        @apply bg-info/20 text-sky-900;
+    }
+
+    .badge-default {
+        @apply bg-default-100 text-default-700;
+    }
+
+    .badge-accent {
+        @apply bg-accent-soft text-accent;
+    }
+
     .custom-scroll::-webkit-scrollbar {
         width: 4px;
         height: 4px;

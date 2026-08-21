@@ -28,8 +28,8 @@
 
             <div class="min-w-0 flex-1">
                 <header class="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
-                    <button type="button" class="mr-3 rounded-lg p-2 text-muted hover:bg-brand-50 hover:text-brand-800 lg:hidden" @click="sidebarOpen = true" aria-label="Buka navigasi">
-                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg>
+                    <button type="button" class="btn-icon mr-3 border-transparent lg:hidden" @click="sidebarOpen = true" aria-label="Buka navigasi">
+                        <i class="iconify tabler--align-left text-xl"></i>
                     </button>
                     <div class="flex items-center gap-2 text-sm">
                         <a href="{{ route('purchase-orders.index') }}" class="hidden text-muted hover:text-ink sm:inline">Purchase Order</a>
@@ -44,18 +44,18 @@
                     x-init="init()"
                 >
                     <div x-show="error" x-cloak class="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900" x-text="error" role="alert"></div>
-                    <div x-show="loading" class="rounded-xl border border-line bg-white p-10 text-center text-sm text-muted">Memuat detail PO...</div>
+                    <div x-show="loading" class="card p-10 text-center text-sm text-muted">Memuat detail PO...</div>
 
                     <template x-if="!loading && po">
                         <div class="space-y-6">
                             <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                                 <div>
-                                    <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Pembelian</span>
+                                    <span class="badge badge-brand">Pembelian</span>
                                     <h1 class="mt-3 font-mono text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]" x-text="po.po_number"></h1>
-                                    <span class="mt-2 inline-block rounded-full px-2.5 py-1 text-xs font-semibold" :class="statusClass(po.status)" x-text="po.status_label"></span>
+                                    <span class="badge mt-2" :class="statusClass(po.status)" x-text="po.status_label"></span>
                                 </div>
-                                <a href="{{ route('purchase-orders.index') }}" class="inline-flex w-fit items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
-                                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m15 18-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                <a href="{{ route('purchase-orders.index') }}" class="btn btn-outline w-fit">
+                                    <i class="iconify tabler--chevron-left text-base"></i>
                                     Kembali ke daftar
                                 </a>
                             </div>
@@ -64,32 +64,32 @@
                                 <button
                                     type="button"
                                     x-show="po.status === 'draft' && {{ $can('purchase_order.submit') ? 'true' : 'false' }}"
-                                    class="rounded-lg border border-line px-4 py-2.5 text-sm font-semibold text-ink hover:bg-canvas disabled:cursor-wait disabled:opacity-60"
+                                    class="btn btn-outline disabled:cursor-wait"
                                     :disabled="acting"
                                     @click="submitForApproval()"
                                 >Ajukan untuk approval</button>
                                 <button
                                     type="button"
                                     x-show="po.status === 'waiting_approval' && {{ $can('purchase_order.approve') ? 'true' : 'false' }}"
-                                    class="rounded-lg border border-green-200 bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-800 hover:bg-green-100 disabled:cursor-wait disabled:opacity-60"
+                                    class="btn border-green-200 bg-green-50 text-green-800 hover:bg-green-100 disabled:cursor-wait"
                                     :disabled="acting"
                                     @click="approve()"
                                 >Setujui PO</button>
                                 <a
                                     x-show="['approved', 'partially_received'].includes(po.status) && {{ $can('goods_receipt.create') ? 'true' : 'false' }}"
                                     :href="`{{ route('goods-receipts.create') }}?purchase_order_id=${po.id}`"
-                                    class="inline-flex items-center justify-center rounded-lg border border-line px-4 py-2.5 text-sm font-semibold text-ink hover:bg-canvas"
+                                    class="btn btn-outline"
                                 >Terima Barang</a>
                                 <button
                                     type="button"
                                     x-show="po.can_be_cancelled && {{ $can('purchase_order.cancel') ? 'true' : 'false' }}"
-                                    class="rounded-lg border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:cursor-wait disabled:opacity-60"
+                                    class="btn btn-danger-outline disabled:cursor-wait"
                                     :disabled="acting"
                                     @click="cancel()"
                                 >Batalkan PO</button>
                             </div>
 
-                            <section class="rounded-xl border border-line bg-white p-5 sm:p-6">
+                            <section class="card p-5 sm:p-6">
                                 <h2 class="font-semibold text-ink">Informasi PO</h2>
                                 <dl class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                     <div><dt class="text-xs font-semibold text-muted">Supplier</dt><dd class="mt-1 text-sm text-ink" x-text="po.supplier ? `${po.supplier.code} - ${po.supplier.name}` : '-'"></dd></div>
@@ -109,7 +109,7 @@
                                 </div>
                             </section>
 
-                            <section class="rounded-xl border border-line bg-white">
+                            <section class="card">
                                 <div class="border-b border-line px-5 py-4 sm:px-6">
                                     <h2 class="font-semibold text-ink">Daftar barang</h2>
                                 </div>
@@ -148,7 +148,7 @@
                                 </div>
                             </section>
 
-                            <section class="rounded-xl border border-line bg-white">
+                            <section class="card">
                                 <div class="border-b border-line px-5 py-4 sm:px-6">
                                     <h2 class="font-semibold text-ink">Penerimaan barang terkait</h2>
                                 </div>
@@ -167,7 +167,7 @@
                                                 <tr>
                                                     <td class="px-5 py-3 font-mono text-xs font-semibold text-brand-800 sm:px-6" x-text="receipt.receipt_number"></td>
                                                     <td class="px-4 py-3 text-muted" x-text="formatDate(receipt.receipt_date)"></td>
-                                                    <td class="px-4 py-3"><span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="receiptStatusClass(receipt.status)" x-text="receipt.status_label"></span></td>
+                                                    <td class="px-4 py-3"><span class="badge" :class="receiptStatusClass(receipt.status)" x-text="receipt.status_label"></span></td>
                                                 </tr>
                                             </template>
                                             <tr x-show="receipts.length === 0"><td colspan="3" class="px-5 py-8 text-center text-muted">Belum ada penerimaan barang untuk PO ini.</td></tr>

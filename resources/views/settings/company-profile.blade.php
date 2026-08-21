@@ -51,16 +51,12 @@
 
             <div class="min-w-0 flex-1">
                 <header class="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
-                    <button type="button" class="mr-3 rounded-lg p-2 text-muted hover:bg-brand-50 hover:text-brand-800 lg:hidden" @click="sidebarOpen = true" aria-controls="app-sidebar" :aria-expanded="sidebarOpen" aria-label="Buka navigasi">
-                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/>
-                        </svg>
+                    <button type="button" class="btn-icon mr-3 border-transparent lg:hidden" @click="sidebarOpen = true" aria-controls="app-sidebar" :aria-expanded="sidebarOpen" aria-label="Buka navigasi">
+                        <i class="iconify tabler--align-left text-xl"></i>
                     </button>
                     <div class="flex min-w-0 items-center gap-2 text-sm">
                         <a href="{{ route('dashboard') }}" class="hidden text-muted hover:text-ink sm:inline">Dashboard</a>
-                        <svg class="hidden size-4 text-line sm:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="m9 18 6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                        <i class="iconify tabler--chevron-right hidden text-sm text-line sm:block"></i>
                         <span class="truncate font-medium text-ink">Pengaturan profil usaha</span>
                     </div>
                     <div class="ml-auto hidden text-sm text-muted sm:block">Jumat, 24 Juli 2026</div>
@@ -70,15 +66,15 @@
                     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <div class="mb-2 flex flex-wrap items-center gap-2">
-                                <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Pengaturan</span>
-                                <span class="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent">Terhubung backend</span>
+                                <span class="badge badge-brand">Pengaturan</span>
+                                <span class="badge badge-accent">Terhubung backend</span>
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Pengaturan profil usaha</h1>
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Kelola identitas perusahaan, alamat, kontak, pajak, dan informasi pembayaran yang muncul di invoice.</p>
                         </div>
                     </div>
 
-                    <nav class="mb-6 overflow-x-auto rounded-xl border border-line bg-white p-2" aria-label="Navigasi pengaturan profil usaha">
+                    <nav class="mb-6 overflow-x-auto card p-2" aria-label="Navigasi pengaturan profil usaha">
                         <div class="flex min-w-max gap-1 text-sm font-semibold text-muted">
                             <a href="#company-info" class="rounded-lg px-3 py-2 hover:bg-brand-50 hover:text-brand-800">Profil perusahaan</a>
                             <a href="#default-invoice-settings" class="rounded-lg px-3 py-2 hover:bg-brand-50 hover:text-brand-800">Default invoice</a>
@@ -104,7 +100,7 @@
                                 </ul>
                             </div>
 
-                            <section id="company-info" class="scroll-mt-24 rounded-xl bg-white p-5 border border-line sm:p-6" aria-labelledby="business-identity-heading">
+                            <section id="company-info" class="scroll-mt-24 card p-5 sm:p-6" aria-labelledby="business-identity-heading">
                                 <h2 id="business-identity-heading" class="font-semibold text-ink">Formulir informasi perusahaan</h2>
                                 <p class="mt-1 text-sm text-muted">Identitas usaha, legalitas, dan penanggung jawab utama yang tersimpan di backend.</p>
                                 <div class="mt-5 grid gap-4 md:grid-cols-2">
@@ -175,7 +171,7 @@
                                 </div>
                             </section>
 
-                            <section class="rounded-xl bg-white p-5 border border-line sm:p-6" aria-labelledby="business-address-heading">
+                            <section class="card p-5 sm:p-6" aria-labelledby="business-address-heading">
                                 <h2 id="business-address-heading" class="font-semibold text-ink">Alamat & pembayaran</h2>
                                 <div class="mt-5 grid gap-4 md:grid-cols-2">
                                     <label class="block md:col-span-2">
@@ -215,7 +211,7 @@
                                 </div>
                             </section>
 
-                            <section id="default-invoice-settings" class="scroll-mt-24 rounded-xl bg-white p-5 border border-line sm:p-6" aria-labelledby="default-settings-heading">
+                            <section id="default-invoice-settings" class="scroll-mt-24 card p-5 sm:p-6" aria-labelledby="default-settings-heading">
                                 <h2 id="default-settings-heading" class="font-semibold text-ink">Pengaturan default invoice</h2>
                                 <p class="mt-1 text-sm leading-6 text-muted">Atur template, PPN default, jatuh tempo, dan pengingat yang otomatis dipakai saat membuat invoice baru.</p>
                                 <p class="sr-only">Opsi template tersedia: Professional clean, Modern compact, Creative bold.</p>
@@ -261,7 +257,7 @@
                                 </div>
                             </section>
 
-                            <section id="brand-assets" class="scroll-mt-24 rounded-xl bg-white p-5 border border-line sm:p-6" aria-labelledby="logo-upload-heading">
+                            <section id="brand-assets" class="scroll-mt-24 card p-5 sm:p-6" aria-labelledby="logo-upload-heading">
                                 <h2 id="logo-upload-heading" class="font-semibold text-ink">Upload logo perusahaan</h2>
                                 <p class="mt-1 text-sm leading-6 text-muted">Pilih file gambar untuk melihat pratinjau logo pada invoice dan simpan ke storage aplikasi.</p>
                                 <div class="mt-5 grid gap-4 md:grid-cols-[12rem_minmax(0,1fr)] md:items-center">
@@ -280,14 +276,14 @@
                                             <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" class="form-control mt-1.5" data-testid="company-logo-input" @change="handleLogoUpload($event)">
                                         </label>
                                         <p class="mt-2 text-xs leading-5 text-muted">Rekomendasi: PNG transparan atau SVG, rasio mendekati persegi, ukuran maksimal 2 MB.</p>
-                                        <button type="button" class="mt-3 inline-flex items-center rounded-lg border border-line bg-white px-3 py-2 text-xs font-semibold text-ink hover:bg-brand-50 hover:text-brand-800" x-show="logoPreview" x-cloak @click="clearLogo()">
+                                        <button type="button" class="btn btn-sm btn-outline mt-3" x-show="logoPreview" x-cloak @click="clearLogo()">
                                             Hapus logo
                                         </button>
                                     </div>
                                 </div>
                             </section>
 
-                            <section class="rounded-xl bg-white p-5 border border-line sm:p-6" aria-labelledby="theme-palette-heading">
+                            <section class="card p-5 sm:p-6" aria-labelledby="theme-palette-heading">
                                 <h2 id="theme-palette-heading" class="font-semibold text-ink">Palet warna tema invoice</h2>
                                 <p class="mt-1 text-sm leading-6 text-muted">Pilih warna utama untuk logo fallback, aksen invoice, dan tombol brand di dokumen pelanggan.</p>
                                 <p class="sr-only">Pilihan palet tersedia: Sage profesional, Ocean blue, Sunset amber, Ink premium.</p>
@@ -323,7 +319,7 @@
                         </section>
 
                         <aside id="settings-preview" class="scroll-mt-24 space-y-6">
-                            <section class="rounded-xl bg-white p-5 border border-line sm:p-6" aria-labelledby="profile-preview-heading">
+                            <section class="card p-5 sm:p-6" aria-labelledby="profile-preview-heading">
                                 <h2 id="profile-preview-heading" class="font-semibold text-ink">Preview profil invoice</h2>
                                 <div class="mt-5 rounded-xl border border-line bg-canvas p-4">
                                     <div class="flex items-center gap-3">
@@ -376,7 +372,7 @@
                                 <p class="mt-3 leading-6">Form ini sekarang menyimpan profil perusahaan, logo, palet tema, template invoice, pajak, jatuh tempo, dan aturan nomor invoice ke backend.</p>
                             </section>
 
-                            <section class="rounded-xl bg-white p-5 border border-line sm:p-6" aria-labelledby="theme-live-preview-heading">
+                            <section class="card p-5 sm:p-6" aria-labelledby="theme-live-preview-heading">
                                 <h2 id="theme-live-preview-heading" class="font-semibold text-ink">Pratinjau langsung warna tema</h2>
                                 <p class="mt-1 text-sm leading-6 text-muted">Mock invoice ini berubah langsung mengikuti palet yang dipilih.</p>
                                 <div data-testid="theme-live-preview" class="mt-5 overflow-hidden rounded-xl border border-line">
@@ -423,14 +419,12 @@
                                 </div>
                             </section>
 
-                            <div class="rounded-xl bg-white p-5 border border-line">
-                                <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-60" :disabled="saving">
-                                    <svg x-show="saving" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                        <path d="M12 3a9 9 0 1 1-9 9" stroke-linecap="round"/>
-                                    </svg>
+                            <div class="card p-5">
+                                <button type="submit" class="btn btn-primary w-full" :disabled="saving">
+                                    <i x-show="saving" class="iconify tabler--loader-2 animate-spin text-base"></i>
                                     <span x-text="saving ? 'Menyimpan...' : 'Simpan profil usaha'"></span>
                                 </button>
-                                <a href="{{ route('dashboard') }}" class="mt-3 inline-flex w-full items-center justify-center rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
+                                <a href="{{ route('dashboard') }}" class="btn btn-outline w-full mt-3">
                                     Kembali ke dashboard
                                 </a>
                             </div>

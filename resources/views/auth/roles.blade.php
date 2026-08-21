@@ -60,16 +60,12 @@
 
             <div class="min-w-0 flex-1">
                 <header class="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
-                    <button type="button" class="mr-3 rounded-lg p-2 text-muted hover:bg-brand-50 hover:text-brand-800 lg:hidden" @click="sidebarOpen = true" aria-controls="app-sidebar" :aria-expanded="sidebarOpen" aria-label="Buka navigasi">
-                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/>
-                        </svg>
+                    <button type="button" class="btn-icon mr-3 border-transparent lg:hidden" @click="sidebarOpen = true" aria-controls="app-sidebar" :aria-expanded="sidebarOpen" aria-label="Buka navigasi">
+                        <i class="iconify tabler--align-left text-xl"></i>
                     </button>
                     <div class="flex min-w-0 items-center gap-2 text-sm">
                         <a href="{{ route('dashboard') }}" class="hidden text-muted hover:text-ink sm:inline">Dashboard</a>
-                        <svg class="hidden size-4 text-line sm:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="m9 18 6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                        <i class="iconify tabler--chevron-right hidden text-sm text-line sm:block"></i>
                         <span class="truncate font-medium text-ink">Peran & akses</span>
                     </div>
                     <div class="ml-auto hidden text-sm text-muted sm:block">Backend permission aktif</div>
@@ -79,25 +75,25 @@
                     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <div class="mb-2 flex flex-wrap items-center gap-2">
-                                <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Akses & keamanan</span>
+                                <span class="badge badge-brand">Akses & keamanan</span>
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Daftar peran</h1>
                             <p class="mt-1 max-w-3xl text-sm leading-6 text-muted">Kelola rancangan role dan cakupan permission sebelum backend role-based access control diaktifkan.</p>
                         </div>
-                        <a href="{{ route('roles.create') }}" class="inline-flex w-fit items-center rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800" data-testid="create-role-placeholder">
+                        <a href="{{ route('roles.create') }}" class="btn btn-primary w-fit" data-testid="create-role-placeholder">
                             Tambah peran
                         </a>
                     </div>
 
                     <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="Ringkasan peran">
                         @foreach ($roles as $role)
-                            <article class="rounded-xl bg-white p-5 border border-line">
+                            <article class="card p-5">
                                 <div class="flex items-start justify-between gap-4">
                                     <div>
                                         <h2 class="font-semibold text-ink">{{ $role['name'] }}</h2>
                                         <p class="mt-1 font-mono text-xs text-muted">{{ $role['code'] }}</p>
                                     </div>
-                                    <span class="rounded-full {{ $role['status'] === 'Aktif' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-900' }} px-2.5 py-1 text-xs font-semibold">{{ $role['status'] }}</span>
+                                    <span class="badge {{ $role['status'] === 'Aktif' ? 'badge-success' : 'badge-warning' }}">{{ $role['status'] }}</span>
                                 </div>
                                 <p class="mt-4 text-sm leading-6 text-muted">{{ $role['summary'] }}</p>
                                 <dl class="mt-5 grid grid-cols-2 gap-3 text-xs">
@@ -111,7 +107,7 @@
                                     </div>
                                 </dl>
                                 <div class="mt-5 grid gap-2">
-                                    <a href="{{ route('roles.edit', $role['code']) }}" class="inline-flex w-full items-center justify-center rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
+                                    <a href="{{ route('roles.edit', $role['code']) }}" class="btn btn-outline w-full">
                                         Edit peran
                                     </a>
                                     <a href="{{ route('roles.permissions.edit', $role['code']) }}" class="inline-flex w-full items-center justify-center rounded-lg bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-100">
@@ -122,7 +118,7 @@
                         @endforeach
                     </section>
 
-                    <section class="mt-6 rounded-xl bg-white border border-line" aria-labelledby="role-table-heading">
+                    <section class="mt-6 card" aria-labelledby="role-table-heading">
                         <div class="border-b border-line px-5 py-4 sm:px-6">
                             <h2 id="role-table-heading" class="font-semibold text-ink">Matrix permission</h2>
                             <p class="mt-1 text-sm text-muted">Centang menunjukkan modul yang bisa diakses oleh role tersebut pada rancangan awal.</p>
@@ -149,9 +145,7 @@
                                                 <td class="px-4 py-4 text-center">
                                                     @if (in_array($module, $role['permissions'], true))
                                                         <span class="mx-auto grid size-7 place-items-center rounded-full bg-brand-100 text-brand-800" aria-label="{{ $role['name'] }} dapat mengakses {{ $module }}">
-                                                            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                                                <path d="m5 12 4 4L19 6" stroke-linecap="round" stroke-linejoin="round"/>
-                                                            </svg>
+                                                            <i class="iconify tabler--check text-base"></i>
                                                         </span>
                                                     @else
                                                         <span class="mx-auto block size-7 rounded-full bg-canvas" aria-label="{{ $role['name'] }} belum dapat mengakses {{ $module }}"></span>

@@ -43,21 +43,17 @@
                 <header class="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
                     <button
                         type="button"
-                        class="mr-3 rounded-lg p-2 text-muted hover:bg-brand-50 hover:text-brand-800 lg:hidden"
+                        class="btn-icon mr-3 border-transparent lg:hidden"
                         @click="sidebarOpen = true"
                         aria-controls="app-sidebar"
                         :aria-expanded="sidebarOpen"
                         aria-label="Buka navigasi"
                     >
-                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/>
-                        </svg>
+                        <i class="iconify tabler--align-left text-xl"></i>
                     </button>
                     <div class="flex min-w-0 items-center gap-2 text-sm">
                         <a href="{{ route('dashboard') }}" class="hidden text-muted hover:text-ink sm:inline">Dashboard</a>
-                        <svg class="hidden size-4 text-line sm:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="m9 18 6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                        <i class="iconify tabler--chevron-right hidden text-sm text-line sm:block"></i>
                         <span class="truncate font-medium text-ink">Daftar invoice</span>
                     </div>
                     <div class="ml-auto flex items-center gap-2">
@@ -71,22 +67,20 @@
                     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <div class="mb-2 flex flex-wrap items-center gap-2">
-                                <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Daftar invoice</span>
+                                <span class="badge badge-brand">Daftar invoice</span>
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Daftar Invoice</h1>
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Pantau invoice terbit, status pembayaran, progres pesanan, jatuh tempo, dan akses cepat ke detail pembayaran.</p>
                         </div>
-                        <a href="{{ route('invoices.create') }}" class="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-700">
-                            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                <path d="M12 5v14M5 12h14" stroke-linecap="round"/>
-                            </svg>
+                        <a href="{{ route('invoices.create') }}" class="btn btn-primary">
+                            <i class="iconify tabler--plus text-base"></i>
                             Buat invoice
                         </a>
                     </div>
 
                     <section class="grid gap-4 md:grid-cols-3" aria-label="Ringkasan daftar invoice">
                         @foreach ($summaryCards as $card)
-                            <article class="rounded-xl border border-line bg-white p-5">
+                            <article class="card p-5">
                                 <p class="text-sm font-medium text-muted">{{ $card['label'] }}</p>
                                 <p class="mt-3 text-2xl font-semibold tracking-[-0.025em] text-ink">{{ $card['value'] }}</p>
                                 <p class="mt-3 text-xs text-muted">{{ $card['caption'] }}</p>
@@ -94,7 +88,7 @@
                         @endforeach
                     </section>
 
-                    <section class="mt-6 rounded-xl border border-line bg-white" aria-labelledby="invoice-table-heading">
+                    <section class="mt-6 card" aria-labelledby="invoice-table-heading">
                         <div class="flex flex-col gap-4 border-b border-line px-5 py-4 sm:px-6 xl:flex-row xl:items-center xl:justify-between">
                             <div>
                                 <h2 id="invoice-table-heading" class="font-semibold text-ink">Semua invoice</h2>
@@ -104,10 +98,10 @@
                                 <label class="text-left text-xs font-semibold text-muted">Dari<input name="date_from" type="date" value="{{ $filters['date_from'] }}" class="form-control mt-1 text-sm"></label>
                                 <label class="text-left text-xs font-semibold text-muted">Sampai<input name="date_to" type="date" value="{{ $filters['date_to'] }}" class="form-control mt-1 text-sm"></label>
                                 <label class="text-left text-xs font-semibold text-muted">Status<select name="status" class="form-control mt-1 text-sm"><option value="all">Semua</option><option value="draft" @selected($filters['status'] === 'draft')>Draft</option><option value="sent" @selected($filters['status'] === 'sent')>Terkirim</option><option value="unpaid" @selected($filters['status'] === 'unpaid')>Belum bayar</option><option value="partial" @selected($filters['status'] === 'partial')>Parsial</option><option value="paid" @selected($filters['status'] === 'paid')>Lunas</option><option value="cancelled" @selected($filters['status'] === 'cancelled')>Dibatalkan</option></select></label>
-                                <button type="submit" class="rounded-lg bg-ink px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800">Terapkan</button>
-                                <a href="{{ route('api.invoices.export.orders.pdf', request()->query()) }}" class="rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-100">{{ request()->filled('date_from') || request()->filled('date_to') ? 'Cetak pesanan sesuai tanggal' : 'Cetak pesanan hari ini' }}</a>
-                                <a href="{{ route('api.invoices.export.pdf', request()->query()) }}" class="rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-canvas">Export PDF</a>
-                                <a href="{{ route('api.invoices.export.csv', request()->query()) }}" class="rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-canvas">Export CSV</a>
+                                <button type="submit" class="btn bg-ink text-white hover:bg-slate-800">Terapkan</button>
+                                <a href="{{ route('api.invoices.export.orders.pdf', request()->query()) }}" class="btn border-brand-200 bg-brand-50 text-brand-800 hover:bg-brand-100">{{ request()->filled('date_from') || request()->filled('date_to') ? 'Cetak pesanan sesuai tanggal' : 'Cetak pesanan hari ini' }}</a>
+                                <a href="{{ route('api.invoices.export.pdf', request()->query()) }}" class="btn btn-outline">Export PDF</a>
+                                <a href="{{ route('api.invoices.export.csv', request()->query()) }}" class="btn btn-outline">Export CSV</a>
                             </form>
                             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
                                 <label class="sr-only" for="invoice-search">Cari invoice</label>
@@ -160,25 +154,25 @@
                                             <td class="whitespace-nowrap px-5 py-4 text-right font-semibold text-ink sm:px-6" x-text="invoice.amount"></td>
                                             <td class="whitespace-nowrap px-5 py-4 sm:px-6">
                                                 <span
-                                                    class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
+                                                    class="badge"
                                                     :class="{
-                                                        'bg-green-100 text-green-800': invoice.tone === 'success',
-                                                        'bg-yellow-100 text-yellow-900': invoice.tone === 'warning',
-                                                        'bg-brand-100 text-brand-800': invoice.tone === 'brand',
-                                                        'bg-red-100 text-red-800': invoice.tone === 'danger',
-                                                        'bg-blue-100 text-blue-800': invoice.tone === 'info'
+                                                        'badge-success': invoice.tone === 'success',
+                                                        'badge-warning': invoice.tone === 'warning',
+                                                        'badge-brand': invoice.tone === 'brand',
+                                                        'badge-danger': invoice.tone === 'danger',
+                                                        'badge-info': invoice.tone === 'info'
                                                     }"
                                                     x-text="invoice.status"
                                                 ></span>
                                             </td>
                                             <td class="whitespace-nowrap px-5 py-4 sm:px-6">
                                                 <span
-                                                    class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
+                                                    class="badge"
                                                     :class="{
-                                                        'bg-green-100 text-green-800': invoice.order_tone === 'success',
-                                                        'bg-yellow-100 text-yellow-900': invoice.order_tone === 'warning',
-                                                        'bg-brand-100 text-brand-800': invoice.order_tone === 'brand',
-                                                        'bg-blue-100 text-blue-800': invoice.order_tone === 'info'
+                                                        'badge-success': invoice.order_tone === 'success',
+                                                        'badge-warning': invoice.order_tone === 'warning',
+                                                        'badge-brand': invoice.order_tone === 'brand',
+                                                        'badge-info': invoice.order_tone === 'info'
                                                     }"
                                                     x-text="invoice.order_status"
                                                 ></span>

@@ -3,7 +3,7 @@
 <section
     x-data="invoiceItems"
     x-effect="$dispatch('invoice-subtotal-changed', { subtotal })"
-    class="overflow-hidden rounded-xl bg-white border border-line"
+    class="overflow-hidden card"
     aria-labelledby="invoice-items-heading"
 >
     <div class="flex items-start justify-between gap-4 border-b border-line px-5 py-4 sm:px-6">
@@ -12,7 +12,7 @@
             <p class="mt-1 text-sm text-muted">Tambahkan produk atau jasa yang ditagihkan.</p>
         </div>
         <span
-            class="shrink-0 rounded-full bg-canvas px-2.5 py-1 text-xs font-medium text-muted"
+            class="badge badge-default shrink-0"
             x-text="loadingProducts ? 'Memuat…' : `${items.length} item`"
         ></span>
     </div>
@@ -23,14 +23,14 @@
         data-testid="product-picker-loading"
         role="status"
     >
-        <span class="size-4 animate-spin rounded-full border-2 border-line border-t-brand" aria-hidden="true"></span>
+        <span class="size-4 animate-spin rounded-full border-2 border-line border-t-brand-600" aria-hidden="true"></span>
         Memuat data produk…
     </div>
 
     <div
         x-show="productError && !loadingProducts"
         x-cloak
-        class="m-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-danger/20 bg-danger-soft px-4 py-3 text-sm text-danger"
+        class="m-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
         role="alert"
     >
         <span x-text="productError"></span>
@@ -92,9 +92,7 @@
                                     :aria-label="`Buka hasil produk baris ${index + 1}`"
                                     @click="toggleProductPicker(item, $event)"
                                 >
-                                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                        <path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
-                                    </svg>
+                                    <i class="iconify tabler--chevron-down text-base"></i>
                                 </button>
 
                                 <!--
@@ -263,9 +261,7 @@
                                 :data-testid="`remove-invoice-item-${item.key}`"
                                 @click="removeItem(item.key)"
                             >
-                                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                    <path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
+                                <i class="iconify tabler--trash text-base"></i>
                             </button>
                         </td>
                     </tr>
@@ -274,10 +270,7 @@
                 <tr x-show="items.length === 0">
                     <td colspan="5" class="px-6 py-12 text-center">
                         <div class="mx-auto grid size-10 place-items-center rounded-full bg-canvas text-muted">
-                            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
-                                <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" stroke-linejoin="round"/>
-                                <path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12.1V21" stroke-linejoin="round"/>
-                            </svg>
+                            <i class="iconify tabler--package text-lg"></i>
                         </div>
                         <p class="mt-3 text-sm font-medium text-ink">Belum ada item tagihan</p>
                         <p class="mt-1 text-xs text-muted">Tambahkan produk atau jasa untuk mulai menghitung invoice.</p>
@@ -291,13 +284,11 @@
         <button
             type="button"
             data-testid="add-invoice-item"
-            class="inline-flex items-center justify-center gap-2 rounded-lg border border-brand-300 px-3.5 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-50"
+            class="btn border-brand-300 text-brand-800 hover:bg-brand-50"
             :disabled="loadingProducts || Boolean(productError) || products.length === 0"
             @click="addItem()"
         >
-            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <path d="M12 5v14M5 12h14" stroke-linecap="round"/>
-            </svg>
+            <i class="iconify tabler--plus text-base"></i>
             Tambah item
         </button>
         <div class="flex items-baseline justify-between gap-6 sm:justify-end">

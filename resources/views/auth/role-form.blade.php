@@ -72,9 +72,7 @@
             <header class="border-b border-line bg-white/95 px-4 py-4 backdrop-blur-sm sm:px-6 lg:px-8">
                 <div class="mx-auto flex w-full max-w-[1180px] items-center justify-between gap-4">
                     <a href="{{ route('roles.index') }}" class="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 hover:text-brand-800">
-                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="m15 18-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                        <i class="iconify tabler--chevron-left text-base"></i>
                         Kembali ke daftar peran
                     </a>
                     <a href="{{ route('dashboard') }}" class="hidden text-sm font-semibold text-muted hover:text-ink sm:inline">Dashboard</a>
@@ -97,7 +95,7 @@
                 <section class="space-y-6">
                     <div>
                         <div class="mb-2 flex flex-wrap items-center gap-2">
-                            <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Akses & keamanan</span>
+                            <span class="badge badge-brand">Akses & keamanan</span>
                         </div>
                         <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">{{ $isEdit ? 'Edit peran' : 'Tambah peran baru' }}</h1>
                         <p class="mt-1 max-w-3xl text-sm leading-6 text-muted">Atur identitas role dan permission yang akan digunakan saat backend role-based access control aktif.</p>
@@ -108,7 +106,7 @@
                         <p class="mt-1">Backend penyimpanan role akan disambungkan pada task berikutnya.</p>
                     </div>
 
-                    <section class="rounded-xl bg-white p-5 border border-line sm:p-6" aria-labelledby="role-identity-heading">
+                    <section class="card p-5 sm:p-6" aria-labelledby="role-identity-heading">
                         <h2 id="role-identity-heading" class="font-semibold text-ink">Informasi peran</h2>
                         <div class="mt-5 grid gap-4 md:grid-cols-2">
                             <label class="block">
@@ -138,7 +136,7 @@
                         </div>
                     </section>
 
-                    <section class="rounded-xl bg-white p-5 border border-line sm:p-6" aria-labelledby="role-permission-heading">
+                    <section class="card p-5 sm:p-6" aria-labelledby="role-permission-heading">
                         <h2 id="role-permission-heading" class="font-semibold text-ink">Permission modul</h2>
                         <p class="mt-1 text-sm leading-6 text-muted">Pilih modul yang dapat diakses oleh role ini.</p>
 
@@ -171,7 +169,7 @@
                 </section>
 
                 <aside class="space-y-6">
-                    <section class="rounded-xl bg-white p-5 border border-line" aria-labelledby="role-preview-heading">
+                    <section class="card p-5" aria-labelledby="role-preview-heading">
                         <h2 id="role-preview-heading" class="font-semibold text-ink">Preview peran</h2>
                         <div class="mt-5 rounded-xl bg-canvas p-4">
                             <p class="text-xs font-semibold text-muted">{{ $isEdit ? 'Mode edit' : 'Mode tambah' }}</p>
@@ -196,15 +194,15 @@
                         <p class="mt-2 leading-6">Form ini belum menyimpan ke database. Task backend berikutnya akan menangani validasi, persistensi role, dan sinkronisasi permission.</p>
                     </section>
 
-                    <div class="rounded-xl bg-white p-5 border border-line">
-                        <button type="submit" class="inline-flex w-full items-center justify-center rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800" data-testid="save-role-button">
+                    <div class="card p-5">
+                        <button type="submit" class="btn btn-primary w-full" data-testid="save-role-button">
                             {{ $isEdit ? 'Simpan perubahan peran' : 'Simpan peran baru' }}
                         </button>
-                        <a href="{{ route('roles.index') }}" class="mt-3 inline-flex w-full items-center justify-center rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
+                        <a href="{{ route('roles.index') }}" class="btn btn-outline w-full mt-3">
                             Batal
                         </a>
                         @if ($isEdit)
-                            <a href="{{ route('roles.permissions.edit', $role['code']) }}" class="mt-3 inline-flex w-full items-center justify-center rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-semibold text-brand-700 hover:bg-brand-50 hover:text-brand-800">
+                            <a href="{{ route('roles.permissions.edit', $role['code']) }}" class="btn btn-outline w-full mt-3 !text-brand-700">
                                 Atur izin detail
                             </a>
                         @endif

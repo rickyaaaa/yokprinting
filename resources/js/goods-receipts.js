@@ -154,10 +154,10 @@ export const registerGoodsReceiptComponents = (Alpine) => {
 
         statusClass(status) {
             return {
-                draft: 'bg-canvas text-muted',
-                posted: 'bg-green-100 text-green-800',
-                cancelled: 'bg-red-100 text-red-800',
-            }[status] ?? 'bg-canvas text-muted';
+                draft: 'badge-default',
+                posted: 'badge-success',
+                cancelled: 'badge-danger',
+            }[status] ?? 'badge-default';
         },
 
         formatRupiah(value) {

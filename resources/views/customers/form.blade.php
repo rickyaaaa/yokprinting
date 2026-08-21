@@ -29,16 +29,12 @@
 
             <div class="min-w-0 flex-1">
                 <header class="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
-                    <button type="button" class="mr-3 rounded-lg p-2 text-muted hover:bg-brand-50 hover:text-brand-800 lg:hidden" @click="sidebarOpen = true" aria-controls="app-sidebar" :aria-expanded="sidebarOpen" aria-label="Buka navigasi">
-                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/>
-                        </svg>
+                    <button type="button" class="btn-icon mr-3 border-transparent lg:hidden" @click="sidebarOpen = true" aria-controls="app-sidebar" :aria-expanded="sidebarOpen" aria-label="Buka navigasi">
+                        <i class="iconify tabler--align-left text-xl"></i>
                     </button>
                     <div class="flex min-w-0 items-center gap-2 text-sm">
                         <a href="{{ route('customers.index') }}" class="hidden text-muted hover:text-ink sm:inline">Data pelanggan</a>
-                        <svg class="hidden size-4 text-line sm:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="m9 18 6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                        <i class="iconify tabler--chevron-right hidden text-sm text-line sm:block"></i>
                         <span class="truncate font-medium text-ink">{{ $isEdit ? 'Edit pelanggan' : 'Tambah pelanggan' }}</span>
                     </div>
                     <div class="ml-auto flex items-center gap-2">
@@ -50,15 +46,13 @@
                     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <div class="mb-2 flex flex-wrap items-center gap-2">
-                                <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Data pelanggan</span>
+                                <span class="badge badge-brand">Data pelanggan</span>
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">{{ $title }}</h1>
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Simpan informasi identitas, kontak, pajak, dan alamat pelanggan untuk kebutuhan invoice berikutnya.</p>
                         </div>
-                        <a href="{{ route('customers.index') }}" class="inline-flex w-fit items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
-                            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                <path d="m15 18-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
+                        <a href="{{ route('customers.index') }}" class="btn btn-outline w-fit">
+                            <i class="iconify tabler--chevron-left text-base"></i>
                             Kembali ke daftar
                         </a>
                     </div>
@@ -94,7 +88,7 @@
                                 </ul>
                             </div>
 
-                            <section class="rounded-xl bg-white p-5 border border-line sm:p-6" aria-labelledby="customer-identity-heading">
+                            <section class="card p-5 sm:p-6" aria-labelledby="customer-identity-heading">
                                 <h2 id="customer-identity-heading" class="font-semibold text-ink">Identitas pelanggan</h2>
                                 <div class="mt-5 grid gap-4 md:grid-cols-2">
                                     <label class="block">
@@ -128,7 +122,7 @@
                                 </div>
                             </section>
 
-                            <section class="rounded-xl bg-white p-5 border border-line sm:p-6" aria-labelledby="customer-address-heading">
+                            <section class="card p-5 sm:p-6" aria-labelledby="customer-address-heading">
                                 <h2 id="customer-address-heading" class="font-semibold text-ink">Alamat penagihan</h2>
                                 <div class="mt-5 grid gap-4 md:grid-cols-2">
                                     <label class="block md:col-span-2">
@@ -158,7 +152,7 @@
                         </section>
 
                         <aside class="space-y-6">
-                            <section class="rounded-xl bg-white p-5 border border-line sm:p-6" aria-labelledby="customer-preview-heading">
+                            <section class="card p-5 sm:p-6" aria-labelledby="customer-preview-heading">
                                 <h2 id="customer-preview-heading" class="font-semibold text-ink">Preview kartu pelanggan</h2>
                                 <div class="mt-5 rounded-xl border border-line bg-canvas p-4">
                                     <div class="flex items-center gap-3">
@@ -171,7 +165,7 @@
                                     <dl class="mt-5 space-y-3 text-sm">
                                         <div class="flex justify-between gap-3">
                                             <dt class="text-muted">Status</dt>
-                                            <dd><span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="statusClass(form.status)" x-text="form.status"></span></dd>
+                                            <dd><span class="badge" :class="statusClass(form.status)" x-text="form.status"></span></dd>
                                         </div>
                                         <div class="flex justify-between gap-3">
                                             <dt class="text-muted">Kota</dt>
@@ -186,14 +180,12 @@
                                 <p class="mt-3 leading-6">Kode pelanggan dibuat otomatis berurutan, jadi admin cukup mengisi identitas dan kontak pelanggan.</p>
                             </section>
 
-                            <div class="rounded-xl bg-white p-5 border border-line">
-                                <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-60" :disabled="saving">
-                                    <svg x-show="saving" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                        <path d="M12 3a9 9 0 1 1-9 9" stroke-linecap="round"/>
-                                    </svg>
+                            <div class="card p-5">
+                                <button type="submit" class="btn btn-primary w-full" :disabled="saving">
+                                    <i x-show="saving" class="iconify tabler--loader-2 animate-spin text-base"></i>
                                     <span x-text="saving ? 'Menyimpan...' : '{{ $isEdit ? 'Simpan perubahan' : 'Simpan pelanggan' }}'"></span>
                                 </button>
-                                <a href="{{ route('customers.index') }}" class="mt-3 inline-flex w-full items-center justify-center rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
+                                <a href="{{ route('customers.index') }}" class="btn btn-outline w-full mt-3">
                                     Batal
                                 </a>
                             </div>

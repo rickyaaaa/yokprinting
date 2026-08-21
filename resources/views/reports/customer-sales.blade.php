@@ -25,34 +25,36 @@
     <x-app-sidebar />
     <main class="min-w-0 flex-1" x-data='customerSalesReportPage(@json($reportConfig))' x-init="init()">
         <header class="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-white/95 px-4 sm:px-6 lg:px-8">
-            <button type="button" class="mr-3 rounded-lg p-2 text-muted hover:bg-brand-50 lg:hidden" @click="sidebarOpen = true" aria-label="Buka navigasi">☰</button>
+            <button type="button" class="btn-icon mr-3 border-transparent lg:hidden" @click="sidebarOpen = true" aria-label="Buka navigasi">
+                <i class="iconify tabler--align-left text-xl"></i>
+            </button>
             <div class="flex items-center gap-2 text-sm"><a class="text-muted hover:text-ink" href="{{ route('reports.sales.index') }}">Laporan penjualan</a><span class="text-line">/</span><span class="font-medium text-ink">Penjualan per Pelanggan</span></div>
         </header>
         <div class="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
             <div class="mb-6 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                 <div><h1 class="text-2xl font-semibold text-ink">Penjualan per Pelanggan</h1><p class="mt-1 text-sm text-muted">Bandingkan penjualan, HPP FIFO, laba kotor, dan margin berdasarkan pelanggan.</p></div>
-                <div class="flex flex-wrap gap-2"><button type="button" class="rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-canvas" @click="exportFile('pdf')">Export PDF</button><button type="button" class="rounded-lg bg-brand-700 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-800" @click="exportFile('csv')">Export Excel/CSV</button></div>
+                <div class="flex flex-wrap gap-2"><button type="button" class="btn btn-outline" @click="exportFile('pdf')">Export PDF</button><button type="button" class="btn btn-primary" @click="exportFile('csv')">Export Excel/CSV</button></div>
             </div>
-            <form class="mb-6 grid gap-3 rounded-xl border border-line bg-white p-4 sm:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto]" @submit.prevent="load()">
+            <form class="mb-6 grid gap-3 card p-4 sm:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto]" @submit.prevent="load()">
                 <label class="text-sm"><span class="mb-1 block font-semibold text-muted">Dari tanggal</span><input class="form-control" type="date" x-model="filters.date_from"></label>
                 <label class="text-sm"><span class="mb-1 block font-semibold text-muted">Sampai tanggal</span><input class="form-control" type="date" x-model="filters.date_to"></label>
                 <label class="text-sm"><span class="mb-1 block font-semibold text-muted">Customer</span><select class="form-control" x-model="filters.customer_id"><option value="">Semua customer</option>@foreach ($customers as $customer)<option value="{{ $customer->id }}">{{ $customer->name }}</option>@endforeach</select></label>
                 <label class="text-sm"><span class="mb-1 block font-semibold text-muted">Status</span><select class="form-control" x-model="filters.status"><option value="all">Semua status</option><option value="paid">Lunas</option><option value="partial">Parsial</option><option value="unpaid">Belum bayar</option></select></label>
-                <button class="self-end rounded-lg bg-ink px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800" type="submit">Terapkan</button>
+                <button class="btn self-end bg-ink text-white hover:bg-slate-800" type="submit">Terapkan</button>
             </form>
             <p x-show="error" x-cloak class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" x-text="error"></p>
             <section class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <article class="rounded-xl border border-line bg-white p-5"><p class="text-sm text-muted">Penjualan</p><p class="mt-2 text-xl font-semibold text-ink" x-text="format(report.summary.sales)"></p></article>
-                <article class="rounded-xl border border-line bg-white p-5"><p class="text-sm text-muted">HPP FIFO</p><p class="mt-2 text-xl font-semibold text-ink" x-text="format(report.summary.fifo_hpp)"></p></article>
-                <article class="rounded-xl border border-line bg-white p-5"><p class="text-sm text-muted">Laba kotor</p><p class="mt-2 text-xl font-semibold text-ink" x-text="format(report.summary.gross_profit)"></p></article>
-                <article class="rounded-xl border border-line bg-white p-5"><p class="text-sm text-muted">Margin kotor</p><p class="mt-2 text-xl font-semibold text-ink" x-text="`${report.summary.margin_percent ?? 0}%`"></p></article>
+                <article class="card p-5"><p class="text-sm text-muted">Penjualan</p><p class="mt-2 text-xl font-semibold text-ink" x-text="format(report.summary.sales)"></p></article>
+                <article class="card p-5"><p class="text-sm text-muted">HPP FIFO</p><p class="mt-2 text-xl font-semibold text-ink" x-text="format(report.summary.fifo_hpp)"></p></article>
+                <article class="card p-5"><p class="text-sm text-muted">Laba kotor</p><p class="mt-2 text-xl font-semibold text-ink" x-text="format(report.summary.gross_profit)"></p></article>
+                <article class="card p-5"><p class="text-sm text-muted">Margin kotor</p><p class="mt-2 text-xl font-semibold text-ink" x-text="`${report.summary.margin_percent ?? 0}%`"></p></article>
             </section>
-            <div x-show="loading" class="rounded-xl border border-line bg-white px-5 py-12 text-center text-sm text-muted">Memuat laporan...</div>
-            <div x-show="!loading && report.customers.length === 0" class="rounded-xl border border-line bg-white px-5 py-12 text-center text-sm text-muted">Tidak ada penjualan pada filter ini.</div>
+            <div x-show="loading" class="card px-5 py-12 text-center text-sm text-muted">Memuat laporan...</div>
+            <div x-show="!loading && report.customers.length === 0" class="card px-5 py-12 text-center text-sm text-muted">Tidak ada penjualan pada filter ini.</div>
 
             <!-- One card per customer, invoices nested inside with a subtotal row - matches the PDF/CSV export layout instead of repeating the customer name on every invoice row. -->
             <template x-for="customer in report.customers" :key="customer.customer_id">
-                <section class="mb-4 overflow-hidden rounded-xl border border-line bg-white" x-show="!loading">
+                <section class="mb-4 overflow-hidden card" x-show="!loading">
                     <div class="flex items-center justify-between gap-3 border-b border-line bg-surface-low px-5 py-3">
                         <h3 class="font-semibold text-ink" x-text="customer.customer"></h3>
                         <span class="text-xs text-muted" x-text="`${customer.invoices.length} invoice`"></span>

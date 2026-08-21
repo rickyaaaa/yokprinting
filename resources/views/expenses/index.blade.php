@@ -37,8 +37,8 @@
 
             <div class="min-w-0 flex-1">
                 <header class="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
-                    <button type="button" class="mr-3 rounded-lg p-2 text-muted hover:bg-brand-50 hover:text-brand-800 lg:hidden" @click="sidebarOpen = true" aria-label="Buka navigasi">
-                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg>
+                    <button type="button" class="btn-icon mr-3 border-transparent lg:hidden" @click="sidebarOpen = true" aria-label="Buka navigasi">
+                        <i class="iconify tabler--align-left text-xl"></i>
                     </button>
                     <div class="flex items-center gap-2 text-sm">
                         <a href="{{ route('dashboard') }}" class="hidden text-muted hover:text-ink sm:inline">Dashboard</a>
@@ -54,7 +54,7 @@
                 >
                     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <div>
-                            <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Keuangan</span>
+                            <span class="badge badge-brand">Keuangan</span>
                             <h1 class="mt-3 text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Pengeluaran</h1>
                             <p class="mt-1 text-sm leading-6 text-muted">Catat dan telusuri seluruh biaya operasional dengan bukti pembayaran dan jejak audit.</p>
                         </div>
@@ -64,34 +64,34 @@
                                 x-show="config.canExport"
                                 :disabled="exporting"
                                 @click="exportCsv()"
-                                class="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800 disabled:cursor-wait disabled:opacity-60"
+                                class="btn btn-outline disabled:cursor-wait"
                             >
-                                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                <i class="iconify tabler--download text-base"></i>
                                 <span x-text="exporting ? 'Mengekspor...' : 'Export CSV'"></span>
                             </button>
                             <a
                                 x-show="config.canCreate"
                                 href="{{ route('expenses.create') }}"
-                                class="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800"
+                                class="btn btn-primary"
                             >
-                                <span class="text-lg leading-none">+</span>
+                                <i class="iconify tabler--plus text-base"></i>
                                 Tambah pengeluaran
                             </a>
                         </div>
                     </div>
 
                     <section class="mb-6 grid gap-4 sm:grid-cols-2" aria-label="Ringkasan pengeluaran">
-                        <article class="rounded-xl border border-line bg-white p-5">
+                        <article class="card p-5">
                             <p class="text-sm font-medium text-muted">Total pengeluaran sesuai filter</p>
                             <p class="mt-2 text-2xl font-semibold text-ink" x-text="formatRupiah(meta.total_expense)"></p>
                         </article>
-                        <article class="rounded-xl border border-line bg-white p-5">
+                        <article class="card p-5">
                             <p class="text-sm font-medium text-muted">Jumlah transaksi sesuai filter</p>
                             <p class="mt-2 text-2xl font-semibold text-ink" x-text="meta.total"></p>
                         </article>
                     </section>
 
-                    <section class="rounded-xl border border-line bg-white">
+                    <section class="card">
                         <form class="grid gap-3 border-b border-line p-5 md:grid-cols-2 xl:grid-cols-[minmax(13rem,1fr)_10rem_10rem_13rem_auto_auto]" @submit.prevent="applyFilters()">
                             <label>
                                 <span class="mb-1.5 block text-xs font-semibold text-muted">Pencarian</span>
@@ -114,8 +114,8 @@
                                     </template>
                                 </select>
                             </label>
-                            <button type="submit" class="self-end rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800">Terapkan</button>
-                            <button type="button" class="self-end rounded-lg border border-line px-4 py-2.5 text-sm font-semibold text-muted hover:bg-canvas" @click="resetFilters()">Reset</button>
+                            <button type="submit" class="btn btn-primary self-end">Terapkan</button>
+                            <button type="button" class="btn btn-outline self-end" @click="resetFilters()">Reset</button>
                         </form>
 
                         <div x-show="error" x-cloak class="m-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" x-text="error"></div>
@@ -153,8 +153,8 @@
                                             <td class="px-5 py-4" x-text="expense.creator?.name ?? '-' "></td>
                                             <td class="px-5 py-4 text-right">
                                                 <div class="flex justify-end gap-2">
-                                                    <a x-show="config.canUpdate" :href="editUrl(expense.id)" class="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-canvas">Edit</a>
-                                                    <button x-show="config.canDelete" type="button" class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50" @click="deleteExpense(expense)">Hapus</button>
+                                                    <a x-show="config.canUpdate" :href="editUrl(expense.id)" class="btn btn-sm btn-outline">Edit</a>
+                                                    <button x-show="config.canDelete" type="button" class="btn btn-sm btn-danger-outline" @click="deleteExpense(expense)">Hapus</button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -169,9 +169,9 @@
                         <footer class="flex flex-col gap-3 border-t border-line px-5 py-4 text-sm sm:flex-row sm:items-center sm:justify-between">
                             <p class="text-muted" x-text="rangeSummary"></p>
                             <div class="flex items-center gap-2">
-                                <button type="button" class="rounded-lg border border-line px-3 py-2 font-semibold disabled:cursor-not-allowed disabled:opacity-40" :disabled="meta.current_page <= 1 || loading" @click="goToPage(meta.current_page - 1)">Sebelumnya</button>
+                                <button type="button" class="btn btn-outline disabled:cursor-not-allowed" :disabled="meta.current_page <= 1 || loading" @click="goToPage(meta.current_page - 1)">Sebelumnya</button>
                                 <span class="px-2 text-muted" x-text="`Halaman ${meta.current_page} dari ${meta.last_page}`"></span>
-                                <button type="button" class="rounded-lg border border-line px-3 py-2 font-semibold disabled:cursor-not-allowed disabled:opacity-40" :disabled="meta.current_page >= meta.last_page || loading" @click="goToPage(meta.current_page + 1)">Berikutnya</button>
+                                <button type="button" class="btn btn-outline disabled:cursor-not-allowed" :disabled="meta.current_page >= meta.last_page || loading" @click="goToPage(meta.current_page + 1)">Berikutnya</button>
                             </div>
                         </footer>
                     </section>

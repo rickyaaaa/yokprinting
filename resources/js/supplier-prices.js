@@ -115,10 +115,10 @@ export const registerSupplierPriceComponents = (Alpine) => {
 
         statusClass(status) {
             return {
-                active: 'bg-green-100 text-green-800',
-                upcoming: 'bg-blue-100 text-blue-800',
-                expired: 'bg-red-100 text-red-800',
-            }[status] ?? 'bg-canvas text-muted';
+                active: 'badge-success',
+                upcoming: 'badge-info',
+                expired: 'badge-danger',
+            }[status] ?? 'badge-default';
         },
 
         expiryWarning(priceList) {

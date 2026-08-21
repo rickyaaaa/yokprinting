@@ -24,8 +24,8 @@
 
             <div class="min-w-0 flex-1">
                 <header class="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
-                    <button type="button" class="mr-3 rounded-lg p-2 text-muted hover:bg-brand-50 hover:text-brand-800 lg:hidden" @click="sidebarOpen = true" aria-label="Buka navigasi">
-                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg>
+                    <button type="button" class="btn-icon mr-3 border-transparent lg:hidden" @click="sidebarOpen = true" aria-label="Buka navigasi">
+                        <i class="iconify tabler--align-left text-xl"></i>
                     </button>
                     <div class="flex min-w-0 items-center gap-2 text-sm">
                         <a href="{{ route('reports.sales.index') }}" class="hidden text-muted hover:text-ink sm:inline">Laporan penjualan</a>
@@ -41,21 +41,21 @@
                 >
                     <div class="flex flex-col gap-5 border-b border-line pb-6 lg:flex-row lg:items-end lg:justify-between">
                         <div>
-                            <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Keuangan</span>
+                            <span class="badge badge-brand">Keuangan</span>
                             <h1 class="mt-3 text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Laporan laba rugi</h1>
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Ringkasan invoice final dengan pajak dan ongkir pelanggan dipisahkan dari omzet penjualan.</p>
                         </div>
                         <div class="flex flex-wrap gap-2" x-show="config.canExport" x-cloak>
-                            <button type="button" class="rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:bg-canvas disabled:opacity-50" :disabled="Boolean(exporting)" @click="download('pdf')">
+                            <button type="button" class="btn btn-outline disabled:opacity-50" :disabled="Boolean(exporting)" @click="download('pdf')">
                                 <span x-text="exporting === 'pdf' ? 'Menyiapkan PDF...' : 'Export PDF'"></span>
                             </button>
-                            <button type="button" class="rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-50" :disabled="Boolean(exporting)" @click="download('excel')">
+                            <button type="button" class="btn btn-primary disabled:opacity-50" :disabled="Boolean(exporting)" @click="download('excel')">
                                 <span x-text="exporting === 'excel' ? 'Menyiapkan Excel...' : 'Export Excel'"></span>
                             </button>
                         </div>
                     </div>
 
-                    <section class="mt-6 rounded-xl border border-line bg-white p-4 sm:p-5" aria-label="Filter periode laporan">
+                    <section class="mt-6 card p-4 sm:p-5" aria-label="Filter periode laporan">
                         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-[12rem_1fr_1fr_auto]">
                             <label>
                                 <span class="mb-1.5 block text-xs font-semibold text-muted">Periode</span>
@@ -75,7 +75,7 @@
                                 <span class="mb-1.5 block text-xs font-semibold text-muted">Sampai tanggal</span>
                                 <input type="date" class="form-control" x-model="dateTo" :disabled="selectedPeriod !== 'custom'">
                             </label>
-                            <button type="button" class="self-end rounded-lg bg-ink px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40" :disabled="selectedPeriod !== 'custom' || loading" @click="applyCustomRange()">Terapkan</button>
+                            <button type="button" class="btn bg-ink text-white hover:bg-slate-800 self-end disabled:cursor-not-allowed" :disabled="selectedPeriod !== 'custom' || loading" @click="applyCustomRange()">Terapkan</button>
                         </div>
                     </section>
 
@@ -87,7 +87,7 @@
                     </div>
 
                     <div x-show="!loading" x-cloak class="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
-                        <section class="overflow-hidden rounded-xl border border-line bg-white" aria-labelledby="statement-heading">
+                        <section class="overflow-hidden card" aria-labelledby="statement-heading">
                             <div class="flex flex-col gap-1 border-b border-line bg-canvas px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                                 <h2 id="statement-heading" class="font-semibold text-ink">Rincian laba rugi</h2>
                                 <p class="text-sm text-muted" x-text="report.period.label"></p>
@@ -170,7 +170,7 @@
                         </section>
 
                         <aside class="space-y-4">
-                            <section class="rounded-xl border border-line bg-white p-5">
+                            <section class="card p-5">
                                 <h2 class="font-semibold text-ink">Volume penjualan</h2>
                                 <dl class="mt-4 space-y-4 text-sm">
                                     <div>

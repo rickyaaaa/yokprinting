@@ -27,8 +27,8 @@
 
             <div class="min-w-0 flex-1">
                 <header class="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
-                    <button type="button" class="mr-3 rounded-lg p-2 text-muted hover:bg-brand-50 lg:hidden" @click="sidebarOpen = true" aria-label="Buka navigasi">
-                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg>
+                    <button type="button" class="btn-icon mr-3 border-transparent lg:hidden" @click="sidebarOpen = true" aria-label="Buka navigasi">
+                        <i class="iconify tabler--align-left text-xl"></i>
                     </button>
                     <a href="{{ route('expenses.index') }}" class="text-sm font-medium text-muted hover:text-ink">Pengeluaran</a>
                     <span class="mx-2 text-line">/</span>
@@ -45,7 +45,7 @@
                         <p class="mt-1 text-sm text-muted">Gunakan keterangan untuk rincian Biaya Produksi, Belanjaan, dan Biaya Tempat.</p>
                     </div>
 
-                    <form class="rounded-xl border border-line bg-white p-5 sm:p-7" @submit.prevent="submit()">
+                    <form class="card p-5 sm:p-7" @submit.prevent="submit()">
                         <div x-show="generalError" x-cloak class="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" x-text="generalError"></div>
                         <div x-show="loading" class="py-10 text-center text-sm text-muted">Memuat data pengeluaran...</div>
 
@@ -117,8 +117,8 @@
                         </div>
 
                         <div class="mt-7 flex flex-col-reverse gap-3 border-t border-line pt-5 sm:flex-row sm:justify-end">
-                            <a href="{{ route('expenses.index') }}" class="rounded-lg border border-line px-4 py-2.5 text-center text-sm font-semibold text-muted hover:bg-canvas">Batal</a>
-                            <button type="submit" class="rounded-lg bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-60" :disabled="saving || loading" x-text="saving ? 'Menyimpan...' : 'Simpan pengeluaran'"></button>
+                            <a href="{{ route('expenses.index') }}" class="btn btn-outline text-center">Batal</a>
+                            <button type="submit" class="btn btn-primary disabled:cursor-not-allowed" :disabled="saving || loading" x-text="saving ? 'Menyimpan...' : 'Simpan pengeluaran'"></button>
                         </div>
                     </form>
                 </main>

@@ -14,7 +14,7 @@
         @php($yokPrintingLogo = 'data:image/png;base64,'.base64_encode(file_get_contents(public_path('images/yokprinting-logo.png'))))
 
         <main class="flex min-h-screen items-center justify-center px-4 py-8 sm:px-6">
-            <section class="w-full max-w-[440px] rounded-2xl border border-line bg-white p-6 sm:p-8" aria-labelledby="login-heading">
+            <section class="w-full max-w-[440px] card p-6 sm:p-8" aria-labelledby="login-heading">
                 <div class="flex flex-col items-center gap-4 text-center">
                     <div class="flex h-16 w-32 items-center justify-center rounded-xl border border-line bg-surface-low px-3">
                         <img src="{{ $yokPrintingLogo }}" alt="YokPrinting.ID" class="h-auto w-full object-contain">
@@ -46,10 +46,7 @@
                         <span class="text-sm font-medium text-ink">Username</span>
                         <span class="relative mt-1.5 block">
                             <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden="true">
-                                <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
-                                    <path d="M4 6.5h16v11H4z" stroke-linejoin="round"/>
-                                    <path d="m5 8 7 5 7-5" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
+                                <i class="iconify tabler--user text-lg"></i>
                             </span>
                             <input
                                 type="text"
@@ -74,11 +71,7 @@
                         </span>
                         <span class="relative mt-1.5 block">
                             <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden="true">
-                                <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
-                                    <path d="M7 10V8a5 5 0 0 1 10 0v2" stroke-linecap="round"/>
-                                    <path d="M6 10h12v10H6z" stroke-linejoin="round"/>
-                                    <path d="M12 14.5v2" stroke-linecap="round"/>
-                                </svg>
+                                <i class="iconify tabler--lock text-lg"></i>
                             </span>
                             <input
                                 :type="showPassword ? 'text' : 'password'"
@@ -106,7 +99,7 @@
                         <span>Remember me for 30 days</span>
                     </label>
 
-                    <button type="submit" class="inline-flex h-10 w-full items-center justify-center rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60" data-testid="login-submit-button">
+                    <button type="submit" class="btn btn-primary h-10 w-full" data-testid="login-submit-button">
                         Sign In
                     </button>
                 </form>

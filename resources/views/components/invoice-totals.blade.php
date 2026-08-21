@@ -63,7 +63,7 @@
         normalizeTax();
         normalizeShipping();
     "
-    class="overflow-hidden rounded-xl bg-white border border-line"
+    class="overflow-hidden card"
 >
     <div class="border-b border-line px-5 py-4">
         <h2 class="font-semibold text-ink">Ringkasan</h2>
@@ -76,9 +76,7 @@
                 <h3 class="text-sm font-semibold text-ink">Pajak & diskon</h3>
                 <p class="mt-0.5 text-xs text-muted">Kalkulasi diperbarui otomatis.</p>
             </div>
-            <svg class="size-5 text-brand-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
-                <path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6" stroke-linecap="round"/>
-            </svg>
+            <i class="iconify tabler--adjustments-horizontal text-lg text-brand-700"></i>
         </div>
 
         <div class="grid grid-cols-[minmax(0,1fr)_7rem] gap-3">
@@ -211,27 +209,20 @@
         <button
             type="submit"
             data-testid="save-invoice-draft"
-            class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 py-3 text-sm font-semibold text-white hover:bg-brand-800 active:translate-y-px disabled:cursor-wait disabled:opacity-70"
+            class="btn btn-primary w-full cursor-pointer py-3 active:translate-y-px disabled:cursor-wait"
             :disabled="savingDraft"
         >
-            <svg x-show="! savingDraft" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                <path d="M5 4h12l2 2v14H5V4Zm3 0v6h8V4M8 16h8" stroke-linejoin="round"/>
-            </svg>
-            <svg x-show="savingDraft" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <path d="M21 12a9 9 0 1 1-2.64-6.36" stroke-linecap="round"/>
-            </svg>
+            <i x-show="! savingDraft" class="iconify tabler--device-floppy text-base"></i>
+            <i x-show="savingDraft" class="iconify tabler--loader-2 animate-spin text-base"></i>
             <span x-text="savingDraft ? '{{ $isEdit ? 'Menyimpan perubahan…' : 'Menyimpan invoice…' }}' : (draftSaved ? 'Invoice tersimpan' : '{{ $isEdit ? 'Simpan perubahan' : 'Simpan invoice' }}')"></span>
         </button>
         @unless ($isEdit)
             <button
                 type="button"
-                class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-brand-300 bg-white px-4 py-3 text-sm font-semibold text-brand-800 hover:bg-brand-50"
+                class="btn border-brand-300 bg-white text-brand-800 hover:bg-brand-50 w-full cursor-pointer py-3"
                 @click="$dispatch('invoice-preview-requested', { url: '{{ route('invoices.preview') }}' })"
             >
-                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                    <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" stroke-linejoin="round"/>
-                    <circle cx="12" cy="12" r="2.5"/>
-                </svg>
+                <i class="iconify tabler--eye text-base"></i>
                 Pratinjau invoice
             </button>
         @endunless

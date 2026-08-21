@@ -28,8 +28,8 @@
 
             <div class="min-w-0 flex-1">
                 <header class="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
-                    <button type="button" class="mr-3 rounded-lg p-2 text-muted hover:bg-brand-50 hover:text-brand-800 lg:hidden" @click="sidebarOpen = true" aria-label="Buka navigasi">
-                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg>
+                    <button type="button" class="btn-icon mr-3 border-transparent lg:hidden" @click="sidebarOpen = true" aria-label="Buka navigasi">
+                        <i class="iconify tabler--align-left text-xl"></i>
                     </button>
                     <div class="flex items-center gap-2 text-sm">
                         <a href="{{ route('dashboard') }}" class="hidden text-muted hover:text-ink sm:inline">Dashboard</a>
@@ -44,19 +44,19 @@
                 >
                     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <div>
-                            <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">Pembelian</span>
+                            <span class="badge badge-brand">Pembelian</span>
                             <h1 class="mt-3 text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Harga Supplier</h1>
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Histori harga yang ditawarkan supplier - referensi saat membuat PO, bukan harga transaksi. Setiap harga baru dari supplier dicatat sebagai entri baru, histori lama tidak pernah dihapus.</p>
                         </div>
                         @if ($can('supplier_price.create'))
-                            <a href="{{ route('supplier-prices.create') }}" class="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800">
-                                <span class="text-lg leading-none">+</span>
+                            <a href="{{ route('supplier-prices.create') }}" class="btn btn-primary">
+                                <i class="iconify tabler--plus text-base"></i>
                                 Tambah harga supplier
                             </a>
                         @endif
                     </div>
 
-                    <section class="rounded-xl border border-line bg-white">
+                    <section class="card">
                         <form class="grid gap-3 border-b border-line p-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6" @submit.prevent="applyFilters()">
                             <label class="sm:col-span-2 lg:col-span-1">
                                 <span class="mb-1.5 block text-xs font-semibold text-muted">Pencarian</span>
@@ -98,8 +98,8 @@
                                 <input type="date" class="form-control" x-model="filters.date_to">
                             </label>
                             <div class="flex items-end gap-3 sm:col-span-2 lg:col-span-3 xl:col-span-6">
-                                <button type="submit" class="min-h-11 flex-1 rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 sm:flex-none sm:px-8">Terapkan</button>
-                                <button type="button" class="min-h-11 flex-1 rounded-lg border border-line px-4 py-2.5 text-sm font-semibold text-muted hover:bg-canvas sm:flex-none sm:px-8" @click="resetFilters()">Reset</button>
+                                <button type="submit" class="btn btn-primary min-h-11 flex-1 sm:flex-none sm:px-8">Terapkan</button>
+                                <button type="button" class="btn btn-outline min-h-11 flex-1 sm:flex-none sm:px-8" @click="resetFilters()">Reset</button>
                             </div>
                         </form>
 
@@ -132,7 +132,7 @@
                                             <td class="whitespace-nowrap px-5 py-4 text-muted" x-text="formatDate(priceList.valid_from)"></td>
                                             <td class="whitespace-nowrap px-5 py-4 text-muted" x-text="priceList.valid_until ? formatDate(priceList.valid_until) : 'Seterusnya'"></td>
                                             <td class="px-5 py-4">
-                                                <span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="statusClass(priceList.status)" x-text="priceList.status_label"></span>
+                                                <span class="badge" :class="statusClass(priceList.status)" x-text="priceList.status_label"></span>
                                                 <span x-show="expiryWarning(priceList)" class="mt-1 block text-xs font-medium text-amber-700" x-text="expiryWarning(priceList)"></span>
                                             </td>
                                             <td class="max-w-[220px] px-5 py-4 text-muted" x-text="priceList.notes || '-'"></td>
@@ -149,9 +149,9 @@
                         <footer class="flex flex-col gap-3 border-t border-line px-5 py-4 text-sm sm:flex-row sm:items-center sm:justify-between">
                             <p class="text-muted" x-text="`Total ${meta.total} entri harga`"></p>
                             <div class="flex items-center gap-2">
-                                <button type="button" class="rounded-lg border border-line px-3 py-2 font-semibold disabled:cursor-not-allowed disabled:opacity-40" :disabled="meta.current_page <= 1 || loading" @click="goToPage(meta.current_page - 1)">Sebelumnya</button>
+                                <button type="button" class="btn btn-outline disabled:cursor-not-allowed" :disabled="meta.current_page <= 1 || loading" @click="goToPage(meta.current_page - 1)">Sebelumnya</button>
                                 <span class="px-2 text-muted" x-text="`Halaman ${meta.current_page} dari ${meta.last_page}`"></span>
-                                <button type="button" class="rounded-lg border border-line px-3 py-2 font-semibold disabled:cursor-not-allowed disabled:opacity-40" :disabled="meta.current_page >= meta.last_page || loading" @click="goToPage(meta.current_page + 1)">Berikutnya</button>
+                                <button type="button" class="btn btn-outline disabled:cursor-not-allowed" :disabled="meta.current_page >= meta.last_page || loading" @click="goToPage(meta.current_page + 1)">Berikutnya</button>
                             </div>
                         </footer>
                     </section>

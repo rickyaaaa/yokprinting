@@ -5,15 +5,13 @@
 >
     <button
         type="button"
-        class="relative rounded-lg p-2 text-muted hover:bg-brand-50 hover:text-brand-800"
+        class="btn-icon relative border-transparent"
         aria-label="Lihat notifikasi"
         aria-controls="notification-popover"
         :aria-expanded="open"
         @click="toggle()"
     >
-        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
-            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <i class="iconify tabler--bell text-lg"></i>
         <span
             x-show="count > 0"
             x-cloak
@@ -35,7 +33,7 @@
                 <p class="text-sm font-semibold text-ink">Notifikasi pembayaran</p>
                 <p class="mt-0.5 text-xs text-muted" x-text="count ? `${count} invoice perlu perhatian` : 'Tidak ada invoice prioritas'"></p>
             </div>
-            <span class="rounded-full bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-800">Jatuh tempo</span>
+            <span class="badge badge-danger !px-2 !py-1 !text-[10px]">Jatuh tempo</span>
         </div>
 
         <div class="max-h-80 overflow-y-auto">
@@ -52,8 +50,8 @@
                     <div class="flex items-start justify-between gap-3">
                         <span class="font-mono text-xs font-semibold text-brand-800" x-text="notification.invoice_number"></span>
                         <span
-                            class="rounded-full px-2 py-1 text-[10px] font-semibold"
-                            :class="notification.notification_status === 'overdue' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-900'"
+                            class="badge !px-2 !py-1 !text-[10px]"
+                            :class="notification.notification_status === 'overdue' ? 'badge-danger' : 'badge-warning'"
                             x-text="notification.notification_label"
                         ></span>
                     </div>

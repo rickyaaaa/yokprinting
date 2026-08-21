@@ -7,8 +7,9 @@
 >
     <div class="mb-2 flex items-center justify-between gap-4">
         <label class="form-label mb-0" for="customer-search">Pelanggan <span aria-hidden="true">*</span></label>
-        <a class="text-sm font-semibold text-brand transition hover:text-brand-strong" href="{{ route('customers.create') }}" target="_blank" rel="noopener">
-            + Pelanggan baru
+        <a class="inline-flex items-center gap-1 text-sm font-semibold text-brand-700 transition hover:text-brand-800" href="{{ route('customers.create') }}" target="_blank" rel="noopener">
+            <i class="iconify tabler--plus text-sm"></i>
+            Pelanggan baru
         </a>
     </div>
 
@@ -34,7 +35,7 @@
     >
         <span class="flex min-w-0 items-center gap-3">
             <span
-                class="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-soft text-xs font-bold tracking-wide text-brand"
+                class="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-100 text-xs font-bold tracking-wide text-brand-800"
                 x-text="selected?.initials ?? '…'"
             ></span>
             <span class="min-w-0">
@@ -48,25 +49,23 @@
                 ></span>
             </span>
         </span>
-        <svg class="size-4 shrink-0 text-muted transition" :class="{ 'rotate-180': open }" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-            <path d="m6 8 4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <i class="iconify tabler--chevron-down shrink-0 text-base text-muted transition" :class="{ 'rotate-180': open }"></i>
     </button>
 
     <div
         x-show="loading"
-        class="mt-3 flex items-center gap-3 rounded-xl border border-line bg-surface-soft px-4 py-3 text-sm text-muted"
+        class="mt-3 flex items-center gap-3 rounded-xl border border-line bg-canvas px-4 py-3 text-sm text-muted"
         data-testid="customer-picker-loading"
         role="status"
     >
-        <span class="size-4 animate-spin rounded-full border-2 border-line border-t-brand" aria-hidden="true"></span>
+        <span class="size-4 animate-spin rounded-full border-2 border-line border-t-brand-600" aria-hidden="true"></span>
         Memuat data pelanggan…
     </div>
 
     <div
         x-show="errorMessage && !loading"
         x-cloak
-        class="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-danger/20 bg-danger-soft px-4 py-3 text-sm text-danger"
+        class="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
         role="alert"
     >
         <span x-text="errorMessage"></span>
@@ -78,14 +77,11 @@
     <div
         x-show="open && !loading && !errorMessage"
         x-cloak
-        class="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-line bg-surface shadow-xl shadow-slate-900/10"
+        class="absolute z-50 mt-2 w-full overflow-hidden rounded-xl border border-line bg-white shadow-xl shadow-ink/10"
     >
         <div class="border-b border-line p-3">
             <div class="relative">
-                <svg class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                    <circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.7"/>
-                    <path d="m13 13 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-                </svg>
+                <i class="iconify tabler--search pointer-events-none absolute left-3 top-1/2 text-base -translate-y-1/2 text-muted"></i>
                 <input
                     id="customer-search"
                     x-ref="search"
