@@ -36,6 +36,46 @@ class GenerateInvoicePdfTest extends TestCase
         $this->assertStringStartsWith('%PDF-', Storage::disk('local')->get($path));
     }
 
+    public function test_sales_order_batch_shows_minimum_dp_and_total_receivable(): void
+    {
+        $html = view('pdf.invoices.sales-order-batch', [
+            'dateFrom' => '2026-08-20',
+            'dateTo' => '2026-08-20',
+            'orders' => collect([[
+                'invoice_number' => 'INV-2026-0079',
+                'issue_date_label' => '20 Agustus 2026',
+                'due_date_label' => '3 September 2026',
+                'payment_status' => 'Menunggu',
+                'order_status' => 'Menunggu diproses',
+                'customer' => ['name' => 'PT Sinar Nusantara', 'address' => 'Jakarta', 'email' => '', 'phone' => ''],
+                'items' => [[
+                    'code' => 'SKU-001',
+                    'name' => 'Cup Injection',
+                    'note' => '',
+                    'quantity_label' => '10 Pcs',
+                    'unit_price' => 6000,
+                    'line_total' => 60000,
+                ]],
+                'subtotal' => 60000,
+                'discount_amount' => 0,
+                'tax_amount' => 0,
+                'shipping_cost' => 0,
+                'is_free_shipping' => false,
+                'total_amount' => 60000,
+                'dp_required_percent' => 50,
+                'dp_amount' => 30000,
+                'paid_amount' => 0,
+                'remaining_amount' => 60000,
+                'notes' => null,
+                'terms' => null,
+            ]]),
+        ])->render();
+
+        $this->assertStringContainsString('Minimal DP 50%', $html);
+        $this->assertStringContainsString('Rp30.000', $html);
+        $this->assertStringContainsString('Total piutang', $html);
+    }
+
     private function invoice(): Invoice
     {
         $customer = Customer::query()->create([

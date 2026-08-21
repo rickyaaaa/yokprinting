@@ -57,6 +57,8 @@
             .totals td { padding: 5px 7px; border: 1px solid #cbd5e1; }
             .totals td:last-child { text-align: right; white-space: nowrap; }
             .totals .grand td { border-top: 2px solid #102a4e; font-size: 10px; font-weight: 700; }
+            .totals .dp td { background: #eaf2ff; color: #2046ad; font-weight: 700; }
+            .totals .dp td:last-child { color: #2046ad; }
             .notes { margin-top: 12px; border: 1px solid #9aa8ba; }
             .notes td { padding: 7px; vertical-align: top; }
             .notes .content { min-height: 35px; color: #384e69; white-space: pre-line; }
@@ -147,8 +149,9 @@
                         <tr><td>{{ ($order['is_free_shipping'] ?? false) ? 'Free ongkir' : 'Ongkir' }}</td><td>{{ $money($order['shipping_cost']) }}</td></tr>
                     @endif
                     <tr class="grand"><td>Total</td><td>{{ $money($order['total_amount']) }}</td></tr>
+                    <tr class="dp"><td>Minimal DP {{ $percent($order['dp_required_percent'] ?? 0) }}%</td><td>{{ $money($order['dp_amount'] ?? 0) }}</td></tr>
                     <tr><td>Uang muka tercatat</td><td>{{ $money($order['paid_amount']) }}</td></tr>
-                    <tr><td>Sisa pembayaran</td><td>{{ $money($order['remaining_amount']) }}</td></tr>
+                    <tr><td>Total piutang</td><td>{{ $money($order['remaining_amount']) }}</td></tr>
                 </table>
 
                 <table class="notes">
