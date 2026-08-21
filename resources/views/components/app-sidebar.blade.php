@@ -126,7 +126,7 @@
         data-testid="app-sidebar-nav"
         x-init="
             $nextTick(() => {
-                const activeItem = $el.querySelector('[aria-current=\"page\"]');
+                const activeItem = $el.querySelector('[aria-current=page]');
                 if (!activeItem) return;
 
                 const itemTop = activeItem.offsetTop;
