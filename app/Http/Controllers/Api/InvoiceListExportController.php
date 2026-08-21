@@ -6,6 +6,7 @@ use App\Exports\ReportCsvExport;
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Services\Invoices\GenerateInvoicePdf;
 use Carbon\CarbonImmutable;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -65,9 +66,22 @@ class InvoiceListExportController extends Controller
         );
     }
 
-    public function ordersPdf(Request $request): Response
+    public function ordersPdf(Request $request, GenerateInvoicePdf $generateInvoicePdf): Response
     {
-        return $this->renderPdf($request, true, 'Cetak Pesanan', 'cetak-pesanan');
+        $report = $this->report($request, true);
+        $pdf = $generateInvoicePdf->generateSalesOrderBatch(
+            $report['invoices'],
+            $report['date_from'],
+            $report['date_to'],
+        );
+
+        return response($pdf->contents, Response::HTTP_OK, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$pdf->filename.'"',
+            'Content-Length' => (string) strlen($pdf->contents),
+            'Cache-Control' => 'private, no-store',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     private function renderPdf(Request $request, bool $defaultToday, string $title, string $filename): Response
@@ -94,7 +108,7 @@ class InvoiceListExportController extends Controller
     }
 
     /**
-     * @return array{rows: Collection<int, array<string, mixed>>, date_from: ?string, date_to: ?string}
+     * @return array{invoices: Collection<int, Invoice>, rows: Collection<int, array<string, mixed>>, date_from: ?string, date_to: ?string}
      */
     private function report(Request $request, bool $defaultToday = false): array
     {
@@ -137,6 +151,7 @@ class InvoiceListExportController extends Controller
             ->get();
 
         return [
+            'invoices' => $invoices,
             'rows' => $invoices->map(fn (Invoice $invoice): array => $this->formatInvoice($invoice))->values(),
             'date_from' => $dateFrom,
             'date_to' => $dateTo,

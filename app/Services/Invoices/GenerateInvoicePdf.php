@@ -5,6 +5,7 @@ namespace App\Services\Invoices;
 use App\Models\Invoice;
 use Dompdf\Dompdf;
 use Dompdf\Options;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -30,6 +31,55 @@ class GenerateInvoicePdf
         return new GeneratedInvoicePdf(
             contents: $dompdf->output(),
             filename: $this->filename($invoice),
+        );
+    }
+
+    /**
+     * Generate one sales-order document per invoice in a single PDF.
+     *
+     * @param  Collection<int, Invoice>  $invoices
+     */
+    public function generateSalesOrderBatch(
+        Collection $invoices,
+        ?string $dateFrom = null,
+        ?string $dateTo = null,
+    ): GeneratedInvoicePdf {
+        $orders = $invoices->map(function (Invoice $invoice): array {
+            $invoice->loadMissing(['customer', 'items', 'payments']);
+
+            $preview = $this->previewFor($invoice);
+            $paidAmount = (float) $invoice->payments->sum('amount');
+
+            return array_merge($preview, [
+                'due_date_label' => $invoice->due_date?->locale('id')->translatedFormat('j F Y') ?? '-',
+                'payment_status' => $this->paymentStatusLabel($invoice, $paidAmount),
+                'order_status' => $this->orderStatusLabel($invoice),
+                'paid_amount' => $paidAmount,
+                'remaining_amount' => max(0, (float) $invoice->total_amount - $paidAmount),
+            ]);
+        })->values();
+
+        $options = new Options;
+        $options->set('defaultFont', 'DejaVu Sans');
+        $options->set('isRemoteEnabled', false);
+        $options->set('isPhpEnabled', false);
+
+        $dompdf = new Dompdf($options);
+        $dompdf->setPaper('a4');
+        $dompdf->loadHtml(view('pdf.invoices.sales-order-batch', [
+            'orders' => $orders,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+        ])->render(), 'UTF-8');
+        $dompdf->render();
+
+        $dateLabel = $dateFrom && $dateTo && $dateFrom === $dateTo
+            ? $dateFrom
+            : (($dateFrom ?: 'semua').'-'.($dateTo ?: 'tanggal'));
+
+        return new GeneratedInvoicePdf(
+            contents: $dompdf->output(),
+            filename: "cetak-pesanan-detail-{$dateLabel}.pdf",
         );
     }
 
@@ -97,7 +147,7 @@ class GenerateInvoicePdf
             ],
             'items' => $invoice->items->values()->map(function ($item): array {
                 $quantity = (float) $item->quantity;
-                $unit = 'Pcs';
+                $unit = $item->unit ?: 'Pcs';
                 $note = collect([
                     $item->sku ? "SKU: {$item->sku}" : null,
                     $item->order_increment ? 'Kelipatan jumlah '.number_format((float) $item->order_increment, 0, ',', '.')." {$unit}" : null,
@@ -105,6 +155,7 @@ class GenerateInvoicePdf
 
                 return [
                     'name' => $item->description ?: $item->product_name,
+                    'code' => $item->sku ?: '-',
                     'note' => $note,
                     'quantity' => $quantity,
                     'unit' => $unit,
@@ -129,6 +180,49 @@ class GenerateInvoicePdf
             'notes' => $invoice->notes,
             'terms' => $invoice->terms,
         ];
+    }
+
+    private function paymentStatusLabel(Invoice $invoice, float $paidAmount): string
+    {
+        if ($invoice->status === Invoice::STATUS_DRAFT) {
+            return 'Draft';
+        }
+
+        if ($invoice->status === Invoice::STATUS_CANCELLED) {
+            return 'Dibatalkan';
+        }
+
+        if ($paidAmount >= (float) $invoice->total_amount) {
+            return 'Lunas';
+        }
+
+        if ($invoice->due_date?->isPast()) {
+            return 'Overdue';
+        }
+
+        return $invoice->payment_status === Invoice::PAYMENT_PARTIAL ? 'Parsial' : 'Menunggu';
+    }
+
+    private function orderStatusLabel(Invoice $invoice): string
+    {
+        if ($invoice->order_process_status === Invoice::ORDER_PROCESS_DRAFT
+            && $invoice->production_status !== Invoice::PRODUCTION_DRAFT) {
+            return match ($invoice->production_status) {
+                Invoice::PRODUCTION_IN_PRODUCTION => 'Masih produksi',
+                Invoice::PRODUCTION_COMPLETED => 'Selesai',
+                Invoice::PRODUCTION_AWAITING_DP => 'Menunggu DP',
+                Invoice::PRODUCTION_DESIGN_ACC => 'ACC Mockup/Desain',
+                Invoice::PRODUCTION_READY_FOR_PICKUP => 'Siap Diambil/Kirim',
+                default => 'Drafting',
+            };
+        }
+
+        return match ($invoice->order_process_status) {
+            Invoice::ORDER_PROCESS_IN_PRODUCTION => 'Masih produksi',
+            Invoice::ORDER_PROCESS_READY_TO_SHIP => 'Siap dikirim',
+            Invoice::ORDER_PROCESS_COMPLETED => 'Selesai',
+            default => 'Menunggu diproses',
+        };
     }
 
     private function filenameFromNumber(string $invoiceNumber): string

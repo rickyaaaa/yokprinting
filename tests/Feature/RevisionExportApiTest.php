@@ -111,7 +111,21 @@ class RevisionExportApiTest extends TestCase
         $this->assertStringContainsString('Masih produksi', $csv);
         $this->assertStringContainsString('3050000', $csv);
         $this->assertStringNotContainsString('INV-ORDER-YESTERDAY', $csv);
-        $this->assertStringStartsWith('%PDF', $this->get(route('api.invoices.export.orders.pdf'))->assertOk()->getContent());
+        $pdfResponse = $this->get(route('api.invoices.export.orders.pdf'))
+            ->assertOk()
+            ->assertHeader('Content-Disposition', 'attachment; filename="cetak-pesanan-detail-2026-08-20.pdf"');
+
+        $this->assertStringStartsWith('%PDF', $pdfResponse->getContent());
+
+        $filteredPdfResponse = $this->get(route('api.invoices.export.orders.pdf', [
+            'date_from' => '2026-08-20',
+            'date_to' => '2026-08-20',
+        ]))->assertOk();
+
+        $this->assertSame(
+            'attachment; filename="cetak-pesanan-detail-2026-08-20.pdf"',
+            $filteredPdfResponse->headers->get('Content-Disposition'),
+        );
     }
 
     private function invoice(Customer $customer, string $number, string $date): Invoice
