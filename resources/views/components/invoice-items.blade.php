@@ -161,7 +161,7 @@
                             <input type="hidden" :name="`items[${index}][packaging_unit]`" :value="item.packagingUnit">
                             <input type="hidden" :name="`items[${index}][description]`" :value="cupDescription(item)">
 
-                            <div class="mt-4 grid {{ $hideLegacySpecs ? 'min-w-[16rem] max-w-md grid-cols-2' : 'min-w-[32rem] grid-cols-[5rem_5rem_4.75rem_5rem_7rem]' }} gap-2 rounded-lg border border-line bg-canvas p-3">
+                            <div data-testid="{{ $hideLegacySpecs ? 'create-invoice-specs' : 'invoice-specs' }}" class="mt-4 grid {{ $hideLegacySpecs ? 'w-full max-w-[22rem] grid-cols-[minmax(0,1fr)_minmax(0,1fr)]' : 'min-w-[32rem] grid-cols-[5rem_5rem_4.75rem_5rem_7rem]' }} gap-2 rounded-lg border border-line bg-canvas p-3">
                                 @if (! $hideLegacySpecs)
                                     <div>
                                         <label class="mb-1 block text-[11px] font-semibold text-muted" :for="`cup-size-${item.key}`">Ukuran</label>
@@ -188,11 +188,11 @@
                                 @endif
                                 <div>
                                     <label class="mb-1 block text-[11px] font-semibold text-muted" :for="`ink-${item.key}`">Tinta</label>
-                                    <input :id="`ink-${item.key}`" x-model="item.screenPrintingColor" :name="`items[${index}][screen_printing_color]`" class="form-control h-10 px-2 text-xs" placeholder="Hitam">
+                                    <input :id="`ink-${item.key}`" x-model="item.screenPrintingColor" :name="`items[${index}][screen_printing_color]`" class="form-control {{ $hideLegacySpecs ? 'h-11 min-h-11' : 'h-10' }} px-2 text-xs" placeholder="Hitam">
                                 </div>
                                 <div>
                                     <label class="mb-1 block text-[11px] font-semibold text-muted" :for="`jenis-cetak-${item.key}`">Jenis cetak</label>
-                                    <select :id="`jenis-cetak-${item.key}`" x-model="item.jenisCetak" :name="`items[${index}][jenis_cetak]`" class="form-control spec-select">
+                                    <select :id="`jenis-cetak-${item.key}`" x-model="item.jenisCetak" :name="`items[${index}][jenis_cetak]`" class="form-control spec-select {{ $hideLegacySpecs ? 'h-11 min-h-11' : '' }}">
                                         <option>1 warna</option>
                                         <option>2 warna</option>
                                         <option>3 warna</option>

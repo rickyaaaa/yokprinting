@@ -37,6 +37,7 @@ class ExampleTest extends TestCase
             ->assertSee('Muat ulang produk')
             ->assertSee('Tinta')
             ->assertSee('Jenis cetak')
+            ->assertSee('data-testid="create-invoice-specs"', false)
             ->assertDontSee('Ukuran')
             ->assertDontSee('Gramasi')
             ->assertDontSee('Kelipatan jumlah')
