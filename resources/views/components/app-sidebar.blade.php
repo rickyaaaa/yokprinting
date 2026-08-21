@@ -121,7 +121,25 @@
         </button>
     </div>
 
-    <nav class="flex-1 overflow-y-auto px-3 py-5">
+    <nav
+        class="flex-1 overflow-y-auto px-3 py-5"
+        data-testid="app-sidebar-nav"
+        x-init="
+            $nextTick(() => {
+                const activeItem = $el.querySelector('[aria-current=\"page\"]');
+                if (!activeItem) return;
+
+                const itemTop = activeItem.offsetTop;
+                const itemBottom = itemTop + activeItem.offsetHeight;
+                const viewTop = $el.scrollTop;
+                const viewBottom = viewTop + $el.clientHeight;
+
+                if (itemTop < viewTop || itemBottom > viewBottom) {
+                    $el.scrollTop = Math.max(0, itemTop - (($el.clientHeight - activeItem.offsetHeight) / 2));
+                }
+            });
+        "
+    >
         @foreach ($navGroups as $group)
             <p @class(['px-3 pb-2 text-xs font-semibold uppercase tracking-[0.16em] text-outline', 'mt-7' => ! $loop->first])>{{ $group['label'] }}</p>
             <div class="space-y-1">

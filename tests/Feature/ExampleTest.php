@@ -136,6 +136,7 @@ class ExampleTest extends TestCase
             ->assertSee(route('roles.index'))
             ->assertSee(route('activity-logs.index'))
             ->assertSee('Ringkasan keuangan')
+            ->assertSee('data-testid="app-sidebar-nav"', escape: false)
             ->assertSee('Pendapatan bulan ini')
             ->assertSee('Tren pendapatan')
             ->assertSee('Notifikasi jatuh tempo')
