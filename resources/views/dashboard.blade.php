@@ -125,7 +125,7 @@
                             </div>
                             <span class="w-fit rounded-full bg-brand-100 px-2.5 py-1 text-xs font-semibold text-brand-800">{{ count($productionQueue) }} order aktif</span>
                         </div>
-                        <div class="grid gap-4 p-5 sm:p-6 lg:grid-cols-3">
+                        <div class="custom-scroll flex gap-4 overflow-x-auto p-5 sm:p-6">
                             @foreach ($productionQueue as $order)
                                 @php
                                     $queueClass = match ($order['tone']) {
@@ -134,7 +134,7 @@
                                         default => 'bg-brand-100 text-brand-800',
                                     };
                                 @endphp
-                                <article class="rounded-lg border border-line bg-canvas p-4">
+                                <article class="w-72 shrink-0 rounded-lg border border-line bg-canvas p-4">
                                     <div class="flex items-start justify-between gap-3">
                                         <div class="min-w-0">
                                             <p class="font-mono text-xs font-semibold text-muted">{{ $order['invoice'] }}</p>
@@ -186,7 +186,7 @@
                                     </div>
                                 </div>
 
-                                <div class="relative h-80 rounded-lg border border-line bg-canvas p-4" aria-label="Grafik pendapatan interaktif">
+                                <div class="relative h-64 rounded-lg border border-line bg-canvas p-4" aria-label="Grafik pendapatan interaktif">
                                     <canvas x-ref="revenueChart"></canvas>
                                 </div>
 
@@ -224,7 +224,7 @@
                                     </div>
                                 </div>
 
-                                <div class="divide-y divide-line">
+                                <div class="custom-scroll max-h-[26rem] divide-y divide-line overflow-y-auto">
                                     @foreach ($dueNotifications as $notification)
                                         @php
                                             $toneClass = match ($notification['tone']) {
@@ -275,7 +275,7 @@
                                         </span>
                                     </div>
                                 </div>
-                                <div class="divide-y divide-yellow-200">
+                                <div class="custom-scroll max-h-[20rem] divide-y divide-yellow-200 overflow-y-auto">
                                     @foreach ($lowStockProducts as $product)
                                         <article class="px-5 py-4">
                                             <div class="flex items-start justify-between gap-4">
@@ -334,7 +334,7 @@
                                         </template>
                                     </div>
                                 </div>
-                                <ol class="divide-y divide-line">
+                                <ol class="custom-scroll max-h-[22rem] divide-y divide-line overflow-y-auto">
                                     <template x-for="activity in visibleActivities" :key="activity.id">
                                         <li class="flex gap-3 px-5 py-4">
                                             <span class="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full" :class="toneClass(activity.tone)" aria-hidden="true">
