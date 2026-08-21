@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\GoodsReceipt;
+use App\Models\InventoryBatch;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
@@ -320,6 +321,77 @@ class GoodsReceiptApiTest extends TestCase
         $this->actingAs(User::factory()->create(['role' => Role::CODE_OPERATIONS]));
 
         $this->postJson(route('api.goods-receipts.post', $receipt))->assertOk();
+    }
+
+    public function test_posting_a_goods_receipt_closes_an_open_fifo_deficit_before_creating_a_new_batch(): void
+    {
+        $product = $this->createProduct(purchasePrice: 0);
+        // Simulate the state a prior oversold invoice would have left behind:
+        // stock at -5, with the shortfall recorded as an open FIFO deficit.
+        InventoryBatch::recordDeficitFor($product->id, 5, 900, 'INV-DEFICIT-TEST');
+        $product->forceFill(['stock' => -5])->save();
+
+        $po = $this->createApprovedPoForProduct($this->createSupplier(), $product, quantity: 10, unitPrice: 950);
+        $receipt = $this->createGoodsReceipt($po, $po->items->first(), 10);
+
+        $this->postJson(route('api.goods-receipts.post', $receipt))->assertOk();
+
+        $product->refresh();
+        $this->assertSame('5.0000', $product->stock);
+
+        $deficitBatch = InventoryBatch::query()->where('product_id', $product->id)->where('source_type', 'deficit')->firstOrFail();
+        $this->assertSame('0.0000', $deficitBatch->qty_remaining);
+
+        $receiptItem = $receipt->items()->firstOrFail();
+        $newBatch = InventoryBatch::query()->where('goods_receipt_item_id', $receiptItem->id)->firstOrFail();
+        $this->assertSame('5.0000', $newBatch->qty_remaining);
+        $this->assertSame('5.0000', $newBatch->qty_received);
+
+        // FIFO availability now reconciles exactly with product.stock.
+        $available = InventoryBatch::query()->where('product_id', $product->id)->where('qty_remaining', '>', 0)->sum('qty_remaining');
+        $this->assertSame(5.0, (float) $available);
+    }
+
+    public function test_posting_a_goods_receipt_only_partially_closes_a_larger_deficit(): void
+    {
+        $product = $this->createProduct(purchasePrice: 0);
+        InventoryBatch::recordDeficitFor($product->id, 8, 900, 'INV-DEFICIT-TEST');
+        $product->forceFill(['stock' => -8])->save();
+
+        $po = $this->createApprovedPoForProduct($this->createSupplier(), $product, quantity: 3, unitPrice: 950);
+        $receipt = $this->createGoodsReceipt($po, $po->items->first(), 3);
+
+        $this->postJson(route('api.goods-receipts.post', $receipt))->assertOk();
+
+        $product->refresh();
+        $this->assertSame('-5.0000', $product->stock);
+
+        $deficitBatch = InventoryBatch::query()->where('product_id', $product->id)->where('source_type', 'deficit')->firstOrFail();
+        $this->assertSame('-5.0000', $deficitBatch->qty_remaining);
+
+        // Fully absorbed by the deficit - no available batch was created.
+        $available = InventoryBatch::query()->where('product_id', $product->id)->where('qty_remaining', '>', 0)->sum('qty_remaining');
+        $this->assertSame(0.0, (float) $available);
+    }
+
+    public function test_cancelling_a_goods_receipt_that_closed_a_deficit_is_rejected(): void
+    {
+        $product = $this->createProduct(purchasePrice: 0);
+        InventoryBatch::recordDeficitFor($product->id, 5, 900, 'INV-DEFICIT-TEST');
+        $product->forceFill(['stock' => -5])->save();
+
+        $po = $this->createApprovedPoForProduct($this->createSupplier(), $product, quantity: 10, unitPrice: 950);
+        $receipt = $this->createGoodsReceipt($po, $po->items->first(), 10);
+        $this->postJson(route('api.goods-receipts.post', $receipt))->assertOk();
+
+        $this->postJson(route('api.goods-receipts.cancel', $receipt), ['reason' => 'Coba batalkan'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
+
+        // Nothing was reversed - the deficit close and the new batch stand.
+        $product->refresh();
+        $this->assertSame('5.0000', $product->stock);
+        $this->assertSame(GoodsReceipt::STATUS_POSTED, $receipt->refresh()->status);
     }
 
     private function createSupplier(): Supplier

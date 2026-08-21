@@ -117,6 +117,37 @@ class StockMovementApiTest extends TestCase
         $this->assertSame('6.0000', $batch->refresh()->qty_remaining);
     }
 
+    public function test_positive_stock_adjustment_closes_an_open_fifo_deficit_before_creating_a_new_batch(): void
+    {
+        $user = User::factory()->create();
+        $product = Product::query()->create([
+            'sku' => 'CUP-DEFICIT-ADJ',
+            'name' => 'Cup Deficit Adjustment',
+            'stock' => -5,
+            'track_stock' => true,
+        ]);
+        InventoryBatch::recordDeficitFor($product->id, 5, 500, 'INV-DEFICIT-TEST');
+
+        $this->actingAs($user)
+            ->postJson(route('api.stock-movements.store'), [
+                'product_id' => $product->id,
+                'type' => StockMovement::TYPE_ADJUSTMENT,
+                'quantity' => 8,
+                'reference_number' => 'ADJ-DEFICIT-001',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.stock_before', -5)
+            ->assertJsonPath('data.stock_after', 3);
+
+        $this->assertSame('3.0000', $product->refresh()->stock);
+
+        $deficitBatch = InventoryBatch::query()->where('product_id', $product->id)->where('source_type', 'deficit')->firstOrFail();
+        $this->assertSame('0.0000', $deficitBatch->qty_remaining);
+
+        $newBatch = InventoryBatch::query()->where('product_id', $product->id)->where('source_type', 'stock_adjustment')->firstOrFail();
+        $this->assertSame('3.0000', $newBatch->qty_remaining);
+    }
+
     public function test_stock_opname_uses_locked_stock_and_updates_the_matching_fifo_delta(): void
     {
         $user = User::factory()->create();

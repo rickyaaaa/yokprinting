@@ -10,6 +10,7 @@ use App\Models\InvoiceItem;
 use App\Models\Product;
 use App\Models\StockMovement;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 class FifoInventoryService
 {
@@ -19,18 +20,25 @@ class FifoInventoryService
         GoodsReceiptItem $item,
         GoodsReceipt $goodsReceipt,
     ): ?InventoryBatch {
-        $product = Product::query()->findOrFail($item->product_id);
+        $product = Product::query()->whereKey($item->product_id)->lockForUpdate()->firstOrFail();
 
         if (! $product->track_stock) {
             return null;
         }
 
+        // Incoming stock pays down any open FIFO deficit for this product
+        // first (e.g. a prior sale oversold what was in stock). Only the
+        // leftover, if any, becomes a new available batch - this is what
+        // keeps SUM(inventory_batches.qty_remaining) reconciled against
+        // product.stock instead of double-counting the same physical units.
+        $qty = InventoryBatch::closeDeficitFor($product->getKey(), round((float) $item->quantity_received, 4));
+
         return InventoryBatch::query()->create([
             'product_id' => $product->getKey(),
             'goods_receipt_item_id' => $item->getKey(),
             'purchase_date' => $goodsReceipt->receipt_date,
-            'qty_received' => $item->quantity_received,
-            'qty_remaining' => $item->quantity_received,
+            'qty_received' => $qty,
+            'qty_remaining' => $qty,
             'unit_cost' => $item->unit_price,
             'source_type' => 'goods_receipt',
             'source_reference' => $goodsReceipt->receipt_number,
@@ -84,16 +92,32 @@ class FifoInventoryService
         // Stock ran out before fully covering this sale - let the invoice
         // proceed with negative stock rather than blocking it, using the
         // best known unit cost for the shortfall (there's no real batch
-        // left to draw an exact cost from). This shortfall isn't tracked
-        // as a debt against future receipts; a stock opname is the
-        // intended way to reconcile it once new stock actually arrives.
+        // left to draw an exact cost from). The shortfall itself IS tracked
+        // as a deficit batch below so a future goods receipt / stock
+        // adjustment closes it before creating fresh available FIFO stock -
+        // this HPP snapshot never changes retroactively either way.
         if ($remaining > 0) {
             $fallbackCost = (float) ($product->average_purchase_cost
                 ?? $product->last_purchase_price
                 ?? $product->purchase_price
                 ?? 0);
 
-            $hpp += round($remaining * $fallbackCost, 2);
+            $deficitCost = round($remaining * $fallbackCost, 2);
+            $hpp += $deficitCost;
+
+            $deficitBatch = InventoryBatch::recordDeficitFor(
+                $product->getKey(),
+                $remaining,
+                $fallbackCost,
+                $invoice->invoice_number,
+            );
+
+            $item->costLayers()->create([
+                'inventory_batch_id' => $deficitBatch->getKey(),
+                'qty_consumed' => $remaining,
+                'unit_cost' => $fallbackCost,
+                'total_cost' => $deficitCost,
+            ]);
         }
 
         $this->recordStockMovement->record(
@@ -163,6 +187,22 @@ class FifoInventoryService
 
             foreach ($layers as $layer) {
                 $batch = InventoryBatch::query()->lockForUpdate()->findOrFail($layer->inventory_batch_id);
+
+                // A deficit batch should never show a positive/sellable
+                // balance - it isn't real received stock. That can only
+                // happen if a goods receipt already closed part of this
+                // same deficit since the sale, which means we can no longer
+                // cleanly reconstruct what to give back (the receipt's
+                // physical units were already spoken for). Refuse rather
+                // than fabricate available inventory that was never
+                // actually received.
+                if ($batch->source_type === 'deficit'
+                    && round((float) $batch->qty_remaining + (float) $layer->qty_consumed, 4) > 0) {
+                    throw ValidationException::withMessages([
+                        'status' => "Kekurangan stok FIFO untuk {$product->name} sudah sebagian ditutup oleh penerimaan barang berikutnya, jadi invoice ini tidak bisa dibatalkan/diedit otomatis. Sesuaikan stok secara manual lewat Penyesuaian Stok jika memang perlu.",
+                    ]);
+                }
+
                 $batch->increment('qty_remaining', (float) $layer->qty_consumed);
                 $layer->forceFill(['reversed_at' => now()])->save();
             }

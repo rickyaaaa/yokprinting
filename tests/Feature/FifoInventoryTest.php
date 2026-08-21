@@ -9,6 +9,7 @@ use App\Models\InvoiceItem;
 use App\Models\Product;
 use App\Services\Inventory\FifoInventoryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class FifoInventoryTest extends TestCase
@@ -53,7 +54,7 @@ class FifoInventoryTest extends TestCase
         $hpp = app(FifoInventoryService::class)->consume($invoice, $item);
 
         $this->assertSame(137500.0, $hpp); // 100*900 (real batch) + 50*950 (fallback cost)
-        $this->assertSame('0.0000', InventoryBatch::query()->firstOrFail()->qty_remaining);
+        $this->assertSame('0.0000', InventoryBatch::query()->where('source_type', '!=', 'deficit')->firstOrFail()->qty_remaining);
         $this->assertSame('-50.0000', $product->refresh()->stock);
         $this->assertDatabaseHas('invoice_item_cost_layers', [
             'invoice_item_id' => $item->id,
@@ -61,8 +62,20 @@ class FifoInventoryTest extends TestCase
             'unit_cost' => 900,
             'total_cost' => 90000,
         ]);
-        // No cost-layer row for the shortfall - there's no real batch to attribute it to.
-        $this->assertSame(1, $item->costLayers()->count());
+        // The shortfall now gets its own cost-layer row against a synthetic
+        // "deficit" batch, so a future goods receipt can close it instead of
+        // silently double-counting stock. See the deficit-tracking tests below.
+        $this->assertDatabaseHas('invoice_item_cost_layers', [
+            'invoice_item_id' => $item->id,
+            'qty_consumed' => 50,
+            'unit_cost' => 950,
+            'total_cost' => 47500,
+        ]);
+        $this->assertSame(2, $item->costLayers()->count());
+
+        $deficitBatch = InventoryBatch::query()->where('source_type', 'deficit')->firstOrFail();
+        $this->assertSame('-50.0000', $deficitBatch->qty_remaining);
+        $this->assertSame('950.00', $deficitBatch->unit_cost);
     }
 
     public function test_historical_cost_layer_does_not_change_after_a_new_purchase(): void
@@ -99,6 +112,105 @@ class FifoInventoryTest extends TestCase
         $this->assertSame('100.0000', $product->refresh()->stock);
         $this->assertSame('100.0000', $batch->refresh()->qty_remaining);
         $this->assertDatabaseCount('inventory_batches', 1);
+    }
+
+    public function test_cancelling_an_invoice_after_a_deficit_sale_restores_stock_and_closes_the_deficit(): void
+    {
+        [$product, $invoice, $item] = $this->saleContext(quantity: 150);
+        $this->batch($product, '2026-08-01', 100, 900);
+        $product->forceFill(['stock' => 100, 'average_purchase_cost' => 950])->save();
+
+        $service = app(FifoInventoryService::class);
+        $service->consume($invoice, $item);
+        $this->assertSame('-50.0000', $product->refresh()->stock);
+
+        $service->restoreInvoice($invoice);
+
+        $this->assertSame('100.0000', $product->refresh()->stock);
+        $this->assertSame('100.0000', InventoryBatch::query()->where('source_type', '!=', 'deficit')->firstOrFail()->qty_remaining);
+        $this->assertSame('0.0000', InventoryBatch::query()->where('source_type', 'deficit')->firstOrFail()->qty_remaining);
+    }
+
+    public function test_repeated_restore_after_a_deficit_sale_does_not_double_adjust(): void
+    {
+        [$product, $invoice, $item] = $this->saleContext(quantity: 150);
+        $this->batch($product, '2026-08-01', 100, 900);
+        $product->forceFill(['stock' => 100, 'average_purchase_cost' => 950])->save();
+
+        $service = app(FifoInventoryService::class);
+        $service->consume($invoice, $item);
+        $service->restoreInvoice($invoice);
+        $service->restoreInvoice($invoice->refresh());
+
+        $this->assertSame('100.0000', $product->refresh()->stock);
+        $this->assertSame('0.0000', InventoryBatch::query()->where('source_type', 'deficit')->firstOrFail()->qty_remaining);
+        $this->assertDatabaseCount('inventory_batches', 2); // the real batch + the one deficit batch
+    }
+
+    public function test_cancelling_an_invoice_is_blocked_once_a_receipt_already_closed_its_deficit(): void
+    {
+        [$product, $invoice, $item] = $this->saleContext(quantity: 50);
+        $product->forceFill(['stock' => 0, 'average_purchase_cost' => 950])->save();
+
+        $service = app(FifoInventoryService::class);
+        $service->consume($invoice, $item);
+        $this->assertSame('-50.0000', $product->refresh()->stock);
+
+        // A goods receipt arrives and closes the deficit before anyone
+        // tries to cancel the original sale.
+        InventoryBatch::closeDeficitFor($product->id, 50);
+
+        $this->expectException(ValidationException::class);
+        $service->restoreInvoice($invoice);
+    }
+
+    public function test_fifo_available_plus_deficit_stays_reconciled_with_product_stock_across_sell_receive_sell(): void
+    {
+        [$product, $invoice, $item] = $this->saleContext(quantity: 10);
+        $this->batch($product, '2026-08-01', 5, 100);
+        $product->forceFill(['stock' => 5, 'average_purchase_cost' => 100])->save();
+        $service = app(FifoInventoryService::class);
+
+        // Sell 10 against 5 available -> deficit of 5.
+        $service->consume($invoice, $item);
+        $this->assertReconciled($product);
+        $this->assertSame('-5.0000', $product->refresh()->stock);
+
+        // Receive 10 -> 5 closes the deficit, 5 becomes newly available.
+        $leftover = InventoryBatch::closeDeficitFor($product->id, 10);
+        InventoryBatch::query()->create([
+            'product_id' => $product->id,
+            'purchase_date' => '2026-08-15',
+            'qty_received' => $leftover,
+            'qty_remaining' => $leftover,
+            'unit_cost' => 120,
+            'source_type' => 'test',
+            'source_reference' => 'RECEIVE-TEST',
+        ]);
+        $product->forceFill(['stock' => round((float) $product->stock + 10, 4)])->save();
+        $this->assertSame('5.0000', $product->refresh()->stock);
+        $this->assertReconciled($product);
+
+        // Sell 3 more, fully covered by the freshly-available batch - no new deficit.
+        $item2 = $invoice->items()->create([
+            'product_id' => $product->id,
+            'product_name' => $product->name,
+            'sku' => $product->sku,
+            'quantity' => 3,
+            'unit_price' => 1000,
+            'purchase_cost_snapshot' => 0,
+            'subtotal' => 3000,
+            'total_amount' => 3000,
+        ]);
+        $service->consume($invoice, $item2);
+        $this->assertSame('2.0000', $product->refresh()->stock);
+        $this->assertReconciled($product);
+    }
+
+    private function assertReconciled(Product $product): void
+    {
+        $sum = round((float) InventoryBatch::query()->where('product_id', $product->id)->sum('qty_remaining'), 4);
+        $this->assertSame($sum, round((float) $product->refresh()->stock, 4));
     }
 
     /** @return array{0: Product, 1: Invoice, 2: InvoiceItem} */

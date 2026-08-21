@@ -91,18 +91,26 @@ class RecordStockMovement
     private function syncFifoAdjustment(Product $product, float $quantity, ?string $referenceNumber): void
     {
         if ($quantity > 0) {
-            InventoryBatch::query()->create([
-                'product_id' => $product->getKey(),
-                'purchase_date' => now()->toDateString(),
-                'qty_received' => $quantity,
-                'qty_remaining' => $quantity,
-                'unit_cost' => (float) ($product->average_purchase_cost
-                    ?? $product->last_purchase_price
-                    ?? $product->purchase_price
-                    ?? 0),
-                'source_type' => 'stock_adjustment',
-                'source_reference' => $referenceNumber,
-            ]);
+            // Same as a goods receipt: a manual stock increase (or a stock
+            // opname counting more than the ledger shows) pays down any
+            // open FIFO deficit first, so FIFO availability stays
+            // reconciled with product.stock instead of double-counting.
+            $leftover = InventoryBatch::closeDeficitFor($product->getKey(), $quantity);
+
+            if ($leftover > 0) {
+                InventoryBatch::query()->create([
+                    'product_id' => $product->getKey(),
+                    'purchase_date' => now()->toDateString(),
+                    'qty_received' => $leftover,
+                    'qty_remaining' => $leftover,
+                    'unit_cost' => (float) ($product->average_purchase_cost
+                        ?? $product->last_purchase_price
+                        ?? $product->purchase_price
+                        ?? 0),
+                    'source_type' => 'stock_adjustment',
+                    'source_reference' => $referenceNumber,
+                ]);
+            }
 
             return;
         }

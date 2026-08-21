@@ -120,6 +120,19 @@ class CancelGoodsReceipt
                 ]);
             }
 
+            // If part of what was received went toward closing an earlier
+            // FIFO deficit (a prior sale that oversold), qty_received on the
+            // batch we created is smaller than what the item actually
+            // received - the difference was absorbed by the deficit. That
+            // can't be safely unwound (it would require reconstructing a
+            // deficit that may have moved on since), so refuse rather than
+            // risk leaving the deficit ledger inconsistent.
+            if (round((float) $item->quantity_received - (float) ($batch?->qty_received ?? 0), 4) > 0) {
+                throw ValidationException::withMessages([
+                    'status' => "Penerimaan barang {$product->name} menutup kekurangan stok (FIFO deficit) sebelumnya, jadi tidak bisa dibatalkan otomatis. Sesuaikan stok secara manual lewat Penyesuaian Stok jika memang perlu dikoreksi.",
+                ]);
+            }
+
             $latestMovementId = (int) StockMovement::query()
                 ->where('product_id', $product->getKey())
                 ->max('id');

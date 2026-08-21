@@ -11,23 +11,49 @@
 # (public/storage -> storage/app/public) was created once by hand over SSH
 # with `ln -s` (shell-level symlinks still work, just not PHP's). It's a
 # symlink using an absolute path, so it survives every rsync below and never
-# needs to be recreated.
+# needs to be recreated. public_html/storage is a SEPARATE hand-made symlink
+# with the same target, also untouched here.
 #
 # public_html/index.php is also NOT touched here — it's a one-time hand-edited
 # copy pointing at yokprinting_app (see docs/deployment-cpanel.md §5).
 #
 # Asset build: this host has no Node/npm, so `public/build` must be built
 # locally (`npm run build`) and `git add -f public/build` before pushing —
-# otherwise this deploy will ship without CSS/JS.
+# otherwise this deploy will ship without CSS/JS. It's git-tracked so the
+# rsync below picks it up like any other file, no special-casing needed.
+#
+# Task 2 is a single shell command (not one task per step) so the whole
+# rsync -> composer -> migrate -> cache chain is `&&`-joined: any failure
+# stops everything after it (fail-fast), and the trailing `; artisan up`
+# uses `;` instead of `&&` so it ALWAYS runs last regardless of what failed
+# earlier - the app is never left stuck in maintenance mode. `artisan down`
+# on task 1 is `|| true` so a failure there doesn't block the rest of the
+# deploy either (falls back to the old always-live behavior).
+#
+# Residual risk (accepted, not fixed here): this is still not a fully atomic
+# deploy. If composer install fails mid-chain, the site comes back out of
+# maintenance mode running new source files against a not-fully-updated
+# vendor/, until manually fixed. A truly atomic deploy needs a bigger infra
+# change (symlinked release directories) that's out of scope for this rsync-
+# based shared-hosting setup.
 
 deployment:
   tasks:
     - export DEPLOYPATH=/home/u433850416/domains/yoksystem.id/yokprinting_app/
     - export PUBLICPATH=/home/u433850416/domains/yoksystem.id/public_html/
-    - /bin/cp -R * $DEPLOYPATH
-    - /usr/local/bin/composer install --no-dev --optimize-autoloader --working-dir=$DEPLOYPATH
-    - /usr/bin/rsync -a --exclude='index.php' $DEPLOYPATH/public/ $PUBLICPATH
-    - /usr/bin/php $DEPLOYPATH/artisan migrate --force
-    - /usr/bin/php $DEPLOYPATH/artisan config:cache
-    - /usr/bin/php $DEPLOYPATH/artisan route:cache
-    - /usr/bin/php $DEPLOYPATH/artisan view:cache
+    - /usr/bin/php $DEPLOYPATH/artisan down --render="errors::503" --retry=60 || true
+    - >
+      cd $DEPLOYPATH &&
+      /usr/bin/rsync -a --delete
+        --exclude='.env' --exclude='.env.*'
+        --exclude='/vendor' --exclude='/node_modules'
+        --exclude='/storage' --exclude='/public/storage' --exclude='/public/hot'
+        --exclude='/.git' --exclude='/.github'
+        ./ $DEPLOYPATH &&
+      /usr/local/bin/composer install --no-dev --optimize-autoloader --working-dir=$DEPLOYPATH &&
+      /usr/bin/php $DEPLOYPATH/artisan migrate --force &&
+      /usr/bin/php $DEPLOYPATH/artisan config:cache &&
+      /usr/bin/php $DEPLOYPATH/artisan route:cache &&
+      /usr/bin/php $DEPLOYPATH/artisan view:cache &&
+      /usr/bin/rsync -a --delete --exclude='index.php' --exclude='storage' $DEPLOYPATH/public/ $PUBLICPATH
+      ; /usr/bin/php $DEPLOYPATH/artisan up

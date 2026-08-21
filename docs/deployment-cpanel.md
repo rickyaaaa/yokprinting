@@ -71,6 +71,16 @@ found`). Cron job **harus** ditambahkan lewat hPanel web UI → **Advanced** →
 
 ## 4. Alur deploy (setelah setup awal ini)
 
+Manual SSH deploy sekarang mirror persis apa yang `.cpanel.yml` jalankan
+otomatis (lihat file itu untuk versi single-command-nya) — sengaja disamakan
+supaya kedua jalur deploy tidak pernah meninggalkan server di state yang
+beda. Poin pentingnya: `--delete` supaya file yang sudah dihapus dari git
+tidak numpuk selamanya di server, `.env`/`vendor`/`storage`/symlink
+di-exclude eksplisit supaya tidak pernah ketimpa/kehapus, dan `artisan down`
+di awal + `artisan up` di akhir (pakai `;` bukan `&&`, jadi selalu jalan
+walau ada step yang gagal) supaya server tidak pernah nyangkut di
+maintenance mode.
+
 ```bash
 # 1. Kalau ada perubahan frontend, build dulu di lokal:
 npm run build
@@ -78,25 +88,51 @@ git add -f public/build   # public/build di-gitignore untuk dev sehari-hari
 git commit -m "chore: build production assets"
 git push
 
-# 2. SSH ke server, pull & install:
+# 2. SSH ke server:
 ssh -p 65002 u433850416@72.61.212.217
 cd ~/domains/yoksystem.id/yokprinting_app
-git pull origin main
-composer install --no-dev --optimize-autoloader
-php artisan migrate --force
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
 
-# 3. Sync public/ (termasuk build/) ke public_html, TANPA menimpa index.php:
-rsync -a --exclude='index.php' \
+# 3. Maintenance mode dulu (gagal pun tidak masalah, deploy tetap lanjut):
+php artisan down --render="errors::503" --retry=60 || true
+
+# 4. Sync kode + install + migrate + cache, TANPA menimpa .env/vendor/storage/
+#    symlink, lalu sync public/ (termasuk build/) ke public_html TANPA
+#    menimpa index.php atau symlink storage-nya. Trailing `; php artisan up`
+#    memastikan maintenance mode selalu dimatikan lagi di akhir apa pun yang
+#    terjadi di step-step sebelumnya:
+rsync -a --delete \
+  --exclude='.env' --exclude='.env.*' \
+  --exclude='/vendor' --exclude='/node_modules' \
+  --exclude='/storage' --exclude='/public/storage' --exclude='/public/hot' \
+  --exclude='/.git' --exclude='/.github' \
+  ./ ~/domains/yoksystem.id/yokprinting_app/ \
+&& composer install --no-dev --optimize-autoloader \
+&& php artisan migrate --force \
+&& php artisan config:cache \
+&& php artisan route:cache \
+&& php artisan view:cache \
+&& rsync -a --delete --exclude='index.php' --exclude='storage' \
   ~/domains/yoksystem.id/yokprinting_app/public/ \
-  ~/domains/yoksystem.id/public_html/
+  ~/domains/yoksystem.id/public_html/ \
+; php artisan up
 ```
 
 `index.php` di `public_html` sudah di-edit manual sekali (path autoload &
 bootstrap diarahkan ke `../yokprinting_app/...`) dan tidak perlu disentuh lagi
-selama layout folder tidak berubah.
+selama layout folder tidak berubah — tetap dilindungi lewat `--exclude`.
+
+**Batasan yang diketahui (bukan bug, sengaja tidak diselesaikan di sini):**
+kalau `composer install` gagal di tengah rantai `&&` di atas, server keluar
+dari maintenance mode dengan source code baru tapi `vendor/` yang belum
+lengkap ter-update, sampai diperbaiki manual. Deploy yang benar-benar atomic
+(pakai symlinked release directories) butuh perubahan infra yang lebih besar
+dan di luar scope shared-hosting setup ini.
+
+**Verifikasi setelah deploy** (lihat §8): jalankan
+`php artisan operations:health --skip-heartbeat` segera setelah deploy untuk
+cek app/DB/migration tanpa false-positive dari heartbeat scheduler/worker
+yang belum sempat tick; jalankan `php artisan operations:health` (tanpa flag)
+beberapa menit kemudian untuk cek scheduler & worker juga sudah aktif.
 
 ## 5. Cron jobs (hPanel → Advanced → Cron Jobs)
 
@@ -137,7 +173,25 @@ terus-menerus, jalankan tiap 5 menit dengan `--stop-when-empty`):
 - ⬜ Setup `MAIL_MAILER` kalau butuh email asli (sekarang default `log`, email
   tidak benar-benar terkirim)
 
-## 7. Keamanan: rotate kredensial
+## 7. Verifikasi kesehatan setelah deploy
+
+Jalankan lewat SSH setelah deploy (manual atau lewat `.cpanel.yml`):
+
+```bash
+# Langsung setelah deploy - cek aplikasi/database/migrasi saja. Scheduler
+# belum tentu sempat tick dalam 1 menit terakhir, jadi heartbeat-nya
+# sengaja dilewati di sini supaya tidak false-positive gagal:
+php artisan operations:health --skip-heartbeat
+
+# Beberapa menit kemudian (setelah cron scheduler & queue worker sempat
+# jalan minimal sekali) - cek semuanya termasuk heartbeat:
+php artisan operations:health
+```
+
+Exit code `0` = semua sehat, `1` = ada yang bermasalah (detail di tabel yang
+ditampilkan). Lihat [docs/operations.md](operations.md) untuk detail lengkap.
+
+## 8. Keamanan: rotate kredensial
 
 Password SSH & database akun ini sempat dikirim lewat chat AI assistant untuk
 proses deploy. **Disarankan ganti password SSH/hPanel** (hPanel → Advanced →
