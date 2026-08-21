@@ -1209,6 +1209,56 @@ Alpine.data('receivablesTable', (receivables = []) => ({
     },
 }));
 
+Alpine.data('notificationBell', () => ({
+    open: false,
+    loading: true,
+    error: '',
+    notifications: [],
+    count: 0,
+
+    init() {
+        this.load();
+    },
+
+    toggle() {
+        this.open = !this.open;
+    },
+
+    dueLabel(date) {
+        return new Date(`${date}T00:00:00`).toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: 'short',
+        });
+    },
+
+    async load() {
+        try {
+            const response = await fetch('/api/notifications/due-invoices?days=7&limit=100&sort=due_date&direction=asc', {
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json' },
+            });
+            const payload = await response.json().catch(() => ({}));
+
+            if (response.status === 403) {
+                this.notifications = [];
+                this.count = 0;
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error(payload.message ?? 'Notifikasi belum dapat dimuat.');
+            }
+
+            this.notifications = payload.data ?? [];
+            this.count = payload.summary?.total_count ?? this.notifications.length;
+        } catch (error) {
+            this.error = error.message;
+        } finally {
+            this.loading = false;
+        }
+    },
+}));
+
 Alpine.data('dueInvoiceFollowUpTable', (dueInvoices = []) => ({
     query: '',
     statusFilter: 'all',

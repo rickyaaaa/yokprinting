@@ -134,6 +134,7 @@ class ExampleTest extends TestCase
             ->assertSee('Pendapatan bulan ini')
             ->assertSee('Tren pendapatan')
             ->assertSee('Notifikasi jatuh tempo')
+            ->assertSee('notificationBell')
             ->assertSee(route('payments.receivables.index'))
             ->assertSee(route('notifications.due-invoices.index'))
             ->assertSee('Ringkasan stok menipis')

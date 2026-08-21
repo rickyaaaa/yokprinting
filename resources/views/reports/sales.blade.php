@@ -53,12 +53,7 @@
                         <span class="truncate font-medium text-ink">Laporan penjualan</span>
                     </div>
                     <div class="ml-auto flex items-center gap-2">
-                        <button type="button" class="relative rounded-lg p-2 text-muted hover:bg-brand-50 hover:text-brand-800" aria-label="Lihat notifikasi">
-                            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
-                                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                            <span class="absolute right-1.5 top-1.5 size-2 rounded-full bg-red-500 ring-2 ring-white"></span>
-                        </button>
+                        <x-notification-bell />
                         <span class="hidden h-6 w-px bg-line sm:block"></span>
                         <span class="hidden text-sm text-muted sm:inline">{{ $reportToday->translatedFormat('l, d F Y') }}</span>
                     </div>
