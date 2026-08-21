@@ -87,7 +87,7 @@
 
                     <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="Ringkasan peran">
                         @foreach ($roles as $role)
-                            <article class="card p-5">
+                            <article class="card h-full p-5">
                                 <div class="flex items-start justify-between gap-4">
                                     <div>
                                         <h2 class="font-semibold text-ink">{{ $role['name'] }}</h2>
@@ -106,7 +106,7 @@
                                         <dd class="mt-1 font-semibold text-ink">{{ $role['scope'] }}</dd>
                                     </div>
                                 </dl>
-                                <div class="mt-5 grid gap-2">
+                                <div class="mt-auto grid gap-2 pt-5">
                                     <a href="{{ route('roles.edit', $role['code']) }}" class="btn btn-outline w-full">
                                         Edit peran
                                     </a>
