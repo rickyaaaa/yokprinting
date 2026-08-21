@@ -47,10 +47,44 @@
                 <article class="rounded-xl border border-line bg-white p-5"><p class="text-sm text-muted">Laba kotor</p><p class="mt-2 text-xl font-semibold text-ink" x-text="format(report.summary.gross_profit)"></p></article>
                 <article class="rounded-xl border border-line bg-white p-5"><p class="text-sm text-muted">Margin kotor</p><p class="mt-2 text-xl font-semibold text-ink" x-text="`${report.summary.margin_percent ?? 0}%`"></p></article>
             </section>
-            <section class="overflow-x-auto rounded-xl border border-line bg-white">
-                <table class="w-full min-w-[980px] text-left text-sm"><thead class="bg-surface-low text-xs font-semibold text-muted"><tr><th class="px-5 py-3">Customer</th><th class="px-5 py-3">Tanggal</th><th class="px-5 py-3">Invoice</th><th class="px-5 py-3 text-right">Penjualan</th><th class="px-5 py-3 text-right">HPP FIFO</th><th class="px-5 py-3 text-right">Laba Kotor</th><th class="px-5 py-3 text-right">Margin %</th></tr></thead>
-                    <tbody class="divide-y divide-line"><template x-for="customer in report.customers" :key="customer.customer_id"><template x-for="row in customer.invoices" :key="row.invoice_number"><tr class="hover:bg-surface-low"><td class="px-5 py-3 font-medium text-ink" x-text="customer.customer"></td><td class="px-5 py-3 text-muted" x-text="row.issue_date"></td><td class="px-5 py-3 font-mono text-xs font-semibold text-brand-800" x-text="row.invoice_number"></td><td class="px-5 py-3 text-right" x-text="format(row.sales)"></td><td class="px-5 py-3 text-right" x-text="format(row.fifo_hpp)"></td><td class="px-5 py-3 text-right font-semibold" x-text="format(row.gross_profit)"></td><td class="px-5 py-3 text-right" x-text="`${row.margin_percent}%`"></td></tr></template></template><tr x-show="!loading && report.customers.length === 0"><td colspan="7" class="px-5 py-12 text-center text-muted">Tidak ada penjualan pada filter ini.</td></tr></tbody></table>
-            </section>
+            <div x-show="loading" class="rounded-xl border border-line bg-white px-5 py-12 text-center text-sm text-muted">Memuat laporan...</div>
+            <div x-show="!loading && report.customers.length === 0" class="rounded-xl border border-line bg-white px-5 py-12 text-center text-sm text-muted">Tidak ada penjualan pada filter ini.</div>
+
+            <!-- One card per customer, invoices nested inside with a subtotal row - matches the PDF/CSV export layout instead of repeating the customer name on every invoice row. -->
+            <template x-for="customer in report.customers" :key="customer.customer_id">
+                <section class="mb-4 overflow-hidden rounded-xl border border-line bg-white" x-show="!loading">
+                    <div class="flex items-center justify-between gap-3 border-b border-line bg-surface-low px-5 py-3">
+                        <h3 class="font-semibold text-ink" x-text="customer.customer"></h3>
+                        <span class="text-xs text-muted" x-text="`${customer.invoices.length} invoice`"></span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full min-w-[840px] text-left text-sm">
+                            <thead class="text-xs font-semibold text-muted">
+                                <tr><th class="px-5 py-2">Tanggal</th><th class="px-5 py-2">Invoice</th><th class="px-5 py-2 text-right">Penjualan</th><th class="px-5 py-2 text-right">HPP FIFO</th><th class="px-5 py-2 text-right">Laba Kotor</th><th class="px-5 py-2 text-right">Margin %</th></tr>
+                            </thead>
+                            <tbody class="divide-y divide-line">
+                                <template x-for="row in customer.invoices" :key="row.invoice_number">
+                                    <tr class="hover:bg-surface-low">
+                                        <td class="px-5 py-2 text-muted" x-text="row.issue_date"></td>
+                                        <td class="px-5 py-2 font-mono text-xs font-semibold text-brand-800" x-text="row.invoice_number"></td>
+                                        <td class="px-5 py-2 text-right" x-text="format(row.sales)"></td>
+                                        <td class="px-5 py-2 text-right" x-text="format(row.fifo_hpp)"></td>
+                                        <td class="px-5 py-2 text-right font-semibold" x-text="format(row.gross_profit)"></td>
+                                        <td class="px-5 py-2 text-right" x-text="`${row.margin_percent}%`"></td>
+                                    </tr>
+                                </template>
+                                <tr class="bg-surface-low font-semibold text-ink">
+                                    <td class="px-5 py-2" colspan="2">Subtotal</td>
+                                    <td class="px-5 py-2 text-right" x-text="format(customer.total_sales)"></td>
+                                    <td class="px-5 py-2 text-right" x-text="format(customer.total_hpp)"></td>
+                                    <td class="px-5 py-2 text-right" x-text="format(customer.gross_profit)"></td>
+                                    <td class="px-5 py-2 text-right" x-text="`${customer.margin_percent}%`"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </template>
         </div>
     </main>
 </div>

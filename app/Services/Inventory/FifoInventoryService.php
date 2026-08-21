@@ -10,7 +10,6 @@ use App\Models\InvoiceItem;
 use App\Models\Product;
 use App\Models\StockMovement;
 use Illuminate\Support\Carbon;
-use Illuminate\Validation\ValidationException;
 
 class FifoInventoryService
 {
@@ -55,13 +54,6 @@ class FifoInventoryService
 
         $quantity = round((float) $item->quantity, 4);
         $batches = $this->availableBatches($product);
-        $available = round((float) $batches->sum('qty_remaining'), 4);
-
-        if ($available < $quantity) {
-            throw ValidationException::withMessages([
-                "items.{$item->sort_order}.quantity" => "Stok {$product->name} tidak mencukupi. Stok tersedia: {$this->formatQuantity($available)}.",
-            ]);
-        }
 
         $remaining = $quantity;
         $hpp = 0.0;
@@ -87,6 +79,21 @@ class FifoInventoryService
 
             $remaining = round($remaining - $consumed, 4);
             $hpp += $cost;
+        }
+
+        // Stock ran out before fully covering this sale - let the invoice
+        // proceed with negative stock rather than blocking it, using the
+        // best known unit cost for the shortfall (there's no real batch
+        // left to draw an exact cost from). This shortfall isn't tracked
+        // as a debt against future receipts; a stock opname is the
+        // intended way to reconcile it once new stock actually arrives.
+        if ($remaining > 0) {
+            $fallbackCost = (float) ($product->average_purchase_cost
+                ?? $product->last_purchase_price
+                ?? $product->purchase_price
+                ?? 0);
+
+            $hpp += round($remaining * $fallbackCost, 2);
         }
 
         $this->recordStockMovement->record(

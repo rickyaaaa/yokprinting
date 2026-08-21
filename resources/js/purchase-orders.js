@@ -200,7 +200,7 @@ export const registerPurchaseOrderComponents = (Alpine) => {
             other_cost: 0,
             notes: '',
         },
-        items: [{ product_id: '', productSearch: '', productPickerOpen: false, quantity: '', unit_price: '', supplier_price_list_id: null, priceReference: null, priceReferenceLoading: false }],
+        items: [{ product_id: '', productSearch: '', productPickerOpen: false, pickerStyle: '', quantity: '', unit_price: '', supplier_price_list_id: null, priceReference: null, priceReferenceLoading: false }],
 
         async init() {
             this.loadingOptions = true;
@@ -227,7 +227,7 @@ export const registerPurchaseOrderComponents = (Alpine) => {
         },
 
         addItem() {
-            this.items.push({ product_id: '', productSearch: '', productPickerOpen: false, quantity: '', unit_price: '', supplier_price_list_id: null, priceReference: null, priceReferenceLoading: false });
+            this.items.push({ product_id: '', productSearch: '', productPickerOpen: false, pickerStyle: '', quantity: '', unit_price: '', supplier_price_list_id: null, priceReference: null, priceReferenceLoading: false });
         },
 
         removeItem(index) {
@@ -272,6 +272,22 @@ export const registerPurchaseOrderComponents = (Alpine) => {
             }
 
             return this.products.filter((product) => `${product.sku} ${product.name} ${product.category ?? ''}`.toLowerCase().includes(keyword)).slice(0, 30);
+        },
+
+        /**
+         * Open the product picker for a row and position its (teleported)
+         * dropdown against the triggering input's current screen position -
+         * see the x-teleport note in purchase-orders/create.blade.php.
+         */
+        openProductPicker(index, event) {
+            const item = this.items[index];
+            item.productPickerOpen = true;
+
+            const rect = event?.target?.getBoundingClientRect?.();
+
+            if (rect) {
+                item.pickerStyle = `top:${rect.bottom + 4}px; left:${rect.left}px; width:${rect.width}px;`;
+            }
         },
 
         selectProduct(index, product) {
@@ -421,6 +437,158 @@ export const registerPurchaseOrderComponents = (Alpine) => {
             } finally {
                 this.saving = false;
             }
+        },
+
+        formatRupiah(value) {
+            return rupiahFormatter.format(Number(value ?? 0));
+        },
+
+        formatDate(value) {
+            if (!value) {
+                return '-';
+            }
+
+            return dateFormatter.format(new Date(`${value}T00:00:00Z`));
+        },
+    }));
+
+    Alpine.data('purchaseOrderShowPage', (config) => ({
+        config,
+        po: null,
+        loading: true,
+        error: '',
+        acting: false,
+        receipts: [],
+        receiptsLoading: true,
+
+        async init() {
+            await Promise.all([this.loadPurchaseOrder(), this.loadReceipts()]);
+        },
+
+        async loadPurchaseOrder() {
+            this.loading = true;
+            this.error = '';
+
+            try {
+                const response = await fetch(`/api/purchase-orders/${this.config.purchaseOrderId}`, {
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json' },
+                });
+                const payload = await parseJsonResponse(response);
+
+                if (!response.ok) {
+                    throw payload;
+                }
+
+                this.po = payload.data;
+            } catch (error) {
+                this.error = error?.message ?? 'Detail PO belum berhasil dimuat.';
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async loadReceipts() {
+            this.receiptsLoading = true;
+
+            try {
+                const response = await fetch(`/api/goods-receipts?purchase_order_id=${this.config.purchaseOrderId}`, {
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json' },
+                });
+                const payload = await parseJsonResponse(response);
+
+                this.receipts = response.ok ? (payload.data ?? []) : [];
+            } catch (error) {
+                this.receipts = [];
+            } finally {
+                this.receiptsLoading = false;
+            }
+        },
+
+        async submitForApproval() {
+            if (this.acting || !window.confirm(`Ajukan ${this.po.po_number} untuk approval?`)) {
+                return;
+            }
+
+            await this.performAction(`/api/purchase-orders/${this.po.id}/submit`, {});
+        },
+
+        async approve() {
+            if (this.acting || !window.confirm(`Setujui ${this.po.po_number} senilai ${this.formatRupiah(this.po.grand_total)}?`)) {
+                return;
+            }
+
+            await this.performAction(`/api/purchase-orders/${this.po.id}/approve`, {});
+        },
+
+        async cancel() {
+            if (this.acting) {
+                return;
+            }
+
+            if (!window.confirm(`Batalkan ${this.po.po_number}? Tindakan ini tidak bisa dibatalkan lagi.`)) {
+                return;
+            }
+
+            const reason = window.prompt('Alasan pembatalan (opsional):', '');
+
+            if (reason === null) {
+                return;
+            }
+
+            await this.performAction(`/api/purchase-orders/${this.po.id}/cancel`, {
+                reason: reason.trim() === '' ? null : reason.trim(),
+            });
+        },
+
+        async performAction(endpoint, body) {
+            this.acting = true;
+            this.error = '';
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: jsonHeaders(),
+                    body: JSON.stringify(body),
+                });
+                const payload = await parseJsonResponse(response);
+
+                if (!response.ok) {
+                    throw payload;
+                }
+
+                await this.loadPurchaseOrder();
+            } catch (error) {
+                const validationMessage = Object.values(error?.errors ?? {}).flat()[0];
+                this.error = validationMessage ?? error?.message ?? 'Aksi belum berhasil diproses.';
+            } finally {
+                this.acting = false;
+            }
+        },
+
+        statusClass(status) {
+            return {
+                draft: 'bg-canvas text-muted',
+                waiting_approval: 'bg-yellow-100 text-yellow-900',
+                approved: 'bg-green-100 text-green-800',
+                partially_received: 'bg-blue-100 text-blue-800',
+                fully_received: 'bg-blue-100 text-blue-800',
+                invoiced: 'bg-accent-soft text-accent',
+                partially_paid: 'bg-accent-soft text-accent',
+                paid: 'bg-green-100 text-green-800',
+                closed: 'bg-canvas text-muted',
+                cancelled: 'bg-red-100 text-red-800',
+            }[status] ?? 'bg-canvas text-muted';
+        },
+
+        receiptStatusClass(status) {
+            return {
+                draft: 'bg-canvas text-muted',
+                posted: 'bg-green-100 text-green-800',
+                cancelled: 'bg-red-100 text-red-800',
+            }[status] ?? 'bg-canvas text-muted';
         },
 
         formatRupiah(value) {

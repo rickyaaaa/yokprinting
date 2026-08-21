@@ -240,7 +240,7 @@
                             x-transition:leave-start="translate-y-0 opacity-100"
                             x-transition:leave-end="translate-y-2 opacity-0"
                             class="fixed bottom-4 left-4 right-4 z-50 mx-auto flex max-w-md items-start gap-3 rounded-xl p-4 text-white shadow-[0_4px_8px_oklch(0.2_0.02_113/0.22)] sm:left-auto sm:right-6"
-                            :class="errorMessage ? 'bg-red-800' : 'bg-brand-900'"
+                            :class="errorMessage ? 'bg-red-800' : (stockAlerts.length > 0 ? 'bg-amber-700' : 'bg-brand-900')"
                             :role="errorMessage ? 'alert' : 'status'"
                             aria-live="polite"
                             data-testid="draft-api-notice"
@@ -260,6 +260,16 @@
                                     class="mt-1 text-xs leading-5 text-white/80"
                                     x-text="errorMessage || `ID ${savedDraftId} · disimpan pukul ${savedAt}`"
                                 ></p>
+                                <template x-if="!errorMessage && stockAlerts.length > 0">
+                                    <p class="mt-1.5 text-xs leading-5 text-white/90">
+                                        ⚠️ Stok
+                                        <template x-for="(alert, index) in stockAlerts" :key="alert.product_id">
+                                            <span>
+                                                <span x-text="alert.name"></span><span x-text="alert.is_negative ? ' sudah minus' : ' menipis'"></span><span x-text="` (${alert.stock})`"></span><span x-show="index < stockAlerts.length - 1">, </span>
+                                            </span>
+                                        </template>
+                                    </p>
+                                </template>
                             </div>
                             <button type="button" class="rounded-lg p-1.5 text-white/80 hover:bg-white/10 hover:text-white" @click="dismissDraftNotice()" aria-label="Tutup notifikasi draft">
                                 <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">

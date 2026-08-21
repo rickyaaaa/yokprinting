@@ -95,7 +95,9 @@
                                 <tbody class="divide-y divide-line">
                                     <template x-for="po in purchaseOrders" :key="po.id">
                                         <tr class="align-top hover:bg-brand-50/40">
-                                            <td class="whitespace-nowrap px-5 py-4 font-mono text-xs font-semibold text-brand-800" x-text="po.po_number"></td>
+                                            <td class="whitespace-nowrap px-5 py-4 font-mono text-xs font-semibold">
+                                                <a :href="`/purchase-orders/${po.id}`" class="text-brand-800 hover:text-brand-900 hover:underline" x-text="po.po_number"></a>
+                                            </td>
                                             <td class="px-5 py-4 text-ink" x-text="po.supplier?.name ?? '-' "></td>
                                             <td class="whitespace-nowrap px-5 py-4 text-muted" x-text="formatDate(po.order_date)"></td>
                                             <td class="whitespace-nowrap px-5 py-4 text-right font-semibold text-ink" x-text="formatRupiah(po.grand_total)"></td>

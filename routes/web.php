@@ -16,6 +16,7 @@ use App\Http\Controllers\InvoicePaymentPageController;
 use App\Http\Controllers\PaymentHistoryPageController;
 use App\Http\Controllers\ProductIndexPageController;
 use App\Http\Controllers\ProfitLossReportPageController;
+use App\Http\Controllers\PurchaseOrderShowPageController;
 use App\Http\Controllers\ReceivablePageController;
 use App\Models\Expense;
 use App\Models\Supplier;
@@ -136,6 +137,9 @@ Route::middleware('auth')->group(function () {
     Route::view('/purchase-orders/create', 'purchase-orders.create')
         ->middleware('permission:purchase_order.create')
         ->name('purchase-orders.create');
+    Route::get('/purchase-orders/{purchase_order}', PurchaseOrderShowPageController::class)
+        ->middleware('permission:purchase_order.view')
+        ->name('purchase-orders.show');
     Route::view('/goods-receipts', 'goods-receipts.index')
         ->middleware('permission:goods_receipt.view')
         ->name('goods-receipts.index');

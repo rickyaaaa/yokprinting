@@ -90,17 +90,27 @@
                                     <tbody class="divide-y divide-line">
                                         <template x-for="(item, index) in items" :key="index">
                                             <tr>
-                                                <td class="relative px-5 py-3 sm:px-6" @click.outside="item.productPickerOpen = false">
-                                                    <input class="form-control" type="search" placeholder="Ketik nama atau SKU barang..." x-model="item.productSearch" @focus="item.productPickerOpen = true" @input="item.productPickerOpen = true; item.product_id = ''">
-                                                    <div x-show="item.productPickerOpen" x-cloak class="absolute left-5 right-5 top-[calc(100%-0.25rem)] z-20 max-h-64 overflow-y-auto rounded-lg border border-line bg-white p-1 shadow-lg sm:left-6 sm:right-6">
-                                                        <button type="button" class="block w-full rounded-md px-3 py-2 text-left text-xs text-muted hover:bg-brand-50" x-show="filteredProducts(item).length === 0">Produk tidak ditemukan.</button>
-                                                        <template x-for="product in filteredProducts(item)" :key="product.id">
-                                                            <button type="button" class="block w-full rounded-md px-3 py-2 text-left hover:bg-brand-50" @click="selectProduct(index, product)">
-                                                                <span class="block truncate text-sm font-semibold text-ink" x-text="`${product.sku} - ${product.name}`"></span>
-                                                                <span class="block truncate text-xs text-muted" x-text="product.category || 'Tanpa kategori'"></span>
-                                                            </button>
-                                                        </template>
-                                                    </div>
+                                                <td class="px-5 py-3 sm:px-6">
+                                                    <input class="form-control" type="search" placeholder="Ketik nama atau SKU barang..." x-model="item.productSearch" @focus="openProductPicker(index, $event)" @input="openProductPicker(index, $event); item.product_id = ''" @keydown.escape="item.productPickerOpen = false">
+                                                    <!--
+                                                        Teleported to <body> and positioned via getBoundingClientRect
+                                                        (see openProductPicker in purchase-orders.js) instead of being
+                                                        absolutely positioned inside this cell - the table wrapper below
+                                                        is overflow-x-auto, which (per the CSS spec) computes overflow-y
+                                                        to auto too and clips any absolutely-positioned dropdown that
+                                                        would otherwise escape it, making the picker look broken/unusable.
+                                                    -->
+                                                    <template x-teleport="body">
+                                                        <div x-show="item.productPickerOpen" x-cloak class="fixed z-50 max-h-64 overflow-y-auto rounded-lg border border-line bg-white p-1 shadow-lg" :style="item.pickerStyle">
+                                                            <button type="button" class="block w-full rounded-md px-3 py-2 text-left text-xs text-muted hover:bg-brand-50" x-show="filteredProducts(item).length === 0">Produk tidak ditemukan.</button>
+                                                            <template x-for="product in filteredProducts(item)" :key="product.id">
+                                                                <button type="button" class="block w-full rounded-md px-3 py-2 text-left hover:bg-brand-50" @click="selectProduct(index, product)">
+                                                                    <span class="block truncate text-sm font-semibold text-ink" x-text="`${product.sku} - ${product.name}`"></span>
+                                                                    <span class="block truncate text-xs text-muted" x-text="product.category || 'Tanpa kategori'"></span>
+                                                                </button>
+                                                            </template>
+                                                        </div>
+                                                    </template>
                                                     <input type="hidden" :name="`items.${index}.product_id`" :value="item.product_id">
                                                     <span class="mt-1.5 block text-xs text-red-700" x-show="errors[`items.${index}.product_id`]" x-text="errors[`items.${index}.product_id`]"></span>
 

@@ -9,7 +9,6 @@ use App\Models\InvoiceItem;
 use App\Models\Product;
 use App\Services\Inventory\FifoInventoryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class FifoInventoryTest extends TestCase
@@ -42,16 +41,28 @@ class FifoInventoryTest extends TestCase
         ]);
     }
 
-    public function test_insufficient_stock_is_rejected_before_any_layer_is_consumed(): void
+    public function test_stock_shortfall_is_allowed_and_uses_the_best_known_cost_for_the_remainder(): void
     {
+        // Owner requirement: a sale must never be blocked by insufficient
+        // stock. The real batch covers what it can; the remainder is
+        // costed at the product's best-known price and stock goes negative.
         [$product, $invoice, $item] = $this->saleContext(quantity: 150);
         $this->batch($product, '2026-08-01', 100, 900);
-        $product->forceFill(['stock' => 100])->save();
+        $product->forceFill(['stock' => 100, 'average_purchase_cost' => 950])->save();
 
-        $this->expectException(ValidationException::class);
-        app(FifoInventoryService::class)->consume($invoice, $item);
+        $hpp = app(FifoInventoryService::class)->consume($invoice, $item);
 
-        $this->assertSame('100.0000', InventoryBatch::query()->firstOrFail()->qty_remaining);
+        $this->assertSame(137500.0, $hpp); // 100*900 (real batch) + 50*950 (fallback cost)
+        $this->assertSame('0.0000', InventoryBatch::query()->firstOrFail()->qty_remaining);
+        $this->assertSame('-50.0000', $product->refresh()->stock);
+        $this->assertDatabaseHas('invoice_item_cost_layers', [
+            'invoice_item_id' => $item->id,
+            'qty_consumed' => 100,
+            'unit_cost' => 900,
+            'total_cost' => 90000,
+        ]);
+        // No cost-layer row for the shortfall - there's no real batch to attribute it to.
+        $this->assertSame(1, $item->costLayers()->count());
     }
 
     public function test_historical_cost_layer_does_not_change_after_a_new_purchase(): void

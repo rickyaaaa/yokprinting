@@ -210,6 +210,41 @@ class StoreInvoiceDraftApiTest extends TestCase
             ->assertJsonPath('data.total_amount', '21250000.00');
     }
 
+    public function test_invoice_can_be_created_even_when_stock_is_insufficient(): void
+    {
+        // Owner requirement: never block invoice creation for lack of stock -
+        // the sale still goes through and stock is allowed to go negative.
+        $customer = Customer::query()->create([
+            'name' => 'PT Pelanggan Stok Kosong',
+            'email' => fake()->unique()->safeEmail(),
+        ]);
+        $product = Product::query()->create([
+            'name' => 'Cup PP 16Oz Datar 7GR SJP',
+            'sku' => 'CUP-STOK-KOSONG',
+            'category' => 'Cetak premium',
+            'minimum_order_qty' => 1,
+            'package_conversion' => 1,
+            'track_stock' => true,
+            'stock' => 0,
+        ]);
+
+        $response = $this->postJson(route('api.invoices.drafts.store'), [
+            'customer_id' => $customer->id,
+            'issue_date' => '2026-08-21',
+            'due_date' => '2026-09-04',
+            'items' => [
+                ['product_id' => $product->id, 'product_name' => $product->name, 'sku' => $product->sku, 'quantity' => 100, 'price' => 1000],
+            ],
+            'discount' => ['type' => 'percentage', 'value' => 0],
+            'tax' => ['enabled' => false, 'rate' => 0],
+        ]);
+
+        $response->assertCreated();
+
+        $this->assertSame('-100.0000', $product->refresh()->stock);
+        $this->assertDatabaseHas('invoices', ['invoice_number' => $response->json('data.invoice_number')]);
+    }
+
     public function test_invoice_draft_validation_returns_field_errors(): void
     {
         $payload = $this->validPayload();

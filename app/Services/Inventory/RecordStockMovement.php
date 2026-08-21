@@ -59,12 +59,12 @@ class RecordStockMovement
         $signedQuantity = round((float) $quantity, 4);
         $stockAfter = round($stockBefore + $signedQuantity, 4);
 
-        if ($product->track_stock && $stockAfter < 0) {
-            throw ValidationException::withMessages([
-                'quantity' => "Stok {$product->name} tidak boleh negatif. Stok tersedia: {$this->formatQuantity($stockBefore)}.",
-            ]);
-        }
-
+        // Stock is allowed to go negative (e.g. a sale recorded before the
+        // matching purchase/receipt is entered) - the owner explicitly
+        // wants invoices to never be blocked by insufficient stock. This
+        // only relaxes the raw ledger; FIFO layer adjustments below (for
+        // adjustment/opname types) still guard against consuming more than
+        // what's actually in a real batch.
         $movement = StockMovement::query()->create([
             'product_id' => $product->getKey(),
             'type' => $type,

@@ -317,6 +317,7 @@ Alpine.data('invoiceDraftForm', (config = {}) => ({
     errorMessage: '',
     errorTitle: '',
     fieldErrors: {},
+    stockAlerts: [],
 
     init() {
         this.restoreSavedEditorDraft();
@@ -388,6 +389,7 @@ Alpine.data('invoiceDraftForm', (config = {}) => ({
                 hour: '2-digit',
                 minute: '2-digit',
             }).format(new Date(response.data.saved_at));
+            this.stockAlerts = response.data.stock_alerts ?? [];
             this.draftSaved = true;
             window.sessionStorage.setItem(invoiceDraftStorageKey, JSON.stringify(payload));
 
@@ -411,6 +413,7 @@ Alpine.data('invoiceDraftForm', (config = {}) => ({
         this.draftSaved = false;
         this.errorMessage = '';
         this.errorTitle = '';
+        this.stockAlerts = [];
     },
 
     restoreSavedEditorDraft() {
@@ -1641,6 +1644,7 @@ Alpine.data('invoiceItems', () => ({
             sku: product?.sku ?? product?.code ?? '',
             productSearch: product ? this.productLabel(product) : '',
             pickerOpen: false,
+            pickerStyle: '',
             cupSize: '12 Oz',
             cupModel: product?.cup_model ?? 'Oval',
             grammage: product?.grammage ?? '8gr',
@@ -1719,12 +1723,33 @@ Alpine.data('invoiceItems', () => ({
         ];
     },
 
-    openProductPicker(item) {
+    openProductPicker(item, event) {
         item.pickerOpen = true;
+        this.positionProductPicker(item, event?.target);
     },
 
-    toggleProductPicker(item) {
+    toggleProductPicker(item, event) {
         item.pickerOpen = ! item.pickerOpen;
+
+        if (item.pickerOpen) {
+            const input = event?.target?.closest('.relative')?.querySelector('input[type="search"]');
+            this.positionProductPicker(item, input ?? event?.target);
+        }
+    },
+
+    /**
+     * Position the (teleported) product picker dropdown against the
+     * triggering input's current screen position - see the x-teleport note
+     * in invoice-items.blade.php.
+     */
+    positionProductPicker(item, anchorEl) {
+        const rect = anchorEl?.getBoundingClientRect?.();
+
+        if (!rect) {
+            return;
+        }
+
+        item.pickerStyle = `top:${rect.bottom + 8}px; left:${rect.left}px; width:${rect.width}px;`;
     },
 
     selectProduct(item, product) {

@@ -83,50 +83,62 @@
                                     :aria-invalid="Boolean(fieldErrors?.items)"
                                     placeholder="Ketik kode H-001 atau nama produk"
                                     autocomplete="off"
-                                    @focus="openProductPicker(item)"
-                                    @input="openProductPicker(item)"
+                                    @focus="openProductPicker(item, $event)"
+                                    @input="openProductPicker(item, $event)"
                                 >
                                 <button
                                     type="button"
                                     class="absolute right-2 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted hover:bg-brand-50 hover:text-brand-800"
                                     :aria-label="`Buka hasil produk baris ${index + 1}`"
-                                    @click="toggleProductPicker(item)"
+                                    @click="toggleProductPicker(item, $event)"
                                 >
                                     <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                                         <path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
                                     </svg>
                                 </button>
 
-                                <div
-                                    x-show="item.pickerOpen"
-                                    x-cloak
-                                    x-transition.origin.top.left
-                                    class="absolute left-0 right-0 z-40 mt-2 max-h-72 overflow-y-auto rounded-xl border border-line bg-white p-1.5 shadow-xl shadow-ink/10"
-                                    role="listbox"
-                                >
-                                    <template x-for="product in filteredProductsFor(item)" :key="product.id">
-                                        <button
-                                            type="button"
-                                            class="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left text-sm hover:bg-brand-50"
-                                            :class="Number(item.productId) === Number(product.id) ? 'bg-brand-50 text-brand-900' : 'text-ink'"
-                                            role="option"
-                                            :aria-selected="Number(item.productId) === Number(product.id)"
-                                            @mousedown.prevent="selectProduct(item, product)"
-                                        >
-                                            <span class="mt-0.5 shrink-0 rounded-md bg-canvas px-2 py-1 font-mono text-xs font-semibold text-muted" x-text="product.sku ?? product.code"></span>
-                                            <span class="min-w-0">
-                                                <span class="block font-semibold" x-text="product.name"></span>
-                                                <span class="mt-0.5 block truncate text-xs text-muted" x-text="productMeta(product)"></span>
-                                            </span>
-                                        </button>
-                                    </template>
+                                <!--
+                                    Teleported to <body> and positioned via getBoundingClientRect
+                                    (see openProductPicker/toggleProductPicker in app.js) instead of
+                                    being absolutely positioned inside this cell - the table wrapper
+                                    below is overflow-x-auto, which (per the CSS spec) computes
+                                    overflow-y to auto too and clips any absolutely-positioned
+                                    dropdown that would otherwise escape it, making the picker look
+                                    broken/unusable.
+                                -->
+                                <template x-teleport="body">
                                     <div
-                                        x-show="filteredProductsFor(item).length === 0"
-                                        class="px-3 py-4 text-sm text-muted"
+                                        x-show="item.pickerOpen"
+                                        x-cloak
+                                        x-transition.origin.top.left
+                                        class="fixed z-50 max-h-72 overflow-y-auto rounded-xl border border-line bg-white p-1.5 shadow-xl shadow-ink/10"
+                                        :style="item.pickerStyle"
+                                        role="listbox"
                                     >
-                                        Produk tidak ditemukan. Coba ketik kode H-xxx atau kata dari nama produk.
+                                        <template x-for="product in filteredProductsFor(item)" :key="product.id">
+                                            <button
+                                                type="button"
+                                                class="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left text-sm hover:bg-brand-50"
+                                                :class="Number(item.productId) === Number(product.id) ? 'bg-brand-50 text-brand-900' : 'text-ink'"
+                                                role="option"
+                                                :aria-selected="Number(item.productId) === Number(product.id)"
+                                                @mousedown.prevent="selectProduct(item, product)"
+                                            >
+                                                <span class="mt-0.5 shrink-0 rounded-md bg-canvas px-2 py-1 font-mono text-xs font-semibold text-muted" x-text="product.sku ?? product.code"></span>
+                                                <span class="min-w-0">
+                                                    <span class="block font-semibold" x-text="product.name"></span>
+                                                    <span class="mt-0.5 block truncate text-xs text-muted" x-text="productMeta(product)"></span>
+                                                </span>
+                                            </button>
+                                        </template>
+                                        <div
+                                            x-show="filteredProductsFor(item).length === 0"
+                                            class="px-3 py-4 text-sm text-muted"
+                                        >
+                                            Produk tidak ditemukan. Coba ketik kode H-xxx atau kata dari nama produk.
+                                        </div>
                                     </div>
-                                </div>
+                                </template>
                             </div>
                             <select
                                 x-model.number="item.productId"
