@@ -30,21 +30,17 @@
                 <header class="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
                     <button
                         type="button"
-                        class="mr-3 rounded-lg p-2 text-muted hover:bg-brand-50 hover:text-brand-800 lg:hidden"
+                        class="btn-icon mr-3 border-transparent lg:hidden"
                         @click="sidebarOpen = true"
                         aria-controls="app-sidebar"
                         :aria-expanded="sidebarOpen"
                         aria-label="Buka navigasi"
                     >
-                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/>
-                        </svg>
+                        <i class="iconify tabler--align-left text-xl"></i>
                     </button>
                     <div class="flex min-w-0 items-center gap-2 text-sm">
                         <span class="hidden text-muted sm:inline">Ringkasan</span>
-                        <svg class="hidden size-4 text-line sm:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="m9 18 6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                        <i class="iconify tabler--chevron-right hidden text-sm text-line sm:block"></i>
                         <span class="truncate font-medium text-ink">Dashboard bisnis</span>
                     </div>
                     <div class="ml-auto flex items-center gap-2">
@@ -64,16 +60,12 @@
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Pantau pendapatan, tagihan berjalan, dan aktivitas invoice terbaru dalam satu layar.</p>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
-                            <button type="button" class="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:bg-brand-50 hover:text-brand-800">
-                                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                    <path d="M4 7h16M7 4v6M17 4v6M6 12h12v8H6z" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
+                            <button type="button" class="btn btn-outline">
+                                <i class="iconify tabler--calendar text-base"></i>
                                 Bulan ini
                             </button>
-                            <a href="{{ route('invoices.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-800">
-                                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                    <path d="M12 5v14M5 12h14" stroke-linecap="round"/>
-                                </svg>
+                            <a href="{{ route('invoices.create') }}" class="btn btn-primary">
+                                <i class="iconify tabler--plus text-base"></i>
                                 Buat invoice
                             </a>
                         </div>
@@ -89,7 +81,7 @@
                                     default => 'bg-brand-100 text-brand-800',
                                 };
                             @endphp
-                            <article class="rounded-xl bg-white p-5 border border-line">
+                            <article class="card p-5">
                                 <div class="flex items-start justify-between gap-4">
                                     <div>
                                         <p class="text-sm font-medium text-muted">{{ $card['label'] }}</p>
@@ -125,7 +117,7 @@
                         @endforeach
                     </section>
 
-                    <section class="mt-6 rounded-xl bg-white border border-line" aria-labelledby="production-queue-heading">
+                    <section class="mt-6 card" aria-labelledby="production-queue-heading">
                         <div class="flex flex-col gap-3 border-b border-line px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                             <div>
                                 <h2 id="production-queue-heading" class="font-semibold text-ink">Antrean produksi sablon cup</h2>
@@ -159,7 +151,7 @@
 
                     <div class="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
                         <section
-                            class="rounded-xl bg-white border border-line"
+                            class="card"
                             aria-labelledby="revenue-heading"
                             x-data="dashboardRevenueChart"
                         >
@@ -215,7 +207,7 @@
                         </section>
 
                         <aside class="space-y-6">
-                            <section class="rounded-xl bg-white border border-line" aria-labelledby="due-notification-heading" data-testid="due-notification-card">
+                            <section class="card" aria-labelledby="due-notification-heading" data-testid="due-notification-card">
                                 <div class="border-b border-line px-5 py-4">
                                     <div class="flex items-start justify-between gap-4">
                                         <div>
@@ -317,7 +309,7 @@
                             </section>
 
                             <section
-                                class="rounded-xl bg-white border border-line"
+                                class="card"
                                 aria-labelledby="activity-heading"
                                 x-data="dashboardRecentActivities"
                             >
@@ -367,7 +359,7 @@
                         </aside>
                     </div>
 
-                    <section class="mt-6 rounded-xl bg-white border border-line" aria-labelledby="upcoming-heading">
+                    <section class="mt-6 card" aria-labelledby="upcoming-heading">
                         <div class="flex flex-col gap-3 border-b border-line px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                             <div>
                                 <h2 id="upcoming-heading" class="font-semibold text-ink">Invoice yang perlu dipantau</h2>

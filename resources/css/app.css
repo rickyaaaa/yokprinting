@@ -1,5 +1,19 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Serif:wght@600;700&display=swap');
 @import 'tailwindcss';
+
+/* Iconify Icons (Xeloro-style icon set) */
+@plugin "@iconify/tailwind4" {
+    prefixes: tabler, lucide;
+}
+
+/* DM Sans, self-hosted: the app's CSP (style-src/font-src 'self') blocks the
+   Google Fonts CDN, so the variable font is served locally instead. */
+@font-face {
+    font-family: 'DM Sans';
+    font-style: normal;
+    font-weight: 100 1000;
+    font-display: swap;
+    src: url('/fonts/dm-sans-latin-variable.woff2') format('woff2');
+}
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -8,7 +22,7 @@
 @source "../**/*.vue";
 
 @theme {
-    --font-sans: 'Inter', 'Segoe UI', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-sans: 'DM Sans', 'Segoe UI', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     --font-serif: 'Noto Serif', Georgia, Cambria, 'Times New Roman', serif;
 
     --color-brand-50: #eff6ff;
@@ -35,6 +49,40 @@
     --color-success-soft: #dcfce7;
     --color-warning-soft: #fce7f3;
     --color-info-soft: #dbeafe;
+
+    /* Xeloro-style semantic tokens, mapped onto the existing YokPrinting brand palette
+       so new "shell" components (sidebar/topbar/cards/buttons) read as one system
+       with the rest of the app instead of introducing a second, clashing palette. */
+    --color-primary: var(--color-brand-600);
+    --color-primary-50: var(--color-brand-50);
+    --color-primary-100: var(--color-brand-100);
+    --color-primary-200: var(--color-brand-200);
+    --color-primary-300: var(--color-brand-300);
+    --color-primary-400: var(--color-brand-400);
+    --color-primary-500: var(--color-brand-500);
+    --color-primary-600: var(--color-brand-600);
+    --color-primary-700: var(--color-brand-700);
+    --color-primary-800: var(--color-brand-800);
+    --color-primary-900: var(--color-brand-900);
+
+    --color-secondary: #7b70ef;
+    --color-success: #02bc9c;
+    --color-info: #5bc3e1;
+    --color-warning: #f9bf59;
+    --color-danger: #f7577e;
+    --color-purple: #7b70ef;
+
+    --color-default-50: #fafafa;
+    --color-default-100: var(--color-gray-100);
+    --color-default-200: var(--color-gray-200);
+    --color-default-300: var(--color-gray-300);
+    --color-default-400: var(--color-gray-400);
+    --color-default-500: var(--color-gray-500);
+    --color-default-600: var(--color-gray-600);
+    --color-default-700: var(--color-gray-700);
+    --color-default-800: var(--color-gray-800);
+    --color-default-900: var(--color-gray-900);
+    --color-default-950: var(--color-gray-950);
 }
 
 @layer base {
@@ -119,6 +167,68 @@
         font-size: 0.75rem;
         line-height: 1rem;
         white-space: nowrap;
+    }
+
+    /* ---------------------------------------------------------------
+       Xeloro-inspired shell components (card / button / icon-button).
+       Additive: existing .bento-card / .form-control / .spec-select
+       keep working untouched on pages not migrated yet.
+       ------------------------------------------------------------- */
+    .card {
+        @apply relative rounded-xl bg-white flex flex-col bg-clip-border h-fit border border-line shadow-sm shadow-default-900/[0.02];
+    }
+
+    .card-header {
+        @apply py-3.5 px-5 border-b border-line flex items-center justify-between gap-3;
+    }
+
+    .card-footer {
+        @apply py-3 px-5 border-t border-line;
+    }
+
+    .card-body {
+        @apply p-5;
+    }
+
+    .card-title {
+        @apply text-base font-semibold text-ink;
+    }
+
+    .btn {
+        @apply inline-flex justify-center items-center gap-x-2 text-center rounded-lg border border-transparent px-3.5 py-2 text-sm font-semibold transition-all disabled:opacity-50 disabled:pointer-events-none;
+    }
+
+    .btn-lg {
+        @apply px-5 py-3 text-base;
+    }
+
+    .btn-sm {
+        @apply px-3 py-1.5 text-xs;
+    }
+
+    .btn-primary {
+        @apply bg-primary text-white hover:bg-primary-700;
+    }
+
+    .btn-outline {
+        @apply border-line bg-white text-ink hover:bg-default-50;
+    }
+
+    .btn-icon {
+        @apply inline-flex justify-center items-center rounded-lg border border-line bg-white p-2 text-default-600 transition-all hover:bg-default-50 aria-expanded:bg-default-100 disabled:opacity-50 disabled:pointer-events-none;
+    }
+
+    .custom-scroll::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+    }
+
+    .custom-scroll::-webkit-scrollbar-thumb {
+        @apply rounded-full bg-default-300/60;
+    }
+
+    .custom-scroll::-webkit-scrollbar-track {
+        @apply bg-transparent;
     }
 }
 
