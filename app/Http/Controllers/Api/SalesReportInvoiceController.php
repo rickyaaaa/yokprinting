@@ -139,13 +139,21 @@ class SalesReportInvoiceController extends Controller
      */
     private function sortRows(Collection $rows, string $sort, string $direction): Collection
     {
-        return $rows->sortBy(match ($sort) {
+        $primary = match ($sort) {
             'total_amount' => 'total_amount',
             'customer' => 'customer.name',
             'invoice_number' => 'invoice_number',
             'status' => 'status',
             default => 'issue_date',
-        }, SORT_REGULAR, $direction === 'desc');
+        };
+
+        // invoice_number is a deterministic secondary key (sequential per
+        // issue date) so rows on the same date never shuffle between
+        // requests - matters most for the default issue_date sort.
+        return $rows->sortBy([
+            [$primary, $direction],
+            ['invoice_number', $direction],
+        ]);
     }
 
     private function statusLabel(string $status): string

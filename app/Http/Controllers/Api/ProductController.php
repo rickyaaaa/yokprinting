@@ -28,7 +28,7 @@ class ProductController extends Controller
         $direction = $validated['direction'] ?? 'asc';
 
         $products = Product::query()
-            ->with('categoryModel')
+            ->with(['categoryModel', 'inventoryBatches'])
             ->when(
                 filled($validated['ids'] ?? null),
                 fn (Builder $query): Builder => $query->whereIn('id', $validated['ids']),
@@ -93,7 +93,7 @@ class ProductController extends Controller
         $product = Product::query()->create($this->normalizeCategory($request->validated()));
 
         return response()->json([
-            'data' => $this->serializeProduct($product->load('categoryModel')),
+            'data' => $this->serializeProduct($product->load(['categoryModel', 'inventoryBatches'])),
             'message' => 'Product created successfully.',
         ], 201);
     }
@@ -104,7 +104,7 @@ class ProductController extends Controller
     public function show(Product $product): JsonResponse
     {
         return response()->json([
-            'data' => $this->serializeProduct($product->load('categoryModel')),
+            'data' => $this->serializeProduct($product->load(['categoryModel', 'inventoryBatches'])),
         ]);
     }
 
@@ -116,7 +116,7 @@ class ProductController extends Controller
         $product->update($this->normalizeCategory($request->validated()));
 
         return response()->json([
-            'data' => $this->serializeProduct($product->refresh()->load('categoryModel')),
+            'data' => $this->serializeProduct($product->refresh()->load(['categoryModel', 'inventoryBatches'])),
             'message' => 'Product updated successfully.',
         ]);
     }
@@ -188,6 +188,13 @@ class ProductController extends Controller
             'purchase_price' => (float) $product->purchase_price,
             'last_purchase_price' => $product->last_purchase_price === null ? null : (float) $product->last_purchase_price,
             'average_purchase_cost' => $product->average_purchase_cost === null ? null : (float) $product->average_purchase_cost,
+            // The "HPP FIFO" value: unit cost of the oldest available FIFO
+            // batch (what the next sale will actually draw from), NOT a
+            // weighted average across remaining batches. Falls back to the
+            // average-cost chain above only while no batch is available.
+            // See Product::fifoUnitCost()/fifoInventoryValue().
+            'fifo_hpp' => (float) $product->fifoUnitCost(),
+            'fifo_inventory_value' => (float) $product->fifoInventoryValue(),
             // From Supplier Price List, not from actual purchase transactions -
             // deliberately kept separate from last_purchase_price above (see
             // requirement 14/15: supplier's asking price vs what was actually paid).

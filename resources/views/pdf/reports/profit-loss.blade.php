@@ -87,6 +87,7 @@
                 <tr class="gross"><td>Laba Kotor</td><td class="amount">{{ $money($summary['gross_profit']) }}</td></tr>
                 <tr class="section"><td colspan="2">Pengeluaran operasional</td></tr>
                 <tr><td>Biaya Ongkir Ditanggung Perusahaan</td><td class="amount">{{ $money($summary['shipping_expenses']) }}</td></tr>
+                <tr><td>Total Biaya Ekspedisi</td><td class="amount">{{ $money($summary['expedition_expenses']) }}</td></tr>
                 <tr><td>Total Biaya Produksi</td><td class="amount">{{ $money($summary['production_expenses']) }}</td></tr>
                 <tr><td>Total Biaya Karyawan</td><td class="amount">{{ $money($summary['employee_expenses']) }}</td></tr>
                 <tr><td>Total Biaya Tempat</td><td class="amount">{{ $money($summary['premises_expenses']) }}</td></tr>

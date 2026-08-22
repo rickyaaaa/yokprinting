@@ -158,6 +158,67 @@ class Product extends Model
     }
 
     /**
+     * The "HPP FIFO" value: unit cost of the oldest available FIFO batch -
+     * i.e. what the *next* sale will actually be costed at. Falls back to
+     * the legacy average-cost chain only when no batch is currently
+     * available (out of stock / never received). Never a weighted average
+     * across remaining batches - that's a different number (see
+     * fifoInventoryValue()) and must never be shown under a "HPP FIFO" label.
+     *
+     * Uses the `inventoryBatches` relation when already eager-loaded to
+     * avoid N+1 queries on list pages; otherwise queries directly.
+     */
+    public function fifoUnitCost(): float
+    {
+        $batches = $this->relationLoaded('inventoryBatches')
+            ? $this->inventoryBatches
+            : $this->inventoryBatches()->get();
+
+        $oldest = $batches
+            ->filter(fn (InventoryBatch $batch): bool => (float) $batch->qty_remaining > 0)
+            ->sort(fn (InventoryBatch $a, InventoryBatch $b): int => [$a->purchase_date, $a->getKey()] <=> [$b->purchase_date, $b->getKey()])
+            ->first();
+
+        return $oldest ? (float) $oldest->unit_cost : $this->purchaseCostFallback();
+    }
+
+    /**
+     * True inventory valuation for this product's currently available FIFO
+     * stock: SUM(qty_remaining * unit_cost) across its available batches.
+     * Distinct from fifoUnitCost() (a per-unit "next sale cost") - this is
+     * the right number for "Nilai persediaan" style totals. Falls back to
+     * stock x the legacy average-cost chain when no batch is available.
+     */
+    public function fifoInventoryValue(): float
+    {
+        $batches = $this->relationLoaded('inventoryBatches')
+            ? $this->inventoryBatches
+            : $this->inventoryBatches()->get();
+
+        $value = $batches
+            ->filter(fn (InventoryBatch $batch): bool => (float) $batch->qty_remaining > 0)
+            ->sum(fn (InventoryBatch $batch): float => (float) $batch->qty_remaining * (float) $batch->unit_cost);
+
+        return $value > 0
+            ? round($value, 2)
+            : round((float) ($this->stock ?? 0) * $this->purchaseCostFallback(), 2);
+    }
+
+    /**
+     * Legacy fallback cost chain, shared by every place in the app that
+     * needs a best-known unit cost when there's no real FIFO batch to draw
+     * from (see e.g. FifoInventoryService). Never the source of a value
+     * displayed under a "HPP FIFO" label while a real batch is available.
+     */
+    public function purchaseCostFallback(): float
+    {
+        return (float) ($this->average_purchase_cost
+            ?? $this->last_purchase_price
+            ?? $this->purchase_price
+            ?? 0);
+    }
+
+    /**
      * Get the supplier-quoted price history for this product (Supplier
      * Price List). Distinct from purchase_price/last_purchase_price, which
      * reflect what the company actually paid, not what suppliers quoted.

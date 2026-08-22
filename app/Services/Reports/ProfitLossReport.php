@@ -81,11 +81,16 @@ class ProfitLossReport
         $shoppingExpenses = $this->expenseTotal($expenseRows, Expense::CATEGORY_SHOPPING);
         $employeeExpenses = $this->expenseTotal($expenseRows, Expense::CATEGORY_EMPLOYEE);
         $premisesExpenses = $this->expenseTotal($expenseRows, Expense::CATEGORY_PREMISES);
+        // Expedition/shipping cost paid to a courier is a distribution
+        // expense incurred after goods are already FIFO-costed - never part
+        // of HPP - so unlike production/shopping it's unambiguously
+        // "recognized", the same bucket as shipping_expenses/employee/premises.
+        $expeditionExpenses = $this->expenseTotal($expenseRows, Expense::CATEGORY_EXPEDITION);
 
         // Production and shopping expenses cannot yet be reconciled to inventory/HPP.
         // Report both defensible boundaries instead of choosing one unsupported result.
         $unclassifiedExpenses = $this->money($productionExpenses + $shoppingExpenses);
-        $recognizedExpenses = $this->money($shippingExpenses + $employeeExpenses + $premisesExpenses);
+        $recognizedExpenses = $this->money($shippingExpenses + $expeditionExpenses + $employeeExpenses + $premisesExpenses);
         $recordedExpenses = $this->money($recognizedExpenses + $unclassifiedExpenses);
         $grossProfit = $this->money($salesRevenue - $totalHpp);
         $netProfitMaximum = $this->money($grossProfit - $recognizedExpenses);
@@ -118,6 +123,7 @@ class ProfitLossReport
                 'total_hpp' => $totalHpp,
                 'gross_profit' => $grossProfit,
                 'shipping_expenses' => $shippingExpenses,
+                'expedition_expenses' => $expeditionExpenses,
                 'production_expenses' => $productionExpenses,
                 'employee_expenses' => $employeeExpenses,
                 'premises_expenses' => $premisesExpenses,

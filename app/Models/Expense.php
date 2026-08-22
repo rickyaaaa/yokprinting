@@ -22,6 +22,8 @@ class Expense extends Model
 
     public const CATEGORY_PREMISES = 'premises';
 
+    public const CATEGORY_EXPEDITION = 'expedition';
+
     public const SUBCATEGORY_SALARY = 'salary';
 
     public const SUBCATEGORY_THR = 'thr';
@@ -100,6 +102,7 @@ class Expense extends Model
             self::CATEGORY_SHOPPING => 'Belanjaan',
             self::CATEGORY_EMPLOYEE => 'Biaya Karyawan',
             self::CATEGORY_PREMISES => 'Biaya Tempat',
+            self::CATEGORY_EXPEDITION => 'Biaya Ekspedisi',
         ];
     }
 

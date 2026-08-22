@@ -172,7 +172,7 @@
                                     </div>
                                     <div class="block rounded-lg border border-line bg-canvas p-3">
                                         <span class="text-sm font-medium text-muted">HPP FIFO per unit</span>
-                                        <p class="mt-1 font-semibold text-ink" x-text="formattedAveragePurchaseCost"></p>
+                                        <p class="mt-1 font-semibold text-ink" x-text="formattedFifoHpp"></p>
                                     </div>
                                     <div class="block rounded-lg border border-line bg-canvas p-3 md:col-span-2">
                                         <div class="flex flex-wrap items-start justify-between gap-3">
@@ -244,7 +244,7 @@
                                         </div>
                                         <div class="flex justify-between gap-3">
                                             <dt class="text-muted">HPP FIFO per unit</dt>
-                                            <dd class="font-semibold text-ink" x-text="formattedAveragePurchaseCost"></dd>
+                                            <dd class="font-semibold text-ink" x-text="formattedFifoHpp"></dd>
                                         </div>
                                         <div class="flex justify-between gap-3">
                                             <dt class="text-muted">Stok</dt>

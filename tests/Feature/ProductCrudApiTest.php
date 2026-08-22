@@ -91,6 +91,7 @@ class ProductCrudApiTest extends TestCase
             ->assertJsonPath('data.purchase_price', 0)
             ->assertJsonPath('data.last_purchase_price', null)
             ->assertJsonPath('data.average_purchase_cost', null)
+            ->assertJsonPath('data.fifo_hpp', 0)
             ->assertJsonPath('data.package_conversion', 500)
             ->assertJsonPath('data.track_stock', true);
 

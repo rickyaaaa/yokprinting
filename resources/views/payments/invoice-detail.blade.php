@@ -458,47 +458,6 @@
                                         </div>
                                     </div>
                                 </section>
-                            @elseif ($invoice['is_draft'])
-                                <section
-                                    id="record-payment"
-                                    class="rounded-xl border border-amber-200 bg-amber-50 p-5 sm:p-6"
-                                    aria-labelledby="record-payment-heading"
-                                    data-testid="payment-draft-state"
-                                >
-                                    <div class="flex items-start gap-4">
-                                        <span class="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-500 text-white" aria-hidden="true">
-                                            <i class="iconify tabler--alert-circle text-lg"></i>
-                                        </span>
-                                        <div class="min-w-0 flex-1">
-                                            <h2 id="record-payment-heading" class="font-semibold text-amber-950">Invoice masih draft</h2>
-                                            <p class="mt-1 text-sm leading-6 text-amber-900">DP/pembayaran belum bisa dicatat sebelum invoice ini dikirim ke pelanggan. Kirim dulu, baru pembayaran bisa dicatat di sini.</p>
-                                            <div
-                                                class="relative mt-4 inline-flex"
-                                                x-data="invoiceWhatsAppDelivery"
-                                                data-endpoint="{{ route('api.invoices.send-whatsapp', ['invoice' => $invoiceModel]) }}"
-                                                data-sent="false"
-                                                data-purpose="invoice"
-                                            >
-                                                <button
-                                                    type="button"
-                                                    class="btn bg-amber-600 text-white hover:bg-amber-700 disabled:cursor-wait"
-                                                    :disabled="sending"
-                                                    :aria-busy="sending"
-                                                    @click="send()"
-                                                >
-                                                    <i class="iconify tabler--brand-whatsapp text-base"></i>
-                                                    <span x-text="sending ? 'Membuka WA…' : 'Kirim invoice via WA'">Kirim invoice via WA</span>
-                                                </button>
-                                                <p x-cloak x-show="this.message" x-text="this.message" class="absolute left-0 top-full z-10 mt-2 w-64 rounded-lg border px-3 py-2 text-xs shadow-sm" :class="(this.messageType ?? 'error') === 'success' ? 'border-green-200 bg-green-50 text-green-900' : 'border-red-200 bg-red-50 text-red-900'" role="status"></p>
-                                            </div>
-                                            @if ($invoice['is_editable'])
-                                                <a href="{{ route('invoices.edit', $invoiceModel) }}" class="ml-3 mt-4 inline-flex items-center gap-2 text-sm font-semibold text-amber-900 hover:text-amber-950">
-                                                    atau edit invoice ini dulu →
-                                                </a>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </section>
                             @elseif ($invoice['is_paid'])
                                 <section
                                     id="record-payment"

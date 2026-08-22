@@ -150,7 +150,7 @@
                                     <h2 id="sales-table-heading" class="font-semibold text-ink">Tabel penjualan</h2>
                                     <p class="mt-1 text-sm text-muted">Filter berdasarkan status, kategori, atau pencarian nama pelanggan & invoice.</p>
                                 </div>
-                                <div class="grid w-full gap-3 sm:grid-cols-[auto_11rem_minmax(14rem,1fr)_auto] xl:w-auto">
+                                <div class="grid w-full gap-3 sm:grid-cols-[auto_11rem_9rem_minmax(14rem,1fr)_auto] xl:w-auto">
                                     <div class="inline-flex max-w-full overflow-x-auto rounded-lg bg-canvas p-1 text-xs font-semibold text-muted" aria-label="Filter status penjualan">
                                         <template x-for="option in statusOptions" :key="option.key">
                                             <button
@@ -169,6 +169,15 @@
                                         aria-label="Filter kategori produk"
                                     >
                                         <template x-for="option in categoryOptions" :key="option.key">
+                                            <option :value="option.key" x-text="option.label"></option>
+                                        </template>
+                                    </select>
+                                    <select
+                                        class="form-control text-xs font-semibold text-muted"
+                                        x-model="sortDirection"
+                                        aria-label="Urutan tanggal penjualan"
+                                    >
+                                        <template x-for="option in sortOptions" :key="option.key">
                                             <option :value="option.key" x-text="option.label"></option>
                                         </template>
                                     </select>

@@ -156,6 +156,43 @@ class ListSalesReportInvoicesApiTest extends TestCase
             ->assertJsonPath('data.0.invoice_number', 'INV-2026-0082');
     }
 
+    public function test_same_day_invoices_use_invoice_number_as_a_deterministic_tiebreak(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-08-22 12:00:00'));
+
+        $customer = $this->createCustomer('PT Tiebreak');
+        $product = $this->createProduct('PRN-TIE-01', 'Produk tiebreak', 'Cetak premium');
+
+        // Same issue_date, created in this order (A before B).
+        $this->createItem(
+            $this->createInvoice($customer, 'INV-SORT-A', '2026-08-22', '2026-09-05', 100000, Invoice::PAYMENT_UNPAID),
+            $product,
+            100000,
+        );
+        $this->createItem(
+            $this->createInvoice($customer, 'INV-SORT-B', '2026-08-22', '2026-09-05', 200000, Invoice::PAYMENT_UNPAID),
+            $product,
+            200000,
+        );
+        $this->createItem(
+            $this->createInvoice($customer, 'INV-SORT-C', '2026-08-21', '2026-09-04', 300000, Invoice::PAYMENT_UNPAID),
+            $product,
+            300000,
+        );
+
+        // Default (issue_date desc): newest date first, and on a tie the
+        // "larger" invoice_number (B > A alphabetically, matching creation
+        // order here) wins, then the older date last.
+        $this->getJson(route('api.reports.sales.invoices.index', [
+            'date_from' => '2026-08-01',
+            'date_to' => '2026-08-31',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('data.0.invoice_number', 'INV-SORT-B')
+            ->assertJsonPath('data.1.invoice_number', 'INV-SORT-A')
+            ->assertJsonPath('data.2.invoice_number', 'INV-SORT-C');
+    }
+
     public function test_sales_report_invoice_query_is_validated(): void
     {
         $this->getJson(route('api.reports.sales.invoices.index', [

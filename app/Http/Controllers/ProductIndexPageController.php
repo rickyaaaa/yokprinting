@@ -10,13 +10,7 @@ class ProductIndexPageController extends Controller
     public function __invoke(): View
     {
         $models = Product::query()->withCount('invoiceItems')->with('inventoryBatches')->orderBy('sku')->get();
-        $fifoValue = fn (Product $product): float => round((float) $product->inventoryBatches->sum(
-            fn ($batch): float => (float) $batch->qty_remaining * (float) $batch->unit_cost,
-        ), 2);
-        $costBasis = fn (Product $product): float => (float) (($product->stock ?? 0) > 0 && $fifoValue($product) > 0
-            ? $fifoValue($product) / (float) $product->stock
-            : ($product->last_purchase_price ?? $product->purchase_price));
-        $products = $models->map(function (Product $product) use ($costBasis): array {
+        $products = $models->map(function (Product $product): array {
             $stock = (float) ($product->stock ?? 0);
             $minimum = $product->minimumStockValue();
             $lowStock = $product->track_stock && $stock <= $minimum;
@@ -27,8 +21,12 @@ class ProductIndexPageController extends Controller
                 'name' => $product->name,
                 'category' => $product->category ?: '-',
                 'unit' => strtoupper($product->unit),
-                'purchasePrice' => $this->rupiah($costBasis($product)),
-                'purchasePriceValue' => $costBasis($product),
+                // "HPP FIFO": cost of the oldest available batch (what the
+                // next sale draws from), NOT a weighted average - see
+                // Product::fifoUnitCost().
+                'purchasePrice' => $this->rupiah($product->fifoUnitCost()),
+                'purchasePriceValue' => $product->fifoUnitCost(),
+                'inventoryValue' => $product->fifoInventoryValue(),
                 'stock' => $product->track_stock ? number_format($stock, 0, ',', '.').' '.strtoupper($product->unit) : 'Tidak dilacak',
                 'stockValue' => $product->track_stock ? $stock : PHP_INT_MAX,
                 'minimumStock' => $minimum,
@@ -40,7 +38,7 @@ class ProductIndexPageController extends Controller
         $active = $models->where('status', Product::STATUS_ACTIVE);
         $lowStock = $active->filter(fn (Product $product): bool => $product->track_stock && (float) ($product->stock ?? 0) <= $product->minimumStockValue()
         );
-        $inventoryValue = $models->sum(fn (Product $product): float => $product->track_stock ? (float) ($product->stock ?? 0) * $costBasis($product) : 0
+        $inventoryValue = $models->sum(fn (Product $product): float => $product->track_stock ? $product->fifoInventoryValue() : 0
         );
         $bestSeller = $models->sortByDesc('invoice_items_count')->first();
 

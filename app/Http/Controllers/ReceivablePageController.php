@@ -13,7 +13,12 @@ class ReceivablePageController extends Controller
             ->with('customer')
             ->withSum(['payments as verified_paid_amount' => fn ($query) => $query->verified()], 'amount')
             ->receivable()
+            // Nearest due date first (most actionable for collections) is the
+            // intentional default here, not a "recency" list - deliberately
+            // NOT flipped to newest-first. Deterministic secondary sort by id
+            // only, so same-day invoices don't shuffle between requests.
             ->orderBy('due_date')
+            ->orderBy('id')
             ->get();
 
         $receivables = $invoices->map(function (Invoice $invoice): array {

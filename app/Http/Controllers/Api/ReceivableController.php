@@ -115,14 +115,19 @@ class ReceivableController extends Controller
      */
     private function sortReceivables(Collection $receivables, string $sort, string $direction): Collection
     {
-        $sorted = $receivables->sortBy(match ($sort) {
+        $primary = match ($sort) {
             'outstanding' => 'outstanding_amount',
             'customer' => 'customer.name',
             'invoice_number' => 'invoice_number',
             default => 'due_date',
-        }, SORT_REGULAR, $direction === 'desc');
+        };
 
-        return $sorted->values();
+        // invoice_number as a deterministic secondary key so same-due-date
+        // rows don't shuffle between requests.
+        return $receivables->sortBy([
+            [$primary, $direction],
+            ['invoice_number', $direction],
+        ])->values();
     }
 
     private function formatRupiah(float $amount): string

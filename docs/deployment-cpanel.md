@@ -71,15 +71,21 @@ found`). Cron job **harus** ditambahkan lewat hPanel web UI → **Advanced** →
 
 ## 4. Alur deploy (setelah setup awal ini)
 
-Manual SSH deploy sekarang mirror persis apa yang `.cpanel.yml` jalankan
-otomatis (lihat file itu untuk versi single-command-nya) — sengaja disamakan
-supaya kedua jalur deploy tidak pernah meninggalkan server di state yang
-beda. Poin pentingnya: `--delete` supaya file yang sudah dihapus dari git
-tidak numpuk selamanya di server, `.env`/`vendor`/`storage`/symlink
-di-exclude eksplisit supaya tidak pernah ketimpa/kehapus, dan `artisan down`
-di awal + `artisan up` di akhir (pakai `;` bukan `&&`, jadi selalu jalan
-walau ada step yang gagal) supaya server tidak pernah nyangkut di
-maintenance mode.
+Manual SSH deploy **bukan** mirror langkah-per-langkah dari `.cpanel.yml` —
+mekanismenya beda karena `yokprinting_app/` di server ini memang git repo
+itu sendiri (`.env` ada di situ juga), jadi sync kode barunya pakai
+`git pull` langsung di tempat, bukan rsync dari checkout terpisah seperti di
+`.cpanel.yml` (yang cPanel checkout ke lokasi lain lalu salin masuk).
+`git pull` juga otomatis membereskan file yang sudah dihapus dari repo
+(git tidak pernah meninggalkan file stale untuk sesuatu yang ter-track),
+jadi tidak perlu `--delete` untuk step ini. rsync di sini cuma dipakai untuk
+`yokprinting_app/public/` → `public_html/`, karena itu dua direktori yang
+memang terpisah.
+
+Sama seperti `.cpanel.yml`: seluruh chain habis-`&&`, exit code asli
+disimpan sebelum `artisan up` dipanggil, supaya `artisan up` selalu jalan
+(server tidak pernah nyangkut di maintenance mode) TANPA menutupi kegagalan
+composer/migrate/cache di balik exit code sukses `artisan up`.
 
 ```bash
 # 1. Kalau ada perubahan frontend, build dulu di lokal:
@@ -88,34 +94,37 @@ git add -f public/build   # public/build di-gitignore untuk dev sehari-hari
 git commit -m "chore: build production assets"
 git push
 
-# 2. SSH ke server:
+# 2. SSH ke server, masuk ke app dir (git repo-nya sendiri):
 ssh -p 65002 u433850416@72.61.212.217
 cd ~/domains/yoksystem.id/yokprinting_app
 
 # 3. Maintenance mode dulu (gagal pun tidak masalah, deploy tetap lanjut):
 php artisan down --render="errors::503" --retry=60 || true
 
-# 4. Sync kode + install + migrate + cache, TANPA menimpa .env/vendor/storage/
-#    symlink, lalu sync public/ (termasuk build/) ke public_html TANPA
-#    menimpa index.php atau symlink storage-nya. Trailing `; php artisan up`
-#    memastikan maintenance mode selalu dimatikan lagi di akhir apa pun yang
-#    terjadi di step-step sebelumnya:
-rsync -a --delete \
-  --exclude='.env' --exclude='.env.*' \
-  --exclude='/vendor' --exclude='/node_modules' \
-  --exclude='/storage' --exclude='/public/storage' --exclude='/public/hot' \
-  --exclude='/.git' --exclude='/.github' \
-  ./ ~/domains/yoksystem.id/yokprinting_app/ \
-&& composer install --no-dev --optimize-autoloader \
-&& php artisan migrate --force \
-&& php artisan config:cache \
-&& php artisan route:cache \
-&& php artisan view:cache \
-&& rsync -a --delete --exclude='index.php' --exclude='storage' \
-  ~/domains/yoksystem.id/yokprinting_app/public/ \
-  ~/domains/yoksystem.id/public_html/ \
-; php artisan up
+# 4. Tarik kode terbaru + install + migrate + cache + sync public/ ke
+#    public_html (TANPA menimpa index.php atau symlink storage-nya) - semua
+#    di-&&-chain jadi fail-fast, exit code asli disimpan, artisan up selalu
+#    jalan di akhir:
+(
+  git pull origin main &&
+  composer install --no-dev --optimize-autoloader &&
+  php artisan migrate --force &&
+  php artisan config:cache &&
+  php artisan route:cache &&
+  php artisan view:cache &&
+  rsync -a --delete --exclude='index.php' --exclude='storage' \
+    ~/domains/yoksystem.id/yokprinting_app/public/ \
+    ~/domains/yoksystem.id/public_html/
+)
+DEPLOY_STATUS=$?
+php artisan up || true
+echo "Deploy status: $DEPLOY_STATUS (0 = sukses, selain itu = ada step yang gagal, cek output di atas)"
 ```
+
+`.env`/`vendor`/`node_modules`/`storage` tidak pernah kesentuh oleh alur ini
+sama sekali — `git pull` hanya menyentuh file yang benar-benar di-track git
+(semuanya gitignored), dan rsync di step terakhir sumbernya `public/`
+(bukan seluruh app dir) jadi juga tidak menyentuhnya.
 
 `index.php` di `public_html` sudah di-edit manual sekali (path autoload &
 bootstrap diarahkan ke `../yokprinting_app/...`) dan tidak perlu disentuh lagi

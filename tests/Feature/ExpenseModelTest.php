@@ -18,6 +18,7 @@ class ExpenseModelTest extends TestCase
             Expense::CATEGORY_SHOPPING => 'Belanjaan',
             Expense::CATEGORY_EMPLOYEE => 'Biaya Karyawan',
             Expense::CATEGORY_PREMISES => 'Biaya Tempat',
+            Expense::CATEGORY_EXPEDITION => 'Biaya Ekspedisi',
         ], Expense::categoryOptions());
 
         $this->assertSame([

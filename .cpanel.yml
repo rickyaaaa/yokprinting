@@ -22,38 +22,69 @@
 # otherwise this deploy will ship without CSS/JS. It's git-tracked so the
 # rsync below picks it up like any other file, no special-casing needed.
 #
-# Task 2 is a single shell command (not one task per step) so the whole
-# rsync -> composer -> migrate -> cache chain is `&&`-joined: any failure
-# stops everything after it (fail-fast), and the trailing `; artisan up`
-# uses `;` instead of `&&` so it ALWAYS runs last regardless of what failed
-# earlier - the app is never left stuck in maintenance mode. `artisan down`
-# on task 1 is `|| true` so a failure there doesn't block the rest of the
-# deploy either (falls back to the old always-live behavior).
+# ---------------------------------------------------------------------------
+# Everything below is ONE task item (one shell invocation), deliberately.
+# This file has never actually been executed by cPanel's task runner (the
+# first real deploy was done manually over SSH — see docs/deployment-cpanel.md
+# §2), so nothing here relies on env vars or `cd` state carrying over BETWEEN
+# separate `deployment.tasks` list items - that behavior is undocumented and
+# unverified on this account. Splitting into multiple task lines and hoping
+# state survives between them is exactly how a previous revision of this file
+# broke: a `cd $DEPLOYPATH` before the rsync source path meant `./` resolved
+# to $DEPLOYPATH itself, so the fresh git checkout was never actually copied
+# in (rsync'd a directory onto itself) while composer/migrate/cache kept
+# running "successfully" against the untouched old code.
 #
-# Residual risk (accepted, not fixed here): this is still not a fully atomic
-# deploy. If composer install fails mid-chain, the site comes back out of
-# maintenance mode running new source files against a not-fully-updated
-# vendor/, until manually fixed. A truly atomic deploy needs a bigger infra
-# change (symlinked release directories) that's out of scope for this rsync-
-# based shared-hosting setup.
+# What this one command does, in order:
+#   1. Define DEPLOYPATH/PUBLICPATH, and capture CHECKOUTPATH from $PWD as
+#      the very first statement, before anything could `cd` elsewhere. Per
+#      cPanel's own documented contract, deployment tasks execute with CWD
+#      set to the Git Version Control repo's checkout path - this captures
+#      that real path instead of guessing/hardcoding it.
+#   2. `artisan down` against the CURRENT (pre-deploy) app - `|| true` so a
+#      failure here doesn't abort the deploy (falls back to today's
+#      always-live behavior).
+#   3. The actual deploy chain runs inside `( ... )`, `&&`-joined end to end:
+#      rsync the checkout into DEPLOYPATH (mirrors deletions, never touches
+#      .env/vendor/node_modules/storage/the public/storage symlink/.git) ->
+#      composer install -> migrate --force -> config/route/view cache ->
+#      rsync DEPLOYPATH/public into PUBLICPATH (mirrors deletions, never
+#      touches index.php or the storage symlink there). Any failure anywhere
+#      in this chain stops everything after it (fail-fast) and the subshell
+#      exits with THAT failing command's own exit code.
+#   4. `DEPLOY_STATUS=$?` immediately captures that real exit code - nothing
+#      else runs in between, so this is exactly what step 3 produced.
+#   5. `artisan up` ALWAYS runs next regardless of $DEPLOY_STATUS (`|| true`
+#      so even a failure here can't change what we're about to report) - the
+#      app is never left stuck in maintenance mode.
+#   6. `exit $DEPLOY_STATUS` - the task's real, final exit code is step 3's
+#      status, not artisan up's. cPanel sees a genuine failure as a failure
+#      even though the site was brought back out of maintenance mode.
+#
+# Residual, accepted risk: this is still not a fully atomic deploy. If
+# composer/migrate fails partway through, the site exits maintenance mode
+# running new source files against a not-fully-updated vendor/ or database,
+# until manually fixed - see docs/deployment-cpanel.md for exactly what
+# state each failure point leaves behind. A truly atomic deploy needs a
+# bigger infra change (symlinked release directories), out of scope for this
+# rsync-based shared-hosting setup.
 
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/u433850416/domains/yoksystem.id/yokprinting_app/
-    - export PUBLICPATH=/home/u433850416/domains/yoksystem.id/public_html/
-    - /usr/bin/php $DEPLOYPATH/artisan down --render="errors::503" --retry=60 || true
     - >
-      cd $DEPLOYPATH &&
-      /usr/bin/rsync -a --delete
-        --exclude='.env' --exclude='.env.*'
-        --exclude='/vendor' --exclude='/node_modules'
-        --exclude='/storage' --exclude='/public/storage' --exclude='/public/hot'
-        --exclude='/.git' --exclude='/.github'
-        ./ $DEPLOYPATH &&
-      /usr/local/bin/composer install --no-dev --optimize-autoloader --working-dir=$DEPLOYPATH &&
-      /usr/bin/php $DEPLOYPATH/artisan migrate --force &&
-      /usr/bin/php $DEPLOYPATH/artisan config:cache &&
-      /usr/bin/php $DEPLOYPATH/artisan route:cache &&
-      /usr/bin/php $DEPLOYPATH/artisan view:cache &&
-      /usr/bin/rsync -a --delete --exclude='index.php' --exclude='storage' $DEPLOYPATH/public/ $PUBLICPATH
-      ; /usr/bin/php $DEPLOYPATH/artisan up
+      DEPLOYPATH=/home/u433850416/domains/yoksystem.id/yokprinting_app/;
+      PUBLICPATH=/home/u433850416/domains/yoksystem.id/public_html/;
+      CHECKOUTPATH="$PWD";
+      /usr/bin/php "$DEPLOYPATH"artisan down --render="errors::503" --retry=60 || true;
+      (
+      /usr/bin/rsync -a --delete --exclude='.env' --exclude='.env.*' --exclude='/vendor' --exclude='/node_modules' --exclude='/storage' --exclude='/public/storage' --exclude='/public/hot' --exclude='/.git' --exclude='/.github' "$CHECKOUTPATH"/ "$DEPLOYPATH" &&
+      /usr/local/bin/composer install --no-dev --optimize-autoloader --working-dir="$DEPLOYPATH" &&
+      /usr/bin/php "$DEPLOYPATH"artisan migrate --force &&
+      /usr/bin/php "$DEPLOYPATH"artisan config:cache &&
+      /usr/bin/php "$DEPLOYPATH"artisan route:cache &&
+      /usr/bin/php "$DEPLOYPATH"artisan view:cache &&
+      /usr/bin/rsync -a --delete --exclude='index.php' --exclude='storage' "$DEPLOYPATH"public/ "$PUBLICPATH"
+      );
+      DEPLOY_STATUS=$?;
+      /usr/bin/php "$DEPLOYPATH"artisan up || true;
+      exit $DEPLOY_STATUS

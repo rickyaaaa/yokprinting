@@ -27,9 +27,9 @@ class RecordInvoicePayment
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($lockedInvoice->status !== Invoice::STATUS_SENT) {
+            if ($lockedInvoice->status === Invoice::STATUS_CANCELLED) {
                 throw ValidationException::withMessages([
-                    'invoice' => 'Pembayaran hanya dapat dicatat untuk invoice yang sudah dikirim.',
+                    'invoice' => 'Invoice ini sudah dibatalkan. Pembayaran tidak dapat dicatat.',
                 ]);
             }
 

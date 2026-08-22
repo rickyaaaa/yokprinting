@@ -46,6 +46,7 @@ export const registerProfitLossComponents = (Alpine) => {
                 invoice_reconciliation_difference: 0,
                 total_hpp: 0,
                 shipping_expenses: 0,
+                expedition_expenses: 0,
                 production_expenses: 0,
                 employee_expenses: 0,
                 premises_expenses: 0,

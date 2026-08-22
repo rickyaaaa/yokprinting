@@ -22,9 +22,14 @@ class InvoiceIndexPageController extends Controller
                 } else {
                     $query->where('payment_status', $request->status);
                 }
-            })
-            ->latest('issue_date')
-            ->latest('id')
+            });
+
+        // Whitelisted, never fed the raw request value into orderBy().
+        $sort = $request->query('sort') === 'oldest' ? 'oldest' : 'latest';
+        $direction = $sort === 'oldest' ? 'asc' : 'desc';
+        $invoices = $invoices
+            ->orderBy('issue_date', $direction)
+            ->orderBy('id', $direction)
             ->get();
 
         $invoiceRows = $invoices->map(function (Invoice $invoice): array {
@@ -70,6 +75,7 @@ class InvoiceIndexPageController extends Controller
                 'date_to' => $request->date_to,
                 'customer_id' => $request->customer_id,
                 'status' => $request->status ?? 'all',
+                'sort' => $sort,
             ],
         ]);
     }

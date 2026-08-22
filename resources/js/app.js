@@ -2131,6 +2131,15 @@ Alpine.data('salesReportTable', (periodPresets = {}) => ({
         { key: 'custom', label: 'Rentang Kustom...' },
     ],
 
+    // Matches the API's own default (issue_date desc) - kept client-side
+    // since this table already filters in the browser from one fetched batch.
+    sortDirection: 'desc',
+
+    sortOptions: [
+        { key: 'desc', label: 'Terbaru' },
+        { key: 'asc', label: 'Terlama' },
+    ],
+
     sales: [],
 
     init() {
@@ -2232,7 +2241,7 @@ Alpine.data('salesReportTable', (periodPresets = {}) => ({
     get filteredSales() {
         const keyword = this.query.trim().toLocaleLowerCase('id');
 
-        return this.sales.filter((row) => {
+        const rows = this.sales.filter((row) => {
             const matchesStatus = this.statusFilter === 'all' || row.status === this.statusFilter;
             const matchesCategory = this.categoryFilter === 'all' ||
                 (row.categories ?? [row.category]).includes(this.categoryFilter);
@@ -2248,6 +2257,18 @@ Alpine.data('salesReportTable', (periodPresets = {}) => ({
             }
 
             return matchesStatus && matchesCategory && matchesKeyword && matchesDate;
+        });
+
+        // invoice number is a deterministic tiebreak for same-day rows,
+        // mirroring the backend's own sort (SalesReportInvoiceController).
+        const sign = this.sortDirection === 'asc' ? 1 : -1;
+
+        return rows.sort((left, right) => {
+            if (left.rawDate !== right.rawDate) {
+                return left.rawDate < right.rawDate ? -sign : sign;
+            }
+
+            return left.invoice < right.invoice ? -sign : (left.invoice > right.invoice ? sign : 0);
         });
     },
 
@@ -2740,10 +2761,16 @@ Alpine.data('productIndexTable', (initialProducts = []) => ({
             category: product.category ?? 'Lainnya',
             brand: product.brand ?? '',
             unit: product.unit ?? 'Pcs',
-            // Prefer the purchasing-module cost basis over the legacy flat
-            // field, which nothing writes to anymore (see productForm).
-            purchasePrice: formatRupiah(Number(product.average_purchase_cost ?? product.last_purchase_price ?? product.purchase_price) || 0),
-            purchasePriceValue: Number(product.average_purchase_cost ?? product.last_purchase_price ?? product.purchase_price) || 0,
+            // "HPP FIFO": cost of the oldest available FIFO batch (what the
+            // next sale will draw from), NOT a weighted average across
+            // remaining batches or across purchases - see
+            // Product::fifoUnitCost() on the backend.
+            purchasePrice: formatRupiah(Number(product.fifo_hpp) || 0),
+            purchasePriceValue: Number(product.fifo_hpp) || 0,
+            // True remaining-stock valuation (SUM(qty_remaining x unit_cost)
+            // across available batches) - distinct from the per-unit value
+            // above, used for the "Nilai persediaan" total.
+            inventoryValue: Number(product.fifo_inventory_value) || 0,
             stock: product.track_stock === false ? 'Tidak dilacak' : `${stockValue} ${product.unit ?? 'Pcs'}`,
             stockValue: product.track_stock === false ? 999999 : stockValue,
             currentStock: stockValue,
@@ -2792,11 +2819,7 @@ Alpine.data('productIndexTable', (initialProducts = []) => ({
     },
 
     get visibleCatalogValueFormatted() {
-        const total = this.filteredProducts.reduce((sum, product) => {
-            const stockMultiplier = product.stockValue >= 999 ? 1 : product.stockValue;
-
-            return sum + ((product.purchasePriceValue || 0) * stockMultiplier);
-        }, 0);
+        const total = this.filteredProducts.reduce((sum, product) => sum + (product.inventoryValue || 0), 0);
 
         return formatRupiah(total);
     },
@@ -2972,7 +2995,9 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
     // Read-only, system-managed cost reference - never part of the submitted
     // payload. Only PostGoodsReceipt (Goods Receipt posting) ever writes these.
     lastPurchasePrice: initialForm.lastPurchasePrice ?? initialForm.last_purchase_price ?? null,
-    averagePurchaseCost: initialForm.averagePurchaseCost ?? initialForm.average_purchase_cost ?? null,
+    // "HPP FIFO": cost of the oldest available FIFO batch, not a weighted
+    // average - see Product::fifoUnitCost() on the backend.
+    fifoHpp: initialForm.fifoHpp ?? initialForm.fifo_hpp ?? null,
     // From Supplier Price List (what the supplier quotes), distinct from the
     // above (what was actually paid) - see requirement 14/15.
     lastSupplierPrice: initialForm.lastSupplierPrice ?? initialForm.last_supplier_price ?? null,
@@ -3008,7 +3033,7 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
 
             this.form = this.normalizeProduct(response.data);
             this.lastPurchasePrice = response.data.last_purchase_price ?? null;
-            this.averagePurchaseCost = response.data.average_purchase_cost ?? null;
+            this.fifoHpp = response.data.fifo_hpp ?? null;
             this.lastSupplierPrice = response.data.last_supplier_price ?? null;
         } catch (error) {
             this.error = error?.message ?? 'Detail produk belum dapat dimuat.';
@@ -3044,8 +3069,8 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
         return this.lastPurchasePrice === null ? 'Belum ada data' : formatRupiah(Number(this.lastPurchasePrice));
     },
 
-    get formattedAveragePurchaseCost() {
-        return this.averagePurchaseCost === null ? 'Belum ada data' : formatRupiah(Number(this.averagePurchaseCost));
+    get formattedFifoHpp() {
+        return this.fifoHpp === null ? 'Belum ada data' : formatRupiah(Number(this.fifoHpp));
     },
 
     get formattedLastSupplierPrice() {

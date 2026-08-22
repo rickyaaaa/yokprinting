@@ -78,8 +78,8 @@ class CustomerSalesProfitReportController extends Controller
             ->when($filters['customer_id'] ?? null, fn ($query, int $customerId) => $query->where('customer_id', $customerId))
             ->when($status !== 'all', fn ($query) => $query->where('payment_status', $status))
             ->orderBy('customer_id')
-            ->orderBy('issue_date')
-            ->orderBy('invoice_number')
+            ->orderByDesc('issue_date')
+            ->orderByDesc('invoice_number')
             ->get();
 
         $rows = $invoices->map(function (Invoice $invoice): array {

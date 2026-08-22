@@ -116,4 +116,43 @@ class InventoryBatch extends Model
 
         return $batch;
     }
+
+    /**
+     * The unit cost of the oldest available (qty_remaining > 0) batch for a
+     * product - i.e. the cost the *next* sale will actually draw from under
+     * FIFO. This is the only correct meaning of a "HPP FIFO" display value;
+     * it is deliberately NOT a weighted average across remaining batches
+     * (that conflates FIFO with average costing - see Product::fifoUnitCost()).
+     * Returns null when no batch is currently available, so the caller can
+     * apply its own fallback display value.
+     */
+    public static function oldestAvailableUnitCostFor(int $productId): ?float
+    {
+        $batch = self::query()
+            ->where('product_id', $productId)
+            ->where('qty_remaining', '>', 0)
+            ->orderBy('purchase_date')
+            ->orderBy('id')
+            ->first();
+
+        return $batch ? (float) $batch->unit_cost : null;
+    }
+
+    /**
+     * Total value of a product's currently available FIFO stock - i.e.
+     * SUM(qty_remaining * unit_cost) across its available batches. This is
+     * a true inventory valuation (distinct from fifoUnitCost()'s per-unit
+     * "next sale cost"), used for "Nilai persediaan" style totals. Returns
+     * null when no batch is available.
+     */
+    public static function availableValueFor(int $productId): ?float
+    {
+        $value = self::query()
+            ->where('product_id', $productId)
+            ->where('qty_remaining', '>', 0)
+            ->get()
+            ->sum(fn (self $batch): float => (float) $batch->qty_remaining * (float) $batch->unit_cost);
+
+        return $value > 0 ? round($value, 2) : null;
+    }
 }

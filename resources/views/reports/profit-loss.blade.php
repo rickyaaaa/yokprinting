@@ -135,6 +135,10 @@
                                     <dd class="text-right tabular-nums text-ink" x-text="formatMoney(report.summary.shipping_expenses)"></dd>
                                 </div>
                                 <div class="flex items-center justify-between gap-6 px-5 py-3">
+                                    <dt class="text-muted">Total Biaya Ekspedisi</dt>
+                                    <dd class="text-right tabular-nums text-ink" x-text="formatMoney(report.summary.expedition_expenses)"></dd>
+                                </div>
+                                <div class="flex items-center justify-between gap-6 px-5 py-3">
                                     <dt class="text-muted">Total Biaya Produksi</dt>
                                     <dd class="text-right tabular-nums text-ink" x-text="formatMoney(report.summary.production_expenses)"></dd>
                                 </div>

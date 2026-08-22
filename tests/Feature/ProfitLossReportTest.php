@@ -169,6 +169,27 @@ class ProfitLossReportTest extends TestCase
         $this->assertStringContainsString('Owner perlu menentukan', $report['accounting_policy']['decision_required']);
     }
 
+    public function test_expedition_expenses_are_recognized_and_reduce_both_net_profit_bounds(): void
+    {
+        // Regression guard: adding the "Biaya Ekspedisi" category must not
+        // let expedition expenses silently disappear from the P&L totals -
+        // it must land in recognized_expenses (same bucket as shipping,
+        // employee, premises), never left out of recorded_expenses.
+        $customer = Customer::query()->create(['code' => 'CUS-PL-EXPEDITION', 'name' => 'Expedition Test']);
+        $this->invoice($customer, 'INV-EXPEDITION', '2027-03-15', 1000, 600, 0, Invoice::SHIPPING_NONE, 10);
+        $this->expense(Expense::CATEGORY_EXPEDITION, 75, '2027-03-15');
+
+        $report = app(ProfitLossReport::class)->build('daily');
+        $summary = $report['summary'];
+
+        $this->assertSame(75.0, $summary['expedition_expenses']);
+        $this->assertSame(75.0, $summary['recognized_expenses']);
+        $this->assertSame(75.0, $summary['recorded_expenses']);
+        $this->assertSame(0.0, $summary['unclassified_expenses']);
+        $this->assertSame(325.0, $summary['net_profit_minimum']);
+        $this->assertSame(325.0, $summary['net_profit_maximum']);
+    }
+
     public function test_daily_weekly_monthly_yearly_and_custom_filters_use_server_periods(): void
     {
         $this->actingAs($this->owner);
@@ -251,8 +272,9 @@ class ProfitLossReportTest extends TestCase
             $this->assertStringContainsString('Omzet Penjualan', $worksheet);
             $this->assertStringContainsString('Pajak dipungut (bukan omzet)', $worksheet);
             $this->assertStringContainsString('Pengeluaran belum diklasifikasikan terhadap HPP', $worksheet);
-            $this->assertStringContainsString('<c r="B23" s="5"><v>35000</v></c>', $worksheet);
-            $this->assertStringContainsString('<c r="B24" s="5"><v>45000</v></c>', $worksheet);
+            $this->assertStringContainsString('Total Biaya Ekspedisi', $worksheet);
+            $this->assertStringContainsString('<c r="B24" s="5"><v>35000</v></c>', $worksheet);
+            $this->assertStringContainsString('<c r="B25" s="5"><v>45000</v></c>', $worksheet);
             $this->assertStringContainsString('<v>20</v>', $worksheet);
         } finally {
             $archive->close();

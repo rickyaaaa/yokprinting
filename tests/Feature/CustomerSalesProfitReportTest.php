@@ -36,6 +36,25 @@ class CustomerSalesProfitReportTest extends TestCase
             ->assertJsonPath('data.customers.0.margin_percent', 36.45);
     }
 
+    public function test_invoices_within_a_customer_default_to_newest_first_with_a_deterministic_tiebreak(): void
+    {
+        $customer = Customer::query()->create(['name' => '314 Coffee']);
+        // Same issue_date for A and B - invoice_number must break the tie.
+        $this->invoice($customer, 'INV-SORT-A', 100000, 40000, '2026-08-22');
+        $this->invoice($customer, 'INV-SORT-B', 200000, 80000, '2026-08-22');
+        $this->invoice($customer, 'INV-SORT-C', 300000, 120000, '2026-08-21');
+
+        $this->getJson(route('api.reports.customer-sales.index', [
+            'date_from' => '2026-08-01',
+            'date_to' => '2026-08-31',
+            'customer_id' => $customer->id,
+        ]))
+            ->assertOk()
+            ->assertJsonPath('data.customers.0.invoices.0.invoice_number', 'INV-SORT-B')
+            ->assertJsonPath('data.customers.0.invoices.1.invoice_number', 'INV-SORT-A')
+            ->assertJsonPath('data.customers.0.invoices.2.invoice_number', 'INV-SORT-C');
+    }
+
     public function test_customer_sales_report_page_loads_for_report_viewers(): void
     {
         $this->get(route('reports.customer-sales.index'))

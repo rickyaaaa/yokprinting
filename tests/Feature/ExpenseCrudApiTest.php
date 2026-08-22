@@ -224,6 +224,40 @@ class ExpenseCrudApiTest extends TestCase
         $this->assertDatabaseCount('expenses', 0);
     }
 
+    public function test_expedition_expense_category_is_accepted_labeled_and_filterable(): void
+    {
+        Storage::fake('expense_proofs');
+        $this->actingAs(User::factory()->create(['role' => User::ROLE_OWNER]));
+
+        $response = $this->post(route('api.expenses.store'), [
+            'expense_date' => '2026-08-02',
+            'category' => Expense::CATEGORY_EXPEDITION,
+            'amount' => 150000,
+            'description' => 'Ongkos kirim ke pelanggan luar kota.',
+            'recipient' => 'JNE Ekspedisi',
+            'payment_method' => Expense::METHOD_BANK_TRANSFER,
+            'proof_payment' => UploadedFile::fake()->image('bukti.jpg'),
+        ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.category', Expense::CATEGORY_EXPEDITION)
+            ->assertJsonPath('data.category_label', 'Biaya Ekspedisi');
+
+        $expenseId = $response->json('data.id');
+        $this->assertDatabaseHas('expenses', [
+            'id' => $expenseId,
+            'category' => Expense::CATEGORY_EXPEDITION,
+        ]);
+
+        $this->getJson(route('api.expenses.show', $expenseId))
+            ->assertOk()
+            ->assertJsonPath('meta.reference.categories.expedition', 'Biaya Ekspedisi');
+
+        $this->getJson(route('api.expenses.index', ['category' => Expense::CATEGORY_EXPEDITION]))
+            ->assertOk()
+            ->assertJsonPath('meta.total_expense', 150000)
+            ->assertJsonPath('data.0.category_label', 'Biaya Ekspedisi');
+    }
+
     public function test_payment_proof_is_downloaded_from_private_storage_and_logged(): void
     {
         Storage::fake('expense_proofs');
