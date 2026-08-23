@@ -188,13 +188,19 @@ class Invoice extends Model
 
     /**
      * Determine whether the invoice's items/header can still be edited.
-     * Only while still draft - once sent, downstream artifacts (the PDF the
-     * customer received, any payments, the production workflow) depend on
-     * these numbers, matching PurchaseOrder::isEditable().
+     *
+     * Deliberately NOT limited to draft: the owner needs to correct a real
+     * order (wrong item/qty/price) at any point in its lifecycle - sent,
+     * awaiting DP, in production, ready for pickup, even completed. Only
+     * `cancelled` is a hard block (a closed order has nothing left to
+     * correct). UpdateInvoiceDraft still refuses an edit that would make
+     * the invoice financially invalid (new total below what's already been
+     * verified as paid) - that's a data-integrity guard on the write path,
+     * not an eligibility rule, so it's not encoded here.
      */
     public function isEditable(): bool
     {
-        return $this->status === self::STATUS_DRAFT;
+        return $this->status !== self::STATUS_CANCELLED;
     }
 
     /**

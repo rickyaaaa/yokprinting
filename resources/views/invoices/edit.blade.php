@@ -56,10 +56,13 @@
                     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <div class="mb-2 flex items-center gap-2">
-                                <span class="badge badge-brand">Edit invoice draft</span>
+                                <span class="badge badge-brand">Edit invoice</span>
+                                @unless ($invoiceModel->status === \App\Models\Invoice::STATUS_DRAFT)
+                                    <span class="badge badge-warning">Sudah dikirim</span>
+                                @endunless
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Edit {{ $invoiceModel->invoice_number }}</h1>
-                            <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Invoice ini masih draft - item, harga, dan detailnya masih bisa diubah. Setelah dikirim ke pelanggan, invoice terkunci dan tidak bisa diedit lagi.</p>
+                            <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Perubahan invoice akan memperbarui stok, HPP, dan nilai tagihan. Status pengiriman dan progres produksi yang sudah berjalan tidak akan ikut berubah.</p>
                         </div>
                         <a href="{{ route('invoices.index') }}" class="btn btn-outline w-fit">
                             <i class="iconify tabler--chevron-left text-base"></i>

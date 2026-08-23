@@ -5,9 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class InvoiceItem extends Model
 {
+    // Editing an issued invoice replaces its items wholesale
+    // (UpdateInvoiceDraft); soft-deleting the superseded ones keeps their
+    // (now-reversed) FIFO cost layers intact for audit instead of letting
+    // invoice_item_cost_layers' cascadeOnDelete wipe that history. Every
+    // normal query - the invoice's items relation, HPP sums, reports -
+    // automatically excludes soft-deleted rows going forward.
+    use SoftDeletes;
+
     /**
      * The model's default values for attributes.
      *

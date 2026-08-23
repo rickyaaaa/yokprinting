@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\Product;
 use App\Models\Role;
 use App\Models\User;
@@ -36,8 +37,11 @@ class UpdateInvoiceDraftApiTest extends TestCase
             'quantity' => 2,
             'unit_price' => 500000,
         ]);
-        $this->assertDatabaseMissing('invoice_items', ['product_id' => $productA->id]);
-        $this->assertDatabaseCount('invoice_items', 1);
+        // The superseded product-A item is soft-deleted for audit (see
+        // InvoiceItem::SoftDeletes), not gone - only product B is active.
+        $this->assertDatabaseHas('invoice_items', ['product_id' => $productA->id]);
+        $this->assertNotNull(InvoiceItem::withTrashed()->where('product_id', $productA->id)->firstOrFail()->deleted_at);
+        $this->assertSame(1, $invoice->items()->count());
     }
 
     public function test_editing_reverses_old_item_stock_and_applies_new_item_stock(): void
@@ -71,16 +75,22 @@ class UpdateInvoiceDraftApiTest extends TestCase
         ]);
     }
 
-    public function test_sent_invoice_cannot_be_updated(): void
+    public function test_sent_invoice_can_be_updated_and_stays_sent(): void
     {
+        // Client requirement: an invoice stays editable after being sent -
+        // only `cancelled` blocks it. See Invoice::isEditable() and the
+        // dedicated coverage in EditInvoiceAfterIssuanceTest.
         $customer = $this->createCustomer();
         $product = $this->createProduct('Paket A', 'PKG-A');
         $invoice = $this->createInvoiceDraft($customer, $product, quantity: 1, price: 1000000);
-        $invoice->forceFill(['status' => Invoice::STATUS_SENT])->save();
+        $invoice->forceFill(['status' => Invoice::STATUS_SENT, 'sent_at' => now()])->save();
 
-        $this->patchJson(route('api.invoices.update', $invoice), $this->payload($customer, $product, quantity: 1, price: 1000000))
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('status');
+        $this->patchJson(route('api.invoices.update', $invoice), $this->payload($customer, $product, quantity: 2, price: 1000000))
+            ->assertOk()
+            ->assertJsonPath('data.status', 'sent')
+            ->assertJsonPath('data.subtotal', '2000000.00');
+
+        $this->assertSame(Invoice::STATUS_SENT, $invoice->refresh()->status);
     }
 
     public function test_cancelled_invoice_cannot_be_updated(): void
