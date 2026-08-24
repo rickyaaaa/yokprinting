@@ -64,9 +64,27 @@ class CashBankController extends Controller
                         ->orWhere('category', 'like', "%{$search}%");
                 });
             });
-        $paginator = $query->orderBy('transaction_date')->orderBy('id')
+        // Default newest-first so the most recent activity (a payment/expense
+        // just recorded) lands on page 1 instead of being buried behind
+        // however many older rows exist - "oldest" is still available via
+        // ?sort=oldest for chronological bank-statement-style reading.
+        $sort = $filters['sort'] ?? 'latest';
+        $direction = $sort === 'oldest' ? 'asc' : 'desc';
+
+        $paginator = $query->orderBy('transaction_date', $direction)->orderBy('id', $direction)
             ->paginate((int) ($filters['per_page'] ?? 15))->withQueryString();
-        $runningBalances = $cashBank->runningBalancesFor($account, $paginator->items());
+
+        // runningBalancesFor() is a merge-join that requires its input
+        // chronologically ascending regardless of the page's display order -
+        // sort a copy for the balance calculation, keep $paginator->items()
+        // (already in the requested display order) for the response itself.
+        // Balances are keyed by transaction id, so display order never
+        // affects which balance lands on which row.
+        $chronological = collect($paginator->items())->sortBy([
+            ['transaction_date', 'asc'],
+            ['id', 'asc'],
+        ])->values();
+        $runningBalances = $cashBank->runningBalancesFor($account, $chronological);
         $rows = collect($paginator->items())->map(fn (CashBankTransaction $transaction): array => $this->serialize(
             $transaction,
             $runningBalances[$transaction->getKey()],
@@ -82,7 +100,7 @@ class CashBankController extends Controller
                 'from' => $paginator->firstItem(),
                 'to' => $paginator->lastItem(),
                 'beginning_balance' => $cashBank->balanceBefore($account, $filters['date_from'] ?? null),
-                'filters' => $filters,
+                'filters' => [...$filters, 'sort' => $sort],
             ],
         ]);
     }

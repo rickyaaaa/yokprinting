@@ -181,6 +181,7 @@
                             <label><span class="mb-1.5 block text-xs font-semibold text-muted">Sampai tanggal</span><input type="date" class="form-control" x-model="filters.date_to"></label>
                             <label><span class="mb-1.5 block text-xs font-semibold text-muted">Jenis</span><select class="form-control" x-model="filters.type"><option value="">Semua transaksi</option><option value="income">Uang Masuk</option><option value="expense">Uang Keluar</option></select></label>
                             <label><span class="mb-1.5 block text-xs font-semibold text-muted">Metode</span><select class="form-control" x-model="filters.payment_method"><option value="">Semua metode</option><option value="transfer">Transfer</option><option value="cash">Tunai</option></select></label>
+                            <label><span class="mb-1.5 block text-xs font-semibold text-muted">Urutan</span><select class="form-control" x-model="filters.sort"><option value="latest">Terbaru</option><option value="oldest">Terlama</option></select></label>
                             <div class="flex items-end gap-3 sm:col-span-2 lg:col-span-1">
                                 <button type="submit" class="btn btn-primary min-h-11 flex-1 disabled:cursor-wait" :disabled="loading" x-text="loading ? 'Memuat...' : 'Terapkan'"></button>
                                 <button type="button" class="btn btn-outline min-h-11 flex-1 disabled:cursor-wait" :disabled="loading" @click="resetFilters()">Reset</button>

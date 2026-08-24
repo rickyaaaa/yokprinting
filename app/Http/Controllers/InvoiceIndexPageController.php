@@ -80,15 +80,26 @@ class InvoiceIndexPageController extends Controller
         ]);
     }
 
-    /** @return array{string, string} */
+    /**
+     * Draft is checked before any payment-derived label: since draft
+     * invoices can now receive payment (they just can't be marked "sent"
+     * automatically), a fully-paid draft must still read "Draft" here -
+     * it's the fact that actually matters for the user, because a draft
+     * invoice is excluded from sales/receivables/gross-profit reports
+     * (Invoice::scopeFinalized()) until it's actually sent. Labelling it
+     * "Lunas" first was hiding that and made newly-paid drafts look like
+     * finished, reported transactions when they were invisible everywhere else.
+     *
+     * @return array{string, string}
+     */
     private function status(Invoice $invoice): array
     {
         return match (true) {
             $invoice->status === Invoice::STATUS_CANCELLED => ['Dibatalkan', 'danger'],
+            $invoice->status === Invoice::STATUS_DRAFT => ['Draft', 'brand'],
             $invoice->payment_status === Invoice::PAYMENT_PAID => ['Lunas', 'success'],
             $invoice->due_date->isPast() => ['Overdue', 'danger'],
             $invoice->payment_status === Invoice::PAYMENT_PARTIAL => ['Parsial', 'info'],
-            $invoice->status === Invoice::STATUS_DRAFT => ['Draft', 'brand'],
             default => ['Menunggu', 'warning'],
         };
     }

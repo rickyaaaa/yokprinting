@@ -247,12 +247,40 @@ class CashBankTest extends TestCase
             'amount' => 200_000, 'description' => 'Biaya bank.',
         ], $owner->id);
 
-        $this->getJson(route('api.cash-bank.transactions.index'))
+        // Chronological reading order (sort=oldest) - the default display
+        // order is newest-first (see the dedicated sort-order test below).
+        $this->getJson(route('api.cash-bank.transactions.index', ['sort' => 'oldest']))
             ->assertOk()
             ->assertJsonPath('data.0.transaction_date', '2026-08-01')
             ->assertJsonPath('data.0.running_balance', 1_500_000)
             ->assertJsonPath('data.1.transaction_date', '2026-08-02')
             ->assertJsonPath('data.1.running_balance', 1_300_000);
+    }
+
+    public function test_transaction_history_defaults_to_newest_first(): void
+    {
+        // Client requirement: recent activity (a payment/expense just
+        // recorded) must land on page 1 by default, not be buried behind
+        // older rows - see CashBankController::index().
+        $owner = $this->actingAsOwner();
+        BankAccount::query()->firstOrFail()->update(['opening_balance' => 1_000_000]);
+        $service = app(CashBankService::class);
+        $service->recordManualTransaction([
+            'transaction_date' => '2026-08-01', 'type' => 'income', 'category' => 'other_income',
+            'amount' => 500_000, 'description' => 'Pendapatan lain.',
+        ], $owner->id);
+        $service->recordManualTransaction([
+            'transaction_date' => '2026-08-02', 'type' => 'expense', 'category' => 'bank_fee',
+            'amount' => 200_000, 'description' => 'Biaya bank.',
+        ], $owner->id);
+
+        $this->getJson(route('api.cash-bank.transactions.index'))
+            ->assertOk()
+            ->assertJsonPath('meta.filters.sort', 'latest')
+            ->assertJsonPath('data.0.transaction_date', '2026-08-02')
+            ->assertJsonPath('data.0.running_balance', 1_300_000, 'the balance shown must still be this row\'s TRUE running balance, not affected by display order')
+            ->assertJsonPath('data.1.transaction_date', '2026-08-01')
+            ->assertJsonPath('data.1.running_balance', 1_500_000);
     }
 
     public function test_period_filter_calculates_beginning_balance_from_prior_transactions(): void
@@ -269,7 +297,7 @@ class CashBankTest extends TestCase
             'amount' => 200_000, 'description' => 'Dalam periode.',
         ], $owner->id);
 
-        $this->getJson(route('api.cash-bank.transactions.index', ['date_from' => '2026-08-01']))
+        $this->getJson(route('api.cash-bank.transactions.index', ['date_from' => '2026-08-01', 'sort' => 'oldest']))
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('meta.beginning_balance', 1_500_000)
@@ -294,7 +322,7 @@ class CashBankTest extends TestCase
             'amount' => 100_000, 'description' => 'Pemasukan kedua.',
         ], $owner->id);
 
-        $this->getJson(route('api.cash-bank.transactions.index', ['type' => CashBankTransaction::TYPE_INCOME]))
+        $this->getJson(route('api.cash-bank.transactions.index', ['type' => CashBankTransaction::TYPE_INCOME, 'sort' => 'oldest']))
             ->assertOk()
             ->assertJsonCount(2, 'data')
             ->assertJsonPath('data.0.running_balance', 1_500_000)
@@ -329,7 +357,7 @@ class CashBankTest extends TestCase
         DB::flushQueryLog();
         DB::enableQueryLog();
 
-        $this->getJson(route('api.cash-bank.transactions.index', ['per_page' => 50]))
+        $this->getJson(route('api.cash-bank.transactions.index', ['per_page' => 50, 'sort' => 'oldest']))
             ->assertOk()
             ->assertJsonCount(50, 'data')
             ->assertJsonPath('data.49.running_balance', 500_000);

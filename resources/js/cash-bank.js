@@ -23,7 +23,7 @@ export function registerCashBankComponents(Alpine) {
         summary: emptySummary(),
         transactions: [],
         meta: { current_page: 1, last_page: 1, total: 0, beginning_balance: 0 },
-        filters: { search: '', date_from: '', date_to: '', type: '', category: '', payment_method: '', per_page: 15 },
+        filters: { search: '', date_from: '', date_to: '', type: '', category: '', payment_method: '', sort: 'latest', per_page: 15 },
         exporting: false,
         accountSettingsOpen: false,
         accountForm: { name: '', bank_name: '', account_number: '', opening_balance: 0 },
@@ -215,7 +215,7 @@ export function registerCashBankComponents(Alpine) {
         },
 
         resetFilters() {
-            this.filters = { search: '', date_from: '', date_to: '', type: '', category: '', payment_method: '', per_page: 15 };
+            this.filters = { search: '', date_from: '', date_to: '', type: '', category: '', payment_method: '', sort: 'latest', per_page: 15 };
             this.loadTransactions();
         },
 

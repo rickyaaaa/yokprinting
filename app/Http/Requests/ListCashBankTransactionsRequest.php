@@ -25,6 +25,7 @@ class ListCashBankTransactionsRequest extends FormRequest
                 CashBankTransaction::PAYMENT_METHOD_TRANSFER,
             ])],
             'search' => ['nullable', 'string', 'max:255'],
+            'sort' => ['nullable', Rule::in(['latest', 'oldest'])],
             'per_page' => ['nullable', 'integer', Rule::in([10, 15, 25, 50, 100])],
             'page' => ['nullable', 'integer', 'min:1'],
         ];
