@@ -248,12 +248,22 @@ class Invoice extends Model
     }
 
     /**
-     * Scope invoices that have been officially sent to the customer and can be tracked as receivables.
+     * Scope invoices that represent real money still owed - Piutang.
+     *
+     * PHASE 3 (client-confirmed business rule): a draft invoice can have a
+     * verified DP and be actively in production (invoices can be edited/
+     * worked at any non-cancelled status - see isEditable()), so what's
+     * actually owed on it is real and must count here too. Deliberately
+     * NOT built on finalized() (status === sent) - that scope stays a pure
+     * revenue-recognition gate for sales/gross-profit/revenue reports,
+     * which must keep counting only formally-issued invoices. Widening
+     * finalized() itself would have silently changed 20+ report call
+     * sites; this scope is independent specifically to avoid that.
      */
     public function scopeReceivable(Builder $query): Builder
     {
         return $query
-            ->finalized()
+            ->where('status', '!=', self::STATUS_CANCELLED)
             ->where('payment_status', '!=', self::PAYMENT_PAID);
     }
 

@@ -9,6 +9,19 @@
         ? ($isPaid ? 100 : min(100, round(($paidAmount / $totalAmount) * 100)))
         : 0;
     $isOverdue = ! $isPaid && $invoiceModel->due_date?->isPast();
+    // Rincian ongkir (Phase 5) - purely a display breakdown from the
+    // existing shipping_type/shipping_cost/is_free_shipping fields.
+    // Never affects $totalAmount above: CalculateInvoiceTotals already
+    // only adds shipping_cost into total_amount for
+    // SHIPPING_PAID_BY_CUSTOMER, and leaves company-paid free shipping out
+    // of it entirely (absorbed via gross_profit instead) - this section
+    // just makes that existing rule visible, it doesn't recompute anything.
+    $hasShippingLine = $invoiceModel->shipping_type !== \App\Models\Invoice::SHIPPING_NONE;
+    $shippingLabel = match ($invoiceModel->shipping_type) {
+        \App\Models\Invoice::SHIPPING_PAID_BY_CUSTOMER => $formatRupiah((float) $invoiceModel->shipping_cost),
+        \App\Models\Invoice::SHIPPING_COMPANY_FREE_SHIPPING => 'Gratis (ditanggung perusahaan)',
+        default => null,
+    };
     $effectivePaymentStatus = $isPaid
         ? \App\Models\Invoice::PAYMENT_PAID
         : ($isOverdue ? \App\Models\Invoice::PAYMENT_OVERDUE : $invoiceModel->payment_status);
@@ -54,6 +67,8 @@
         'can_be_cancelled' => $invoiceModel->canBeCancelled(),
         'cancellation_reason' => $invoiceModel->cancellation_reason,
         'cancelled_at' => $formatDate($invoiceModel->cancelled_at),
+        'has_shipping_line' => $hasShippingLine,
+        'shipping_label' => $shippingLabel,
     ];
 
     $items = $invoiceModel->items->map(static function ($item) use ($formatRupiah): array {
@@ -317,6 +332,12 @@
                                         <dt class="text-muted">PPN 11%</dt>
                                         <dd class="font-medium text-ink">{{ $invoice['tax'] }}</dd>
                                     </div>
+                                    @if ($invoice['has_shipping_line'])
+                                        <div class="flex justify-between gap-6">
+                                            <dt class="text-muted">Ongkir</dt>
+                                            <dd class="font-medium text-ink">{{ $invoice['shipping_label'] }}</dd>
+                                        </div>
+                                    @endif
                                     <div class="flex items-end justify-between gap-6 border-t border-line pt-4">
                                         <dt class="font-semibold text-ink">Total invoice</dt>
                                         <dd class="text-lg font-bold tracking-[-0.025em] text-brand-800">{{ $invoice['total'] }}</dd>

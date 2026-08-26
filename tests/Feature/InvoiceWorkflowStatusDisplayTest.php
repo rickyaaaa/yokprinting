@@ -52,15 +52,16 @@ class InvoiceWorkflowStatusDisplayTest extends TestCase
             ->assertSee('Selesai');
     }
 
-    public function test_a_fully_paid_draft_invoice_is_still_labelled_draft_on_the_index(): void
+    public function test_a_fully_paid_draft_invoice_shows_lunas_and_draft_in_two_separate_columns(): void
     {
-        // Regression guard: draft invoices can receive payment (they just
-        // never auto-transition to "sent"), so a draft can legitimately be
-        // fully paid. The list's status badge must still read "Draft" -
-        // not "Lunas" - because a draft is excluded from sales/receivables/
-        // gross-profit reports (Invoice::scopeFinalized()) until it's
-        // actually sent. Labelling it "Lunas" first made a report-invisible
-        // invoice look like a finished, counted transaction.
+        // Phase 2 (superseding the previous, over-broad fix): "Status
+        // Pembayaran" must ALWAYS be payment_status-derived, never
+        // Invoice.status - a fully-paid draft genuinely is "Lunas" for
+        // payment purposes. Invoice.status="draft" (the fact that it's
+        // still excluded from sales/receivables/gross-profit reports until
+        // actually sent - Invoice::scopeFinalized()) is real information
+        // too, so it gets its OWN "Status Invoice" column instead of
+        // overwriting the payment column.
         $customer = Customer::query()->create([
             'name' => 'PT Draft Paid Test',
             'email' => 'draftpaid@example.test',
@@ -82,7 +83,33 @@ class InvoiceWorkflowStatusDisplayTest extends TestCase
 
         $this->get(route('invoices.index'))
             ->assertOk()
-            ->assertSee("{$escapedQuote}status{$escapedQuote}:{$escapedQuote}Draft{$escapedQuote}", false)
-            ->assertDontSee("{$escapedQuote}status{$escapedQuote}:{$escapedQuote}Lunas{$escapedQuote}", false);
+            ->assertSee('Status invoice')
+            ->assertSee("{$escapedQuote}status{$escapedQuote}:{$escapedQuote}Lunas{$escapedQuote}", false)
+            ->assertSee("{$escapedQuote}invoice_status_label{$escapedQuote}:{$escapedQuote}Draft{$escapedQuote}", false);
+    }
+
+    public function test_sent_partial_in_production_invoice_shows_parsial_not_draft(): void
+    {
+        // PHASE 2 test gate, exact scenario from the client brief.
+        $customer = Customer::query()->create(['name' => 'PT Phase 2 Gate']);
+
+        Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-PHASE2-GATE-001',
+            'issue_date' => '2026-08-24',
+            'due_date' => '2026-09-07',
+            'status' => Invoice::STATUS_SENT,
+            'payment_status' => Invoice::PAYMENT_PARTIAL,
+            'production_status' => Invoice::PRODUCTION_IN_PRODUCTION,
+            'total_amount' => 300000,
+        ]);
+
+        $escapedQuote = chr(92).'u0022';
+
+        $this->get(route('invoices.index'))
+            ->assertOk()
+            ->assertSee("{$escapedQuote}status{$escapedQuote}:{$escapedQuote}Parsial{$escapedQuote}", false)
+            ->assertSee("{$escapedQuote}order_status{$escapedQuote}:{$escapedQuote}Masih produksi{$escapedQuote}", false)
+            ->assertDontSee("{$escapedQuote}status{$escapedQuote}:{$escapedQuote}Draft{$escapedQuote}", false);
     }
 }

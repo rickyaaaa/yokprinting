@@ -109,9 +109,8 @@
                                 <input id="invoice-search" x-model.debounce.150ms="query" type="search" class="form-control sm:w-72" placeholder="Cari invoice atau pelanggan">
                                 <label class="sr-only" for="invoice-status">Filter status</label>
                                 <select id="invoice-status" x-model="status" class="form-control sm:w-44">
-                                    <option value="all">Semua status</option>
-                                    <option value="Draft">Draft</option>
-                                    <option value="Menunggu">Menunggu</option>
+                                    <option value="all">Semua status pembayaran</option>
+                                    <option value="Belum Bayar">Belum Bayar</option>
                                     <option value="Parsial">Parsial</option>
                                     <option value="Lunas">Lunas</option>
                                     <option value="Overdue">Overdue</option>
@@ -128,6 +127,7 @@
                                         <th class="px-5 py-3 sm:px-6">Tanggal</th>
                                         <th class="px-5 py-3 sm:px-6">Jatuh tempo</th>
                                         <th class="px-5 py-3 text-right sm:px-6">Total</th>
+                                        <th class="px-5 py-3 sm:px-6">Status invoice</th>
                                         <th class="px-5 py-3 sm:px-6">Status pembayaran</th>
                                         <th class="px-5 py-3 sm:px-6">Status pesanan</th>
                                         <th class="px-5 py-3 text-right sm:px-6">Aksi</th>
@@ -138,7 +138,7 @@
                                         x-for="invoice in invoices.filter((row) => {
                                             const keyword = query.trim().toLowerCase();
                                             const matchesStatus = status === 'all' || row.status === status;
-                                            const matchesKeyword = ! keyword || `${row.number} ${row.customer} ${row.email} ${row.status} ${row.order_status}`.toLowerCase().includes(keyword);
+                                            const matchesKeyword = ! keyword || `${row.number} ${row.customer} ${row.email} ${row.status} ${row.order_status} ${row.invoice_status_label}`.toLowerCase().includes(keyword);
 
                                             return matchesStatus && matchesKeyword;
                                         })"
@@ -153,6 +153,17 @@
                                             <td class="whitespace-nowrap px-5 py-4 text-muted sm:px-6" x-text="invoice.issue_date"></td>
                                             <td class="whitespace-nowrap px-5 py-4 text-muted sm:px-6" x-text="invoice.due_date"></td>
                                             <td class="whitespace-nowrap px-5 py-4 text-right font-semibold text-ink sm:px-6" x-text="invoice.amount"></td>
+                                            <td class="whitespace-nowrap px-5 py-4 sm:px-6">
+                                                <span
+                                                    class="badge"
+                                                    :class="{
+                                                        'badge-brand': invoice.invoice_status_tone === 'brand',
+                                                        'badge-info': invoice.invoice_status_tone === 'info',
+                                                        'badge-danger': invoice.invoice_status_tone === 'danger'
+                                                    }"
+                                                    x-text="invoice.invoice_status_label"
+                                                ></span>
+                                            </td>
                                             <td class="whitespace-nowrap px-5 py-4 sm:px-6">
                                                 <span
                                                     class="badge"

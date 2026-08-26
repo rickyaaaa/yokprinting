@@ -17,10 +17,17 @@ class CustomerShowPageController extends Controller
             ->firstOrFail();
 
         $invoices = $model->invoices->sortByDesc('issue_date');
+        // Revenue-recognition figures (totalSales/paid/invoice count) stay
+        // sent-only, matching Invoice::scopeFinalized() everywhere else.
         $sentInvoices = $invoices->where('status', Invoice::STATUS_SENT);
         $totalSales = (float) $sentInvoices->sum('total_amount');
         $verifiedPaid = (float) $sentInvoices->flatMap->payments->where('status', Payment::STATUS_VERIFIED)->sum('amount');
-        $outstanding = (float) $sentInvoices
+        // "Outstanding" is a Piutang-style figure - same rule as
+        // Invoice::scopeReceivable() (Phase 3), so this customer's own
+        // outstanding total matches what the global Piutang page shows for
+        // their invoices, draft included.
+        $outstanding = (float) $invoices
+            ->where('status', '!=', Invoice::STATUS_CANCELLED)
             ->where('payment_status', '!=', Invoice::PAYMENT_PAID)
             ->sum(fn (Invoice $invoice): float => $invoice->remainingAmount());
 
