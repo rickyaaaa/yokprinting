@@ -9,6 +9,10 @@
     $can = fn (string $permission): bool => (bool) ($currentUser?->isActive() && (
         $currentUser->role === \App\Models\User::ROLE_OWNER || $rolePermissions->contains($permission)
     ));
+    // Kept out of the @json(...) directive for the same reason as the create
+    // page: Blade's directive-argument parser truncates nested expressions
+    // like request()->query('x', ''), which compiles to broken PHP.
+    $pageConfig = ['productId' => request()->query('product_id', '')];
 @endphp
 
 <!DOCTYPE html>
@@ -40,7 +44,7 @@
 
                 <main
                     class="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
-                    x-data='supplierPriceIndexPage(@json(["productId" => request()->query("product_id", "")]))'
+                    x-data='supplierPriceIndexPage(@json($pageConfig))'
                 >
                     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <div>

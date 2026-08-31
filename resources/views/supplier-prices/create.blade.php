@@ -1,3 +1,17 @@
+@php
+    // Built here rather than inline in @json(...): Blade's directive-argument
+    // parser truncated the inline array mid-expression (it stopped at the
+    // first request()->query('x', '') and dropped the rest), compiling to
+    // unbalanced PHP and making this page throw a ParseError 500 on every
+    // request. Passing a ready-made variable keeps the directive trivial.
+    $formConfig = [
+        'today' => now()->toDateString(),
+        'indexUrl' => route('supplier-prices.index'),
+        'supplierId' => request()->query('supplier_id', ''),
+        'productId' => request()->query('product_id', ''),
+    ];
+@endphp
+
 <!DOCTYPE html>
 <html lang="id">
     <head>
@@ -27,7 +41,7 @@
 
                 <main
                     class="mx-auto w-full max-w-[820px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
-                    x-data='supplierPriceFormPage(@json(["today" => now()->toDateString(), "indexUrl" => route("supplier-prices.index"), "supplierId" => request()->query("supplier_id", ""), "productId" => request()->query("product_id", "")]))'
+                    x-data='supplierPriceFormPage(@json($formConfig))'
                     x-init="init()"
                 >
                     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
