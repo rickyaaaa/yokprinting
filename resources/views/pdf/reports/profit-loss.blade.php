@@ -73,7 +73,7 @@
 
         <table>
             <tbody>
-                <tr class="section"><td colspan="2">Rekonsiliasi invoice final</td></tr>
+                <tr class="section"><td colspan="2">Rekonsiliasi invoice aktif</td></tr>
                 <tr><td>Penjualan barang/jasa</td><td class="amount">{{ $money($summary['gross_sales']) }}</td></tr>
                 <tr><td>Diskon penjualan</td><td class="amount">({{ $money($summary['sales_discount']) }})</td></tr>
                 <tr class="total"><td>Omzet Penjualan</td><td class="amount">{{ $money($summary['sales_revenue']) }}</td></tr>
@@ -104,7 +104,7 @@
         </table>
 
         <div class="note">
-            Basis data: hanya invoice final berstatus terkirim. Draft dan invoice dibatalkan tidak dihitung. Pajak dan ongkir pelanggan bukan omzet.
+            Basis data: semua invoice aktif (draft maupun terkirim) dihitung sejak dibuat. Hanya invoice dibatalkan yang tidak dihitung. Pajak dan ongkir pelanggan bukan omzet.
             <br>{{ $report['accounting_policy']['minimum_profit_basis'] }}
             <br>{{ $report['accounting_policy']['maximum_profit_basis'] }}
             @if ($report['accounting_policy']['profit_is_provisional'])

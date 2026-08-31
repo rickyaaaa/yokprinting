@@ -19,6 +19,7 @@ class ListCustomerSalesProfitReportRequest extends FormRequest
             'date_from' => ['sometimes', 'nullable', 'date'],
             'date_to' => ['sometimes', 'nullable', 'date', 'after_or_equal:date_from'],
             'customer_id' => ['sometimes', 'nullable', 'integer', Rule::exists('customers', 'id')],
+            'q' => ['sometimes', 'nullable', 'string', 'max:100'],
             'status' => ['sometimes', 'string', Rule::in([
                 'all',
                 Invoice::PAYMENT_PAID,

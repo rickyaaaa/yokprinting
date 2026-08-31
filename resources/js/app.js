@@ -2689,10 +2689,11 @@ Alpine.data('customerForm', (initialForm = {}, isEditMode = false, customerId = 
     },
 }));
 
-Alpine.data('productIndexTable', (initialProducts = []) => ({
+Alpine.data('productIndexTable', (initialProducts = [], exportEndpoint = '') => ({
     query: '',
     statusFilter: 'all',
     categoryFilter: 'all',
+    exportEndpoint,
     products: initialProducts,
     loading: false,
     error: '',
@@ -2802,6 +2803,35 @@ Alpine.data('productIndexTable', (initialProducts = []) => ({
 
             return matchesStatus && matchesCategory && matchesKeyword;
         });
+    },
+
+    // Export mirrors whatever the table is currently showing, so the file and
+    // the screen never disagree. Status labels are the display strings the
+    // filter pills use; the API takes stable keys instead.
+    get exportUrl() {
+        if (!this.exportEndpoint) {
+            return '';
+        }
+
+        const statusKeys = { Aktif: 'active', 'Stok menipis': 'low_stock', Nonaktif: 'inactive' };
+        const params = new URLSearchParams();
+        const keyword = this.query.trim();
+
+        if (this.statusFilter !== 'all' && statusKeys[this.statusFilter]) {
+            params.set('status', statusKeys[this.statusFilter]);
+        }
+
+        if (this.categoryFilter !== 'all') {
+            params.set('category', this.categoryFilter);
+        }
+
+        if (keyword) {
+            params.set('q', keyword);
+        }
+
+        const query = params.toString();
+
+        return query ? `${this.exportEndpoint}?${query}` : this.exportEndpoint;
     },
 
     get lowStockProducts() {

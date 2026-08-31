@@ -65,7 +65,7 @@ class GrossProfitReportController extends Controller
 
         return Invoice::query()
             ->with('customer')
-            ->finalized()
+            ->businessTransaction()
             ->whereBetween('issue_date', [$dateFrom, $dateTo])
             ->when($status !== 'all', fn ($query) => $query->where('payment_status', $status))
             ->orderBy('issue_date')

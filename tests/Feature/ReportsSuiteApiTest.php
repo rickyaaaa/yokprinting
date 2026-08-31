@@ -52,6 +52,44 @@ class ReportsSuiteApiTest extends TestCase
             ->assertJsonPath('data.invoices.0.gross_margin_percent', 38.89);
     }
 
+    public function test_gross_profit_report_includes_active_drafts_and_excludes_cancelled(): void
+    {
+        // See Invoice::scopeBusinessTransaction().
+        $customer = Customer::query()->create(['code' => 'CUS-009', 'name' => 'PT Draft Laba']);
+
+        Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-GP-SENT',
+            'issue_date' => '2026-07-10', 'due_date' => '2026-07-24',
+            'status' => Invoice::STATUS_SENT, 'payment_status' => Invoice::PAYMENT_PAID,
+            'subtotal' => 1000000, 'total_hpp' => 600000, 'gross_profit' => 400000, 'total_amount' => 1000000,
+        ]);
+        Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-GP-DRAFT',
+            'issue_date' => '2026-07-11', 'due_date' => '2026-07-25',
+            'status' => Invoice::STATUS_DRAFT, 'payment_status' => Invoice::PAYMENT_PAID,
+            'subtotal' => 500000, 'total_hpp' => 200000, 'gross_profit' => 300000, 'total_amount' => 500000,
+        ]);
+        Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-GP-CANCELLED',
+            'issue_date' => '2026-07-12', 'due_date' => '2026-07-26',
+            'status' => Invoice::STATUS_CANCELLED, 'payment_status' => Invoice::PAYMENT_UNPAID,
+            'subtotal' => 9000000, 'total_hpp' => 100000, 'gross_profit' => 8900000, 'total_amount' => 9000000,
+        ]);
+
+        $this->getJson(route('api.reports.gross-profit.index', [
+            'date_from' => '2026-07-01',
+            'date_to' => '2026-07-31',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('data.summary.invoice_count', 2)
+            ->assertJsonPath('data.summary.revenue', 1500000)
+            ->assertJsonPath('data.summary.total_hpp', 800000)
+            ->assertJsonPath('data.summary.gross_profit', 700000);
+    }
+
     public function test_report_alias_endpoints_return_outstanding_inactive_low_stock_and_stock_mutation_data(): void
     {
         $customer = Customer::query()->create(['code' => 'CUS-002', 'name' => 'CV Lautan Rasa']);

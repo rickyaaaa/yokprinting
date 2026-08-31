@@ -95,7 +95,7 @@ class GenerateProfitLossSpreadsheet
             ]),
             $this->row(3, [
                 $this->textCell('A3', 'Basis data', 6),
-                $this->textCell('B3', 'Hanya invoice final berstatus terkirim. Pajak dan ongkir pelanggan bukan omzet.', 6),
+                $this->textCell('B3', 'Semua invoice aktif (draft maupun terkirim) dihitung. Hanya invoice dibatalkan dikecualikan. Pajak dan ongkir pelanggan bukan omzet.', 6),
             ]),
             $this->row(5, [
                 $this->textCell('A5', 'Komponen', 2),

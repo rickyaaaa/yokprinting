@@ -13,8 +13,11 @@ class ProfitLossReport
     /**
      * Build the single accounting dataset consumed by the screen, PDF, and XLSX exports.
      *
-     * Only final invoices are recognized. Tax collected and customer-billed shipping
-     * reconcile the invoice total but are not sales revenue.
+     * Every active (non-cancelled) invoice is recognized - draft included -
+     * matching Invoice::scopeBusinessTransaction() and the stock that was
+     * already deducted when the invoice was created. Tax collected and
+     * customer-billed shipping reconcile the invoice total but are not sales
+     * revenue.
      *
      * @return array{
      *     period: array{key: string, date_from: string, date_to: string, label: string},
@@ -31,7 +34,7 @@ class ProfitLossReport
         )->addDay()->toDateString();
 
         $finalInvoices = Invoice::query()
-            ->finalized()
+            ->businessTransaction()
             ->where('issue_date', '>=', $range['date_from'])
             ->where('issue_date', '<', $dateToExclusive);
 
@@ -54,7 +57,7 @@ class ProfitLossReport
 
         $salesQuantity = InvoiceItem::query()
             ->whereHas('invoice', fn ($query) => $query
-                ->finalized()
+                ->businessTransaction()
                 ->where('issue_date', '>=', $range['date_from'])
                 ->where('issue_date', '<', $dateToExclusive))
             ->sum('quantity');
@@ -99,7 +102,7 @@ class ProfitLossReport
         return [
             'period' => $range,
             'accounting_policy' => [
-                'final_invoice_statuses' => [Invoice::STATUS_SENT],
+                'final_invoice_statuses' => [Invoice::STATUS_DRAFT, Invoice::STATUS_SENT],
                 'tax_is_revenue' => false,
                 'customer_shipping_is_revenue' => false,
                 'profit_is_provisional' => $unclassifiedExpenses > 0,

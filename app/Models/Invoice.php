@@ -250,15 +250,13 @@ class Invoice extends Model
     /**
      * Scope invoices that represent real money still owed - Piutang.
      *
-     * PHASE 3 (client-confirmed business rule): a draft invoice can have a
-     * verified DP and be actively in production (invoices can be edited/
-     * worked at any non-cancelled status - see isEditable()), so what's
-     * actually owed on it is real and must count here too. Deliberately
-     * NOT built on finalized() (status === sent) - that scope stays a pure
-     * revenue-recognition gate for sales/gross-profit/revenue reports,
-     * which must keep counting only formally-issued invoices. Widening
-     * finalized() itself would have silently changed 20+ report call
-     * sites; this scope is independent specifically to avoid that.
+     * A draft invoice can have a verified DP and be actively in production
+     * (invoices can be edited/worked at any non-cancelled status - see
+     * isEditable()), so what's actually owed on it is real and counts here.
+     *
+     * Same active set as scopeBusinessTransaction(), narrowed to what is not
+     * yet fully paid - the two must stay consistent, since revenue and
+     * receivable are two views of the same invoices.
      */
     public function scopeReceivable(Builder $query): Builder
     {
@@ -268,11 +266,40 @@ class Invoice extends Model
     }
 
     /**
-     * Scope invoices that have been issued to the customer and count as business transactions.
+     * Scope invoices that count as real business transactions for revenue,
+     * HPP, gross profit, and customer sales reporting.
+     *
+     * Client-confirmed business rule: the real YokPrinting flow is create
+     * invoice -> stock is deducted immediately -> DP can be recorded ->
+     * production runs, all while the invoice may never have been pressed
+     * "kirim via WhatsApp" (which is the only thing that sets status=sent).
+     * Gating revenue on status=sent therefore left stock and the sales
+     * reports permanently out of sync. An invoice is a transaction the
+     * moment it exists with items; only an explicit cancellation
+     * (CancelInvoice, which also restores the FIFO stock) takes it back out.
+     *
+     * status (draft/sent/cancelled) stays in the table for the delivery/
+     * audit workflow - see scopeFinalized() for the few places that still
+     * genuinely need "has been delivered".
+     */
+    public function scopeBusinessTransaction(Builder $query): Builder
+    {
+        return $query->where($query->qualifyColumn('status'), '!=', self::STATUS_CANCELLED);
+    }
+
+    /**
+     * Scope invoices that have been formally delivered to the customer
+     * (status=sent, set only by MarkInvoiceDelivered).
+     *
+     * NOT a revenue gate - use scopeBusinessTransaction() for that. Kept as
+     * the canonical way to ask "has this been delivered?" for future
+     * delivery/audit features; no report may use it. Currently no caller
+     * needs it (delivery state is read from sent_at directly), so it is
+     * covered by BusinessTransactionScopeTest rather than by a consumer.
      */
     public function scopeFinalized(Builder $query): Builder
     {
-        return $query->where('status', self::STATUS_SENT);
+        return $query->where($query->qualifyColumn('status'), self::STATUS_SENT);
     }
 
     /**

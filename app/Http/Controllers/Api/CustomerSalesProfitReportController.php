@@ -70,13 +70,26 @@ class CustomerSalesProfitReportController extends Controller
         $from = CarbonImmutable::parse($filters['date_from'] ?? now()->startOfMonth())->startOfDay();
         $to = CarbonImmutable::parse($filters['date_to'] ?? now())->endOfDay();
         $status = $filters['status'] ?? 'all';
+        $keyword = trim((string) ($filters['q'] ?? ''));
 
         $invoices = Invoice::query()
             ->with('customer')
-            ->finalized()
+            ->businessTransaction()
             ->whereBetween('issue_date', [$from->toDateString(), $to->toDateString()])
             ->when($filters['customer_id'] ?? null, fn ($query, int $customerId) => $query->where('customer_id', $customerId))
             ->when($status !== 'all', fn ($query) => $query->where('payment_status', $status))
+            // Client request: find one invoice by number without knowing which
+            // customer card it sits under. Customer name is matched too so the
+            // single box works either way.
+            ->when($keyword !== '', fn ($query) => $query->where(function ($query) use ($keyword): void {
+                $query
+                    ->where('invoice_number', 'like', "%{$keyword}%")
+                    ->orWhereHas('customer', fn ($customerQuery) => $customerQuery->where('name', 'like', "%{$keyword}%"));
+            }))
+            // Groups the rows per customer for groupBy() below; the cards
+            // themselves are ordered by total sales afterwards. Within a
+            // customer: newest invoice first, invoice_number as a
+            // deterministic tiebreak on the same date.
             ->orderBy('customer_id')
             ->orderByDesc('issue_date')
             ->orderByDesc('invoice_number')
@@ -115,18 +128,34 @@ class CustomerSalesProfitReportController extends Controller
                 'gross_profit' => $profit,
                 'margin_percent' => $sales > 0 ? round(($profit / $sales) * 100, 2) : 0.0,
             ];
-        })->values();
+        })
+            // Biggest customer first - the question this report answers. The
+            // cards used to come out in customer_id (creation) order, which
+            // reads as random. Name is a stable tiebreak so equal totals never
+            // shuffle between requests.
+            ->sortBy([
+                ['total_sales', 'desc'],
+                ['customer', 'asc'],
+            ])
+            ->values();
+
+        $totalSales = round((float) $rows->sum('sales'), 2);
+        $totalHpp = round((float) $rows->sum('fifo_hpp'), 2);
+        // Derived the same way as each customer subtotal (sales - hpp) rather
+        // than by summing already-rounded per-row profits, so the grand total
+        // always equals the sum of the subtotals shown underneath it.
+        $totalProfit = round($totalSales - $totalHpp, 2);
 
         return [
             'period' => ['date_from' => $from->toDateString(), 'date_to' => $to->toDateString()],
             'summary' => [
                 'customer_count' => $customers->count(),
                 'invoice_count' => $rows->count(),
-                'sales' => round((float) $rows->sum('sales'), 2),
-                'fifo_hpp' => round((float) $rows->sum('fifo_hpp'), 2),
-                'gross_profit' => round((float) $rows->sum('gross_profit'), 2),
-                'margin_percent' => $rows->sum('sales') > 0
-                    ? round(((float) $rows->sum('gross_profit') / (float) $rows->sum('sales')) * 100, 2)
+                'sales' => $totalSales,
+                'fifo_hpp' => $totalHpp,
+                'gross_profit' => $totalProfit,
+                'margin_percent' => $totalSales > 0
+                    ? round(($totalProfit / $totalSales) * 100, 2)
                     : 0.0,
             ],
             'customers' => $customers->all(),

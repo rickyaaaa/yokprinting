@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\InvoicePdfController;
 use App\Http\Controllers\Api\InvoicePreviewPdfController;
 use App\Http\Controllers\Api\PaymentHistoryController;
 use App\Http\Controllers\Api\ProductBulkStockController;
+use App\Http\Controllers\Api\ProductCatalogExportController;
 use App\Http\Controllers\Api\ProductCategoryController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProductLowStockSummaryController;
@@ -165,6 +166,10 @@ Route::middleware(['web', 'auth'])->group(function (): void {
     Route::get('/products/low-stock-summary', ProductLowStockSummaryController::class)
         ->middleware('permission:product.view')
         ->name('api.products.low-stock-summary');
+
+    Route::get('/products/export', ProductCatalogExportController::class)
+        ->middleware(['permission:report.export', 'throttle:report-export'])
+        ->name('api.products.export');
 
     Route::get('/products/options', [ProductOptionController::class, 'index'])
         ->middleware('permission:product.view')

@@ -112,6 +112,53 @@ class SalesReportSummaryApiTest extends TestCase
             ->assertJsonPath('data.status_breakdown.3.count', 1);
     }
 
+    public function test_active_draft_invoices_count_toward_period_kpis(): void
+    {
+        // See Invoice::scopeBusinessTransaction() - draft != "not a sale".
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-07-23 12:00:00'));
+
+        $customer = $this->createCustomer('PT Draft KPI');
+
+        $sent = $this->createInvoice(
+            customer: $customer,
+            invoiceNumber: 'INV-2026-0090',
+            issueDate: '2026-07-10',
+            dueDate: '2026-07-24',
+            totalAmount: 6000000,
+            paymentStatus: Invoice::PAYMENT_UNPAID,
+        );
+        $this->createVerifiedPayment($sent, 'PAY-20260723-0090', 6000000);
+
+        $draft = $this->createInvoice(
+            customer: $customer,
+            invoiceNumber: 'INV-2026-0091',
+            issueDate: '2026-07-12',
+            dueDate: '2026-07-26',
+            totalAmount: 4000000,
+            paymentStatus: Invoice::PAYMENT_UNPAID,
+            status: Invoice::STATUS_DRAFT,
+        );
+
+        $this->createInvoice(
+            customer: $customer,
+            invoiceNumber: 'INV-2026-0092',
+            issueDate: '2026-07-13',
+            dueDate: '2026-07-27',
+            totalAmount: 50000000,
+            paymentStatus: Invoice::PAYMENT_UNPAID,
+            status: Invoice::STATUS_CANCELLED,
+        );
+
+        $this->getJson(route('api.reports.sales.summary', [
+            'date_from' => '2026-07-01',
+            'date_to' => '2026-07-31',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('data.total_sales', 10000000)
+            ->assertJsonPath('data.invoice_count', 2)
+            ->assertJsonPath('data.outstanding_amount', 4000000);
+    }
+
     public function test_sales_report_summary_query_is_validated(): void
     {
         $this->getJson(route('api.reports.sales.summary', [

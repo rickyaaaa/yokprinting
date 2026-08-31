@@ -65,7 +65,7 @@ class InvoiceListAndCustomerOutstandingConsistencyTest extends TestCase
         $this->assertNotNull($cancelled);
     }
 
-    public function test_customer_page_outstanding_includes_draft_invoices_but_total_sales_stays_sent_only(): void
+    public function test_customer_page_outstanding_and_total_sales_both_include_active_drafts(): void
     {
         $customer = Customer::query()->create(['code' => 'CUS-OUT-01', 'name' => 'PT Customer Outstanding']);
 
@@ -98,12 +98,46 @@ class InvoiceListAndCustomerOutstandingConsistencyTest extends TestCase
         ]);
 
         // Outstanding: 40k (draft, unpaid) + 40k (sent, 100k - 60k paid) = 80k.
-        // Total transaksi ("invoice final"/totalSales) stays sent-only: 100k,
-        // 1 invoice - the draft must not inflate revenue-recognition figures.
+        // Total transaksi now counts every active invoice, draft included:
+        // 40k + 100k = 140k across 2 invoices. See
+        // Invoice::scopeBusinessTransaction().
         $this->get(route('customers.show', $customer->code))
             ->assertOk()
             ->assertSee('Rp80.000')
-            ->assertSee('Rp100.000')
-            ->assertSee('1 invoice final');
+            ->assertSee('Rp140.000')
+            ->assertSee('2 invoice aktif');
+    }
+
+    public function test_customer_page_excludes_cancelled_invoices_from_every_total(): void
+    {
+        $customer = Customer::query()->create(['code' => 'CUS-OUT-02', 'name' => 'PT Customer Cancelled']);
+
+        Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-CUST-ACTIVE',
+            'issue_date' => now()->toDateString(),
+            'due_date' => now()->addDays(14)->toDateString(),
+            'status' => Invoice::STATUS_DRAFT,
+            'payment_status' => Invoice::PAYMENT_UNPAID,
+            'total_amount' => 50000,
+        ]);
+        Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-CUST-CANCELLED',
+            'issue_date' => now()->toDateString(),
+            'due_date' => now()->addDays(14)->toDateString(),
+            'status' => Invoice::STATUS_CANCELLED,
+            'payment_status' => Invoice::PAYMENT_UNPAID,
+            'total_amount' => 999999,
+        ]);
+
+        // The cancelled invoice still appears as a ROW (labelled "Dibatalkan")
+        // but contributes to none of the summary totals: total transaksi and
+        // outstanding both read 50k, and the count says 1.
+        $this->get(route('customers.show', $customer->code))
+            ->assertOk()
+            ->assertSee('Rp50.000')
+            ->assertSee('1 invoice aktif')
+            ->assertSee('Dibatalkan');
     }
 }

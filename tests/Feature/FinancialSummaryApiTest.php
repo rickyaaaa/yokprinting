@@ -77,17 +77,29 @@ class FinancialSummaryApiTest extends TestCase
             'total_amount' => 99000000,
         ]);
 
+        // Active draft IS a real transaction - see
+        // Invoice::scopeBusinessTransaction().
+        Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-2026-0005',
+            'issue_date' => now()->subDays(3)->toDateString(),
+            'due_date' => now()->addDays(11)->toDateString(),
+            'status' => Invoice::STATUS_DRAFT,
+            'payment_status' => Invoice::PAYMENT_UNPAID,
+            'total_amount' => 2000000,
+        ]);
+
         $response = $this->getJson(route('api.dashboard.financial-summary'));
 
         $response->assertOk()
             ->assertJsonPath('status', 'success')
-            ->assertJsonPath('data.total_sales', 18000000)
+            ->assertJsonPath('data.total_sales', 20000000)
             ->assertJsonPath('data.paid_amount', 10000000)
             ->assertJsonPath('data.paid_count', 1)
-            ->assertJsonPath('data.unpaid_amount', 8000000)
-            ->assertJsonPath('data.unpaid_count', 2)
+            ->assertJsonPath('data.unpaid_amount', 10000000)
+            ->assertJsonPath('data.unpaid_count', 3)
             ->assertJsonPath('data.overdue_amount', 3000000)
             ->assertJsonPath('data.overdue_count', 1)
-            ->assertJsonPath('data.total_invoices_count', 3);
+            ->assertJsonPath('data.total_invoices_count', 4);
     }
 }

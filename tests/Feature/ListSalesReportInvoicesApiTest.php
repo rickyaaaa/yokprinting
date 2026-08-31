@@ -100,6 +100,49 @@ class ListSalesReportInvoicesApiTest extends TestCase
             ->assertJsonPath('data.2.status_label', 'Overdue');
     }
 
+    public function test_active_draft_invoices_appear_in_the_sales_report(): void
+    {
+        // Client-confirmed rule: an invoice is a real transaction the moment
+        // it exists with items - "kirim via WhatsApp" (status=sent) is not
+        // required. Only cancellation removes it. See
+        // Invoice::scopeBusinessTransaction().
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-07-23 12:00:00'));
+
+        $customer = $this->createCustomer('PT Draft Aktif');
+        $product = $this->createProduct('PRN-DRAFT-01', 'Cetak brosur', 'Cetak premium');
+
+        $draft = $this->createInvoice(
+            customer: $customer,
+            invoiceNumber: 'INV-2026-0101',
+            issueDate: '2026-07-22',
+            dueDate: '2026-07-29',
+            totalAmount: 4200000,
+            paymentStatus: Invoice::PAYMENT_PAID,
+            status: Invoice::STATUS_DRAFT,
+        );
+        $this->createItem($draft, $product, 4200000);
+
+        $cancelled = $this->createInvoice(
+            customer: $customer,
+            invoiceNumber: 'INV-2026-0102',
+            issueDate: '2026-07-22',
+            dueDate: '2026-07-29',
+            totalAmount: 9000000,
+            paymentStatus: Invoice::PAYMENT_UNPAID,
+            status: Invoice::STATUS_CANCELLED,
+        );
+        $this->createItem($cancelled, $product, 9000000);
+
+        $this->getJson(route('api.reports.sales.invoices.index', [
+            'date_from' => '2026-07-01',
+            'date_to' => '2026-07-31',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.invoice_number', 'INV-2026-0101')
+            ->assertJsonPath('data.0.status', Invoice::PAYMENT_PAID);
+    }
+
     public function test_sales_report_invoice_endpoint_filters_searches_and_sorts(): void
     {
         CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-07-23 12:00:00'));

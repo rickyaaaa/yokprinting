@@ -34,8 +34,10 @@ class RevenueChartApiTest extends TestCase
             ->assertJsonPath('data.paid', [0, 0, 0, 0, 0, 0]);
     }
 
-    public function test_revenue_chart_uses_final_invoices_and_verified_payments(): void
+    public function test_revenue_chart_uses_active_invoices_and_verified_payments(): void
     {
+        // Client-confirmed rule: draft is a real transaction too - only
+        // cancellation removes it. See Invoice::scopeBusinessTransaction().
         CarbonImmutable::setTestNow('2026-08-03 10:00:00');
         $customer = Customer::query()->create(['name' => 'PT Grafik', 'email' => 'grafik@example.test']);
         $invoice = Invoice::query()->create([
@@ -52,6 +54,14 @@ class RevenueChartApiTest extends TestCase
             'issue_date' => '2026-08-01',
             'due_date' => '2026-08-10',
             'status' => Invoice::STATUS_DRAFT,
+            'total_amount' => 500000,
+        ]);
+        Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-GRAFIK-CANCELLED',
+            'issue_date' => '2026-08-01',
+            'due_date' => '2026-08-10',
+            'status' => Invoice::STATUS_CANCELLED,
             'total_amount' => 9000000,
         ]);
         Payment::query()->create([
@@ -65,7 +75,7 @@ class RevenueChartApiTest extends TestCase
 
         $this->getJson(route('api.dashboard.revenue-chart'))
             ->assertOk()
-            ->assertJsonPath('data.issued.5', 2000000)
+            ->assertJsonPath('data.issued.5', 2500000)
             ->assertJsonPath('data.paid.5', 500000);
     }
 

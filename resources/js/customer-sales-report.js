@@ -7,7 +7,7 @@ export const registerCustomerSalesReportComponents = (Alpine) => {
         exporting: '',
         error: '',
         report: { period: {}, summary: {}, customers: [] },
-        filters: { date_from: config.dateFrom ?? '', date_to: config.dateTo ?? '', customer_id: '', status: 'all' },
+        filters: { date_from: config.dateFrom ?? '', date_to: config.dateTo ?? '', customer_id: '', status: 'all', q: '' },
 
         init() { this.load(); },
 

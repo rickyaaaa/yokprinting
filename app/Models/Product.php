@@ -188,6 +188,14 @@ class Product extends Model
      * Distinct from fifoUnitCost() (a per-unit "next sale cost") - this is
      * the right number for "Nilai persediaan" style totals. Falls back to
      * stock x the legacy average-cost chain when no batch is available.
+     *
+     * Never negative (client-confirmed): stock the company does not have is
+     * worth nothing, it is not negative value. An oversold product carries a
+     * FIFO deficit batch (qty_remaining < 0) that is excluded from $value, so
+     * without the floor the fallback branch turned negative stock into a
+     * negative valuation and dragged the whole "Nilai persediaan" total below
+     * zero. The shortfall is real information, but it belongs in
+     * stockShortfallValue(), not hidden inside an asset figure.
      */
     public function fifoInventoryValue(): float
     {
@@ -201,7 +209,25 @@ class Product extends Model
 
         return $value > 0
             ? round($value, 2)
-            : round((float) ($this->stock ?? 0) * $this->purchaseCostFallback(), 2);
+            : round(max(0, (float) ($this->stock ?? 0)) * $this->purchaseCostFallback(), 2);
+    }
+
+    /**
+     * Value of stock this product owes but does not have - the counterpart to
+     * fifoInventoryValue(), reported separately instead of being netted off an
+     * asset total. Zero for any product that is not oversold.
+     *
+     * Overselling is deliberately allowed (FifoInventoryService::consume lets
+     * the invoice through and records a deficit batch), so this figure exists
+     * to keep that visible rather than to prevent it.
+     */
+    public function stockShortfallValue(): float
+    {
+        $shortfall = abs(min(0, (float) ($this->stock ?? 0)));
+
+        return $shortfall > 0
+            ? round($shortfall * $this->purchaseCostFallback(), 2)
+            : 0.0;
     }
 
     /**

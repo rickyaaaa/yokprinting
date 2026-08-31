@@ -38,12 +38,17 @@ class MarkOverdueInvoicesJobTest extends TestCase
         $futureUnpaid = $this->createInvoice($customer, 'INV-2026-0104', now()->addDay(), Invoice::PAYMENT_UNPAID);
         $cancelledPast = $this->createInvoice($customer, 'INV-2026-0105', now()->subDays(2), Invoice::PAYMENT_UNPAID, Invoice::STATUS_CANCELLED);
         $alreadyOverdue = $this->createInvoice($customer, 'INV-2026-0106', now()->subDays(5), Invoice::PAYMENT_OVERDUE);
+        // An active draft carries a real due date and a real unpaid balance,
+        // so it goes overdue like any other active invoice. See
+        // Invoice::scopeBusinessTransaction().
+        $draftPast = $this->createInvoice($customer, 'INV-2026-0107', now()->subDays(2), Invoice::PAYMENT_UNPAID, Invoice::STATUS_DRAFT);
 
         $markedCount = (new MarkOverdueInvoicesJob)->handle(app(ActivityLogger::class));
 
-        $this->assertSame(2, $markedCount);
+        $this->assertSame(3, $markedCount);
         $this->assertSame(Invoice::PAYMENT_OVERDUE, $unpaidPast->refresh()->payment_status);
         $this->assertSame(Invoice::PAYMENT_OVERDUE, $partialPast->refresh()->payment_status);
+        $this->assertSame(Invoice::PAYMENT_OVERDUE, $draftPast->refresh()->payment_status);
         $this->assertSame(Invoice::PAYMENT_PAID, $paidPast->refresh()->payment_status);
         $this->assertSame(Invoice::PAYMENT_UNPAID, $futureUnpaid->refresh()->payment_status);
         $this->assertSame(Invoice::PAYMENT_UNPAID, $cancelledPast->refresh()->payment_status);
@@ -54,8 +59,8 @@ class MarkOverdueInvoicesJobTest extends TestCase
             ->where('action', 'overdue_check')
             ->firstOrFail();
 
-        $this->assertSame(2, $log->metadata['marked_count']);
-        $this->assertEqualsCanonicalizing([$unpaidPast->id, $partialPast->id], $log->metadata['invoice_ids']);
+        $this->assertSame(3, $log->metadata['marked_count']);
+        $this->assertEqualsCanonicalizing([$unpaidPast->id, $partialPast->id, $draftPast->id], $log->metadata['invoice_ids']);
         $this->assertSame(ActivityLog::RISK_MEDIUM, $log->risk_level);
     }
 

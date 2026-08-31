@@ -91,6 +91,22 @@ class SalesReportRevenueChartApiTest extends TestCase
             ->assertJsonPath('data.revenue', [5000000, 0, 0, 0, 0, 0, 23000000, 0, 0, 0, 0, 0]);
     }
 
+    public function test_active_draft_invoices_contribute_to_the_revenue_chart(): void
+    {
+        // See Invoice::scopeBusinessTransaction().
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-07-23 12:00:00'));
+
+        $customer = $this->createCustomer();
+        $this->createInvoice($customer, 'INV-2026-0084', '2026-07-23', 20000000);
+        $this->createInvoice($customer, 'INV-2026-0085', '2026-07-23', 3000000, Invoice::STATUS_DRAFT);
+        $this->createInvoice($customer, 'INV-2026-0099', '2026-07-23', 99000000, Invoice::STATUS_CANCELLED);
+
+        $this->getJson(route('api.reports.sales.revenue-chart'))
+            ->assertOk()
+            ->assertJsonPath('data.revenue.22', 23000000)
+            ->assertJsonPath('data.totals.revenue', 23000000);
+    }
+
     public function test_sales_report_revenue_chart_query_is_validated(): void
     {
         $this->getJson(route('api.reports.sales.revenue-chart', ['period' => 'quarterly']))

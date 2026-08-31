@@ -21,7 +21,7 @@ class RevenueChartController extends Controller
         $end = $buckets[array_key_last($buckets)]['end'];
 
         $invoices = Invoice::query()
-            ->finalized()
+            ->businessTransaction()
             ->whereBetween('issue_date', [$start->toDateString(), $end->toDateString()])
             ->get();
         $payments = Payment::query()
@@ -46,7 +46,7 @@ class RevenueChartController extends Controller
                     default => '6 bulan terakhir',
                 },
                 'headline' => $this->rupiah((float) $issued->last()),
-                'caption' => 'Dihitung dari invoice final dan pembayaran terverifikasi.',
+                'caption' => 'Dihitung dari invoice aktif dan pembayaran terverifikasi.',
                 'labels' => collect($buckets)->pluck('label')->all(),
                 'issued' => $issued->all(),
                 'paid' => $paid->all(),

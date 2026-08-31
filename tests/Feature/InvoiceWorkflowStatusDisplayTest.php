@@ -52,16 +52,15 @@ class InvoiceWorkflowStatusDisplayTest extends TestCase
             ->assertSee('Selesai');
     }
 
-    public function test_a_fully_paid_draft_invoice_shows_lunas_and_draft_in_two_separate_columns(): void
+    public function test_a_fully_paid_draft_invoice_shows_lunas_and_no_invoice_status_column(): void
     {
-        // Phase 2 (superseding the previous, over-broad fix): "Status
-        // Pembayaran" must ALWAYS be payment_status-derived, never
-        // Invoice.status - a fully-paid draft genuinely is "Lunas" for
-        // payment purposes. Invoice.status="draft" (the fact that it's
-        // still excluded from sales/receivables/gross-profit reports until
-        // actually sent - Invoice::scopeFinalized()) is real information
-        // too, so it gets its OWN "Status Invoice" column instead of
-        // overwriting the payment column.
+        // "Status Pembayaran" is always payment_status-derived - a fully-paid
+        // draft genuinely is "Lunas". Invoice.status (draft/sent) is no longer
+        // shown at all: it is not a payment fact and no longer gates any
+        // report (see Invoice::scopeBusinessTransaction()), so a "Status
+        // Invoice" column only confused the client. The field stays in the
+        // database and in the row payload for audit / the WhatsApp delivery
+        // workflow.
         $customer = Customer::query()->create([
             'name' => 'PT Draft Paid Test',
             'email' => 'draftpaid@example.test',
@@ -83,9 +82,54 @@ class InvoiceWorkflowStatusDisplayTest extends TestCase
 
         $this->get(route('invoices.index'))
             ->assertOk()
-            ->assertSee('Status invoice')
+            ->assertDontSee('Status invoice')
             ->assertSee("{$escapedQuote}status{$escapedQuote}:{$escapedQuote}Lunas{$escapedQuote}", false)
-            ->assertSee("{$escapedQuote}invoice_status_label{$escapedQuote}:{$escapedQuote}Draft{$escapedQuote}", false);
+            ->assertDontSee('invoice_status_label')
+            // Raw enum still available to non-UI consumers.
+            ->assertSee("{$escapedQuote}invoice_status{$escapedQuote}:{$escapedQuote}draft{$escapedQuote}", false);
+    }
+
+    public function test_invoice_list_shows_exactly_two_status_columns(): void
+    {
+        $customer = Customer::query()->create(['name' => 'PT Dua Kolom']);
+
+        Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-DUA-KOLOM-001',
+            'issue_date' => '2026-08-24',
+            'due_date' => '2026-09-07',
+            'status' => Invoice::STATUS_DRAFT,
+            'payment_status' => Invoice::PAYMENT_UNPAID,
+            'total_amount' => 100000,
+        ]);
+
+        $this->get(route('invoices.index'))
+            ->assertOk()
+            ->assertSee('Status pembayaran')
+            ->assertSee('Status pesanan')
+            ->assertDontSee('Status invoice')
+            // The server-side filter no longer offers draft/sent either.
+            ->assertDontSee('>Terkirim</option>', false)
+            ->assertSee('>Dibatalkan</option>', false);
+    }
+
+    public function test_a_legacy_draft_status_filter_link_does_not_blank_the_list(): void
+    {
+        $customer = Customer::query()->create(['name' => 'PT Legacy Filter']);
+
+        Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-LEGACY-FILTER-001',
+            'issue_date' => '2026-08-24',
+            'due_date' => '2026-09-07',
+            'status' => Invoice::STATUS_DRAFT,
+            'payment_status' => Invoice::PAYMENT_UNPAID,
+            'total_amount' => 100000,
+        ]);
+
+        $this->get(route('invoices.index', ['status' => Invoice::STATUS_DRAFT]))
+            ->assertOk()
+            ->assertSee('INV-LEGACY-FILTER-001');
     }
 
     public function test_sent_partial_in_production_invoice_shows_parsial_not_draft(): void

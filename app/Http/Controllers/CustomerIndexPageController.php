@@ -18,27 +18,27 @@ class CustomerIndexPageController extends Controller
     {
         $customerModels = Customer::query()
             ->withCount([
-                'invoices as finalized_invoice_count' => fn ($query) => $query->finalized(),
+                'invoices as active_invoice_count' => fn ($query) => $query->businessTransaction(),
             ])
             ->withSum([
-                'invoices as finalized_sales_total' => fn ($query) => $query->finalized(),
+                'invoices as active_sales_total' => fn ($query) => $query->businessTransaction(),
             ], 'total_amount')
             ->withSum([
                 'payments as verified_paid_total' => fn ($query) => $query
-                    ->where('invoices.status', Invoice::STATUS_SENT)
+                    ->where('invoices.status', '!=', Invoice::STATUS_CANCELLED)
                     ->where('payments.status', Payment::STATUS_VERIFIED),
             ], 'amount')
             ->withMax([
-                'invoices as finalized_last_order_at' => fn ($query) => $query->finalized(),
+                'invoices as active_last_order_at' => fn ($query) => $query->businessTransaction(),
             ], 'issue_date')
             ->orderBy('name')
             ->get();
 
         $customers = $customerModels->map(function (Customer $customer): array {
-            $totalSales = (float) ($customer->finalized_sales_total ?? 0);
+            $totalSales = (float) ($customer->active_sales_total ?? 0);
             $outstanding = max(0, $totalSales - (float) ($customer->verified_paid_total ?? 0));
-            $lastOrder = $customer->finalized_last_order_at
-                ? CarbonImmutable::parse($customer->finalized_last_order_at)
+            $lastOrder = $customer->active_last_order_at
+                ? CarbonImmutable::parse($customer->active_last_order_at)
                 : null;
 
             return [
@@ -57,7 +57,7 @@ class CustomerIndexPageController extends Controller
                 'outstanding' => $this->formatRupiah($outstanding),
                 'outstandingValue' => $outstanding,
                 'status' => $this->statusLabel($customer),
-                'invoiceCount' => (int) ($customer->finalized_invoice_count ?? 0),
+                'invoiceCount' => (int) ($customer->active_invoice_count ?? 0),
             ];
         })->values();
 

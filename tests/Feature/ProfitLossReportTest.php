@@ -51,7 +51,7 @@ class ProfitLossReportTest extends TestCase
         $this->invoice($customer, 'INV-PL-001', '2027-03-05', 1100, 600, 50, Invoice::SHIPPING_COMPANY_FREE_SHIPPING, 10);
         $this->invoice($customer, 'INV-PL-002', '2027-03-15', 1300, 800, 100, Invoice::SHIPPING_PAID_BY_CUSTOMER, 5);
         $this->invoice($customer, 'INV-CANCELLED', '2027-03-08', 9999, 1, 1, Invoice::SHIPPING_COMPANY_FREE_SHIPPING, 99, Invoice::STATUS_CANCELLED);
-        $this->invoice($customer, 'INV-DRAFT', '2027-03-09', 8888, 1, 1, Invoice::SHIPPING_PAID_BY_CUSTOMER, 88, Invoice::STATUS_DRAFT);
+        $this->invoice($customer, 'INV-CANCELLED-2', '2027-03-09', 8888, 1, 1, Invoice::SHIPPING_PAID_BY_CUSTOMER, 88, Invoice::STATUS_CANCELLED);
         $this->invoice($customer, 'INV-OUTSIDE', '2027-02-28', 9999, 1, 1, Invoice::SHIPPING_COMPANY_FREE_SHIPPING, 99);
 
         $this->expense(Expense::CATEGORY_PRODUCTION, 100, '2027-03-05');
@@ -99,19 +99,24 @@ class ProfitLossReportTest extends TestCase
             ->assertJsonPath('data.accounting_policy.tax_is_revenue', false);
     }
 
-    public function test_draft_and_cancelled_invoices_do_not_enter_revenue_or_sales_quantity(): void
+    public function test_active_drafts_enter_revenue_but_cancelled_invoices_do_not(): void
     {
+        // Client-confirmed rule: an invoice is a real transaction the moment
+        // it exists (stock is deducted then too) - "kirim via WhatsApp"
+        // (status=sent) is not the revenue gate. Only cancellation removes it.
+        // See Invoice::scopeBusinessTransaction().
         $customer = Customer::query()->create(['code' => 'CUS-PL-STATUS', 'name' => 'Status Test']);
-        $this->invoice($customer, 'INV-FINAL', '2027-03-15', 1000, 400, 0, Invoice::SHIPPING_NONE, 10);
+        $this->invoice($customer, 'INV-SENT', '2027-03-15', 1000, 400, 0, Invoice::SHIPPING_NONE, 10);
         $this->invoice($customer, 'INV-DRAFT-ONLY', '2027-03-15', 2000, 800, 0, Invoice::SHIPPING_NONE, 20, Invoice::STATUS_DRAFT);
         $this->invoice($customer, 'INV-CANCELLED-ONLY', '2027-03-15', 3000, 1200, 0, Invoice::SHIPPING_NONE, 30, Invoice::STATUS_CANCELLED);
 
         $summary = app(ProfitLossReport::class)->build('daily')['summary'];
 
-        $this->assertSame(1000.0, $summary['gross_sales']);
-        $this->assertSame(1000.0, $summary['sales_revenue']);
-        $this->assertSame(10.0, $summary['sales_quantity']);
-        $this->assertSame(1, $summary['invoice_count']);
+        $this->assertSame(3000.0, $summary['gross_sales']);
+        $this->assertSame(3000.0, $summary['sales_revenue']);
+        $this->assertSame(1200.0, $summary['total_hpp']);
+        $this->assertSame(30.0, $summary['sales_quantity']);
+        $this->assertSame(2, $summary['invoice_count']);
     }
 
     public function test_tax_discount_and_customer_shipping_are_separated_and_reconcile_total_invoice(): void

@@ -14,7 +14,7 @@ class FinancialSummaryController extends Controller
     public function __invoke(): JsonResponse
     {
         $activeInvoices = Invoice::query()
-            ->finalized();
+            ->businessTransaction();
 
         $totalSales = (float) (clone $activeInvoices)
             ->sum('total_amount');

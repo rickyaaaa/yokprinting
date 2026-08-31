@@ -69,6 +69,9 @@ class CustomerStatementApiTest extends TestCase
             'updated_at' => '2026-07-03 17:00:00',
         ]);
 
+        // An active draft is a real ledger entry - it and its verified
+        // payment both belong on the statement. See
+        // Invoice::scopeBusinessTransaction().
         $draftInvoice = $this->createInvoice(
             customer: $customer,
             invoiceNumber: 'INV-2026-DRAFT',
@@ -84,6 +87,22 @@ class CustomerStatementApiTest extends TestCase
             createdAt: '2026-07-04 09:00:00',
         );
 
+        // A cancelled invoice and its payment stay off the ledger entirely.
+        $cancelledInvoice = $this->createInvoice(
+            customer: $customer,
+            invoiceNumber: 'INV-2026-CANCELLED',
+            totalAmount: 50000000,
+            createdAt: '2026-07-05 08:00:00',
+        );
+        $cancelledInvoice->forceFill(['status' => Invoice::STATUS_CANCELLED])->save();
+        $this->createPayment(
+            invoice: $cancelledInvoice,
+            paymentNumber: 'PAY-20260705-CANCELLED',
+            amount: 2000000,
+            paymentDate: '2026-07-05',
+            createdAt: '2026-07-05 09:00:00',
+        );
+
         $this->getJson(route('api.customers.statement.show', [
             'customer' => $customer,
             'start_date' => '2026-07-01',
@@ -93,10 +112,10 @@ class CustomerStatementApiTest extends TestCase
             ->assertJsonPath('status', 'success')
             ->assertJsonPath('data.customer.code', 'CUS-STATEMENT')
             ->assertJsonPath('data.summary.opening_balance', 0)
-            ->assertJsonPath('data.summary.total_debit', 12500000)
-            ->assertJsonPath('data.summary.total_credit', 5000000)
-            ->assertJsonPath('data.summary.outstanding_amount', 7500000)
-            ->assertJsonPath('data.total_outstanding_amount', 7500000)
+            ->assertJsonPath('data.summary.total_debit', 21500000)
+            ->assertJsonPath('data.summary.total_credit', 6000000)
+            ->assertJsonPath('data.summary.outstanding_amount', 15500000)
+            ->assertJsonPath('data.total_outstanding_amount', 15500000)
             ->assertJsonPath('data.transactions.0.reference_number', 'INV-2026-0101')
             ->assertJsonPath('data.transactions.0.debit', 10000000)
             ->assertJsonPath('data.transactions.0.credit', 0)
@@ -109,7 +128,13 @@ class CustomerStatementApiTest extends TestCase
             ->assertJsonPath('data.transactions.2.running_balance', 8500000)
             ->assertJsonPath('data.transactions.3.reference_number', 'PAY-20260703-0002')
             ->assertJsonPath('data.transactions.3.running_balance', 7500000)
-            ->assertJsonCount(4, 'data.transactions');
+            ->assertJsonPath('data.transactions.4.reference_number', 'INV-2026-DRAFT')
+            ->assertJsonPath('data.transactions.4.debit', 9000000)
+            ->assertJsonPath('data.transactions.4.running_balance', 16500000)
+            ->assertJsonPath('data.transactions.5.reference_number', 'PAY-20260704-DRAFT')
+            ->assertJsonPath('data.transactions.5.credit', 1000000)
+            ->assertJsonPath('data.transactions.5.running_balance', 15500000)
+            ->assertJsonCount(6, 'data.transactions');
     }
 
     public function test_customer_statement_uses_opening_balance_for_filtered_period(): void

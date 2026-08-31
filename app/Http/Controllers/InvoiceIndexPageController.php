@@ -16,10 +16,17 @@ class InvoiceIndexPageController extends Controller
             ->when($request->filled('date_from'), fn ($query) => $query->whereDate('issue_date', '>=', $request->date_from))
             ->when($request->filled('date_to'), fn ($query) => $query->whereDate('issue_date', '<=', $request->date_to))
             ->when($request->filled('customer_id'), fn ($query) => $query->where('customer_id', $request->integer('customer_id')))
+            // Draft/sent is no longer a user-facing concept (it is not a
+            // payment fact and no longer gates any report), so the filter only
+            // offers payment statuses plus "Dibatalkan" - the one invoice-level
+            // state still worth finding, since those rows count toward nothing.
+            // A legacy ?status=draft/sent link falls through to "all" rather
+            // than silently matching no payment_status and showing an empty
+            // list.
             ->when($request->filled('status') && $request->status !== 'all', function ($query) use ($request): void {
-                if (in_array($request->status, [Invoice::STATUS_DRAFT, Invoice::STATUS_SENT, Invoice::STATUS_CANCELLED], true)) {
-                    $query->where('status', $request->status);
-                } else {
+                if ($request->status === Invoice::STATUS_CANCELLED) {
+                    $query->where('status', Invoice::STATUS_CANCELLED);
+                } elseif (! in_array($request->status, [Invoice::STATUS_DRAFT, Invoice::STATUS_SENT], true)) {
                     $query->where('payment_status', $request->status);
                 }
             });
@@ -35,7 +42,6 @@ class InvoiceIndexPageController extends Controller
         $invoiceRows = $invoices->map(function (Invoice $invoice): array {
             [$status, $tone] = $this->status($invoice);
             [$orderStatus, $orderTone] = $this->orderStatus($invoice);
-            [$invoiceStatusLabel, $invoiceStatusTone] = $this->invoiceStatusLabel($invoice);
 
             return [
                 'number' => $invoice->invoice_number,
@@ -51,13 +57,12 @@ class InvoiceIndexPageController extends Controller
                 // "Status Pesanan" - production/order workflow, untouched.
                 'order_status' => $orderStatus,
                 'order_tone' => $orderTone,
-                // "Status Invoice" - draft/sent/cancelled, its own column so
-                // it's never confused with (or overwrites) payment status.
-                'invoice_status_label' => $invoiceStatusLabel,
-                'invoice_status_tone' => $invoiceStatusTone,
                 'is_editable' => $invoice->isEditable(),
-                // Raw underlying values (Phase 1), kept for API consumers
-                // that want the actual enum value rather than a display label.
+                // Raw underlying values, kept for consumers that want the
+                // actual enum rather than a display label. Invoice.status
+                // stays available here (and in the database) for audit and
+                // the WhatsApp delivery workflow - it is simply no longer
+                // rendered as a user-facing column.
                 'invoice_status' => $invoice->status,
                 'payment_status' => $invoice->payment_status,
             ];
@@ -98,8 +103,9 @@ class InvoiceIndexPageController extends Controller
     /**
      * "Status Pembayaran" - derived purely from Invoice.payment_status.
      * Invoice.status (draft/sent/cancelled) is a DIFFERENT concept and must
-     * never be shown here - see invoiceStatusLabel() for that, and
-     * orderStatus() for the separate production/order-workflow column.
+     * never be shown here; see orderStatus() for the separate production/
+     * order-workflow column, which together with this one are the only two
+     * statuses the list shows.
      * "Overdue" stays a live-computed (due_date + not-yet-paid) state
      * layered on top, matching the existing convention elsewhere
      * (InvoicePaymentDetailController, CustomerShowPageController) rather
@@ -115,22 +121,6 @@ class InvoiceIndexPageController extends Controller
             $invoice->due_date->isPast() => ['Overdue', 'danger'],
             $invoice->payment_status === Invoice::PAYMENT_PARTIAL => ['Parsial', 'info'],
             default => ['Belum Bayar', 'warning'],
-        };
-    }
-
-    /**
-     * "Status Invoice" - Invoice.status only (draft/sent/cancelled), shown
-     * in its own column so it's never confused with, or overwrites,
-     * "Status Pembayaran" above.
-     *
-     * @return array{string, string}
-     */
-    private function invoiceStatusLabel(Invoice $invoice): array
-    {
-        return match ($invoice->status) {
-            Invoice::STATUS_DRAFT => ['Draft', 'brand'],
-            Invoice::STATUS_CANCELLED => ['Dibatalkan', 'danger'],
-            default => ['Terkirim', 'info'],
         };
     }
 

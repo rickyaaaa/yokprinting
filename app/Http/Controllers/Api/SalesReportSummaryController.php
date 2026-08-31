@@ -90,7 +90,7 @@ class SalesReportSummaryController extends Controller
     private function invoiceQuery(CarbonImmutable $dateFrom, CarbonImmutable $dateTo): Builder
     {
         return Invoice::query()
-            ->finalized()
+            ->businessTransaction()
             ->whereBetween('issue_date', [$dateFrom->toDateString(), $dateTo->toDateString()]);
     }
 
@@ -126,7 +126,7 @@ class SalesReportSummaryController extends Controller
             ],
             [
                 'key' => 'invoice_count',
-                'label' => 'Invoice terbit',
+                'label' => 'Invoice aktif',
                 'value' => $invoiceCount,
                 'value_formatted' => (string) $invoiceCount,
                 'caption' => 'Total invoice aktif pada periode ini',

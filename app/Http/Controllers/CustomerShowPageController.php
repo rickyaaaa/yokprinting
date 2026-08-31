@@ -17,17 +17,15 @@ class CustomerShowPageController extends Controller
             ->firstOrFail();
 
         $invoices = $model->invoices->sortByDesc('issue_date');
-        // Revenue-recognition figures (totalSales/paid/invoice count) stay
-        // sent-only, matching Invoice::scopeFinalized() everywhere else.
-        $sentInvoices = $invoices->where('status', Invoice::STATUS_SENT);
-        $totalSales = (float) $sentInvoices->sum('total_amount');
-        $verifiedPaid = (float) $sentInvoices->flatMap->payments->where('status', Payment::STATUS_VERIFIED)->sum('amount');
-        // "Outstanding" is a Piutang-style figure - same rule as
-        // Invoice::scopeReceivable() (Phase 3), so this customer's own
-        // outstanding total matches what the global Piutang page shows for
-        // their invoices, draft included.
-        $outstanding = (float) $invoices
-            ->where('status', '!=', Invoice::STATUS_CANCELLED)
+        // Every non-cancelled invoice is a real transaction - same rule as
+        // Invoice::scopeBusinessTransaction(). Kept in sync by hand here since
+        // $invoices is already a loaded Collection, not a query builder.
+        $activeInvoices = $invoices->where('status', '!=', Invoice::STATUS_CANCELLED);
+        $totalSales = (float) $activeInvoices->sum('total_amount');
+        $verifiedPaid = (float) $activeInvoices->flatMap->payments->where('status', Payment::STATUS_VERIFIED)->sum('amount');
+        // "Outstanding" is a Piutang-style figure - Invoice::scopeReceivable(),
+        // i.e. the same active set narrowed to what is not yet fully paid.
+        $outstanding = (float) $activeInvoices
             ->where('payment_status', '!=', Invoice::PAYMENT_PAID)
             ->sum(fn (Invoice $invoice): float => $invoice->remainingAmount());
 
@@ -43,14 +41,19 @@ class CustomerShowPageController extends Controller
             'totalSales' => $this->rupiah($totalSales),
             'outstanding' => $this->rupiah($outstanding),
             'paid' => $this->rupiah($verifiedPaid),
-            'invoiceCount' => $sentInvoices->count().' invoice final',
-            'averageInvoice' => $this->rupiah($sentInvoices->count() > 0 ? $totalSales / $sentInvoices->count() : 0),
+            'invoiceCount' => $activeInvoices->count().' invoice aktif',
+            'averageInvoice' => $this->rupiah($activeInvoices->count() > 0 ? $totalSales / $activeInvoices->count() : 0),
         ];
 
         $invoiceRows = $invoices->map(function (Invoice $invoice): array {
             $paid = (float) $invoice->payments->where('status', Payment::STATUS_VERIFIED)->sum('amount');
+            // Payment status only - Invoice.status (draft/sent) is not a
+            // payment fact and must never overwrite one here. Matches
+            // InvoiceIndexPageController::status(). Cancelled is the one
+            // invoice-level state still worth showing, since such a row is
+            // excluded from every total on this page.
             $status = match (true) {
-                $invoice->status === Invoice::STATUS_DRAFT => 'Draft',
+                $invoice->status === Invoice::STATUS_CANCELLED => 'Dibatalkan',
                 $invoice->payment_status === Invoice::PAYMENT_PAID => 'Lunas',
                 $invoice->due_date->isPast() => 'Overdue',
                 $invoice->payment_status === Invoice::PAYMENT_PARTIAL => 'Parsial',

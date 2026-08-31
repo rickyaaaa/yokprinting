@@ -86,6 +86,45 @@ class SalesReportExportApiTest extends TestCase
         $this->assertStringNotContainsString('INV-2026-0099', $content);
     }
 
+    public function test_sales_report_export_includes_active_draft_invoices_and_excludes_cancelled(): void
+    {
+        // See Invoice::scopeBusinessTransaction().
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-07-23 12:00:00'));
+
+        $customer = $this->createCustomer('PT Sinar Nusantara');
+        $product = $this->createProduct('PRN-DRAFT-01', 'Cetak brosur draft', 'Cetak premium');
+
+        $draft = $this->createInvoice(
+            customer: $customer,
+            invoiceNumber: 'INV-2026-0101',
+            issueDate: '2026-07-22',
+            dueDate: '2026-07-29',
+            totalAmount: 4200000,
+            paymentStatus: Invoice::PAYMENT_PAID,
+            status: Invoice::STATUS_DRAFT,
+        );
+        $this->createItem($draft, $product, 4200000);
+
+        $cancelled = $this->createInvoice(
+            customer: $customer,
+            invoiceNumber: 'INV-2026-0102',
+            issueDate: '2026-07-22',
+            dueDate: '2026-07-29',
+            totalAmount: 9000000,
+            paymentStatus: Invoice::PAYMENT_UNPAID,
+            status: Invoice::STATUS_CANCELLED,
+        );
+        $this->createItem($cancelled, $product, 9000000);
+
+        $content = $this->get(route('api.reports.sales.export', [
+            'date_from' => '2026-07-01',
+            'date_to' => '2026-07-31',
+        ]))->assertOk()->getContent();
+
+        $this->assertStringContainsString('INV-2026-0101', $content);
+        $this->assertStringNotContainsString('INV-2026-0102', $content);
+    }
+
     public function test_sales_report_export_query_is_validated(): void
     {
         $this->getJson(route('api.reports.sales.export', [

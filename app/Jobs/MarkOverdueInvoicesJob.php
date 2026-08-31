@@ -20,9 +20,14 @@ class MarkOverdueInvoicesJob implements ShouldQueue
      */
     public function handle(ActivityLogger $activityLogger): int
     {
+        // Any active invoice can go overdue, draft included - it carries a
+        // real due date and a real unpaid balance, and Piutang/dashboard
+        // already treat it that way (Invoice::scopeReceivable()). Gating this
+        // on status=sent left the stored payment_status permanently behind
+        // the live overdue figures shown elsewhere.
         $invoiceIds = Invoice::query()
             ->whereDate('due_date', '<', today())
-            ->where('status', Invoice::STATUS_SENT)
+            ->businessTransaction()
             ->whereIn('payment_status', [Invoice::PAYMENT_UNPAID, Invoice::PAYMENT_PARTIAL])
             ->pluck('id')
             ->all();

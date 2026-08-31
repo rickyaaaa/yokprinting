@@ -43,7 +43,7 @@
                         <div>
                             <span class="badge badge-brand">Keuangan</span>
                             <h1 class="mt-3 text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Laporan laba rugi</h1>
-                            <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Ringkasan invoice final dengan pajak dan ongkir pelanggan dipisahkan dari omzet penjualan.</p>
+                            <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Ringkasan seluruh invoice aktif dengan pajak dan ongkir pelanggan dipisahkan dari omzet penjualan.</p>
                         </div>
                         <div class="flex flex-wrap gap-2" x-show="config.canExport" x-cloak>
                             <button type="button" class="btn btn-outline disabled:opacity-50" :disabled="Boolean(exporting)" @click="download('pdf')">
@@ -193,7 +193,7 @@
                             </section>
                             <section class="rounded-xl border border-line bg-canvas p-5 text-sm leading-6 text-muted">
                                 <h2 class="font-semibold text-ink">Dasar perhitungan</h2>
-                                <p class="mt-2">Hanya invoice final berstatus terkirim yang dihitung. Draft dan invoice dibatalkan dikecualikan. Pajak serta ongkir pelanggan hanya merekonsiliasi total invoice dan bukan omzet.</p>
+                                <p class="mt-2">Semua invoice aktif dihitung sejak dibuat (draft maupun terkirim). Hanya invoice yang dibatalkan yang dikecualikan. Pajak serta ongkir pelanggan hanya merekonsiliasi total invoice dan bukan omzet.</p>
                                 <p class="mt-3" x-text="report.accounting_policy.minimum_profit_basis"></p>
                                 <p class="mt-1" x-text="report.accounting_policy.maximum_profit_basis"></p>
                                 <p class="mt-3 font-medium text-amber-800" x-show="report.accounting_policy.profit_is_provisional" x-text="report.accounting_policy.decision_required"></p>

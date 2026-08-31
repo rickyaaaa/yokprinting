@@ -14,19 +14,19 @@ class DashboardPageController extends Controller
         $monthStart = today()->startOfMonth()->toDateString();
         $monthEnd = today()->endOfMonth()->toDateString();
         $revenueThisMonth = (float) Invoice::query()
-            ->finalized()
+            ->businessTransaction()
             ->whereBetween('issue_date', [$monthStart, $monthEnd])
             ->sum('total_amount');
         $revenueInvoiceCount = Invoice::query()
-            ->finalized()
+            ->businessTransaction()
             ->whereBetween('issue_date', [$monthStart, $monthEnd])
             ->count();
         $paid = (float) Payment::query()
             ->verified()
-            ->whereHas('invoice', fn ($query) => $query->finalized())
+            ->whereHas('invoice', fn ($query) => $query->businessTransaction())
             ->sum('amount');
         $paidInvoiceCount = Invoice::query()
-            ->finalized()
+            ->businessTransaction()
             ->where('payment_status', Invoice::PAYMENT_PAID)
             ->count();
         $receivableCount = Invoice::query()->receivable()->count();
@@ -56,7 +56,7 @@ class DashboardPageController extends Controller
 
         return view('dashboard', [
             'summaryCards' => [
-                ['label' => 'Pendapatan bulan ini', 'value' => $this->rupiah($revenueThisMonth), 'change' => $revenueInvoiceCount.' invoice', 'changeTone' => 'success', 'caption' => 'Invoice final bulan berjalan', 'icon' => 'revenue'],
+                ['label' => 'Pendapatan bulan ini', 'value' => $this->rupiah($revenueThisMonth), 'change' => $revenueInvoiceCount.' invoice', 'changeTone' => 'success', 'caption' => 'Invoice aktif bulan berjalan', 'icon' => 'revenue'],
                 ['label' => 'Invoice tertagih', 'value' => $this->rupiah($paid), 'change' => $paidInvoiceCount.' lunas', 'changeTone' => 'brand', 'caption' => 'Pembayaran terverifikasi', 'icon' => 'paid'],
                 ['label' => 'Menunggu bayar', 'value' => $this->rupiah($outstanding), 'change' => $receivableCount.' invoice', 'changeTone' => 'warning', 'caption' => 'Sisa pembayaran', 'icon' => 'pending'],
                 ['label' => 'Lewat tempo', 'value' => $this->rupiah($overdueAmount), 'change' => $overdueCount.' invoice', 'changeTone' => 'danger', 'caption' => 'Perlu tindak lanjut', 'icon' => 'overdue'],

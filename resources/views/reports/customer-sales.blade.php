@@ -40,6 +40,7 @@
                 <label class="text-sm"><span class="mb-1 block font-semibold text-muted">Sampai tanggal</span><input class="form-control" type="date" x-model="filters.date_to"></label>
                 <label class="text-sm"><span class="mb-1 block font-semibold text-muted">Customer</span><select class="form-control" x-model="filters.customer_id"><option value="">Semua customer</option>@foreach ($customers as $customer)<option value="{{ $customer->id }}">{{ $customer->name }}</option>@endforeach</select></label>
                 <label class="text-sm"><span class="mb-1 block font-semibold text-muted">Status</span><select class="form-control" x-model="filters.status"><option value="all">Semua status</option><option value="paid">Lunas</option><option value="partial">Parsial</option><option value="unpaid">Belum bayar</option></select></label>
+                <label class="text-sm"><span class="mb-1 block font-semibold text-muted">Cari</span><input class="form-control" type="search" x-model="filters.q" placeholder="No. invoice atau pelanggan"></label>
                 <button class="btn self-end bg-ink text-white hover:bg-slate-800" type="submit">Terapkan</button>
             </form>
             <p x-show="error" x-cloak class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" x-text="error"></p>

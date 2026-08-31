@@ -97,7 +97,7 @@
                             <form method="get" class="flex flex-wrap items-end gap-2">
                                 <label class="text-left text-xs font-semibold text-muted">Dari<input name="date_from" type="date" value="{{ $filters['date_from'] }}" class="form-control mt-1 text-sm"></label>
                                 <label class="text-left text-xs font-semibold text-muted">Sampai<input name="date_to" type="date" value="{{ $filters['date_to'] }}" class="form-control mt-1 text-sm"></label>
-                                <label class="text-left text-xs font-semibold text-muted">Status<select name="status" class="form-control mt-1 text-sm"><option value="all">Semua</option><option value="draft" @selected($filters['status'] === 'draft')>Draft</option><option value="sent" @selected($filters['status'] === 'sent')>Terkirim</option><option value="unpaid" @selected($filters['status'] === 'unpaid')>Belum bayar</option><option value="partial" @selected($filters['status'] === 'partial')>Parsial</option><option value="paid" @selected($filters['status'] === 'paid')>Lunas</option><option value="cancelled" @selected($filters['status'] === 'cancelled')>Dibatalkan</option></select></label>
+                                <label class="text-left text-xs font-semibold text-muted">Status<select name="status" class="form-control mt-1 text-sm"><option value="all">Semua</option><option value="unpaid" @selected($filters['status'] === 'unpaid')>Belum bayar</option><option value="partial" @selected($filters['status'] === 'partial')>Parsial</option><option value="paid" @selected($filters['status'] === 'paid')>Lunas</option><option value="cancelled" @selected($filters['status'] === 'cancelled')>Dibatalkan</option></select></label>
                                 <label class="text-left text-xs font-semibold text-muted">Urutan<select name="sort" class="form-control mt-1 text-sm"><option value="latest" @selected($filters['sort'] === 'latest')>Terbaru</option><option value="oldest" @selected($filters['sort'] === 'oldest')>Terlama</option></select></label>
                                 <button type="submit" class="btn bg-ink text-white hover:bg-slate-800">Terapkan</button>
                                 <a href="{{ route('api.invoices.export.orders.pdf', request()->query()) }}" class="btn border-brand-200 bg-brand-50 text-brand-800 hover:bg-brand-100">{{ request()->filled('date_from') || request()->filled('date_to') ? 'Cetak pesanan sesuai tanggal' : 'Cetak pesanan hari ini' }}</a>
@@ -127,7 +127,6 @@
                                         <th class="px-5 py-3 sm:px-6">Tanggal</th>
                                         <th class="px-5 py-3 sm:px-6">Jatuh tempo</th>
                                         <th class="px-5 py-3 text-right sm:px-6">Total</th>
-                                        <th class="px-5 py-3 sm:px-6">Status invoice</th>
                                         <th class="px-5 py-3 sm:px-6">Status pembayaran</th>
                                         <th class="px-5 py-3 sm:px-6">Status pesanan</th>
                                         <th class="px-5 py-3 text-right sm:px-6">Aksi</th>
@@ -138,7 +137,7 @@
                                         x-for="invoice in invoices.filter((row) => {
                                             const keyword = query.trim().toLowerCase();
                                             const matchesStatus = status === 'all' || row.status === status;
-                                            const matchesKeyword = ! keyword || `${row.number} ${row.customer} ${row.email} ${row.status} ${row.order_status} ${row.invoice_status_label}`.toLowerCase().includes(keyword);
+                                            const matchesKeyword = ! keyword || `${row.number} ${row.customer} ${row.email} ${row.status} ${row.order_status}`.toLowerCase().includes(keyword);
 
                                             return matchesStatus && matchesKeyword;
                                         })"
@@ -153,17 +152,6 @@
                                             <td class="whitespace-nowrap px-5 py-4 text-muted sm:px-6" x-text="invoice.issue_date"></td>
                                             <td class="whitespace-nowrap px-5 py-4 text-muted sm:px-6" x-text="invoice.due_date"></td>
                                             <td class="whitespace-nowrap px-5 py-4 text-right font-semibold text-ink sm:px-6" x-text="invoice.amount"></td>
-                                            <td class="whitespace-nowrap px-5 py-4 sm:px-6">
-                                                <span
-                                                    class="badge"
-                                                    :class="{
-                                                        'badge-brand': invoice.invoice_status_tone === 'brand',
-                                                        'badge-info': invoice.invoice_status_tone === 'info',
-                                                        'badge-danger': invoice.invoice_status_tone === 'danger'
-                                                    }"
-                                                    x-text="invoice.invoice_status_label"
-                                                ></span>
-                                            </td>
                                             <td class="whitespace-nowrap px-5 py-4 sm:px-6">
                                                 <span
                                                     class="badge"
