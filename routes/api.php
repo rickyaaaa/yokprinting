@@ -167,9 +167,13 @@ Route::middleware(['web', 'auth'])->group(function (): void {
         ->middleware('permission:product.view')
         ->name('api.products.low-stock-summary');
 
-    Route::get('/products/export', ProductCatalogExportController::class)
+    Route::get('/products/export/excel', [ProductCatalogExportController::class, 'excel'])
         ->middleware(['permission:report.export', 'throttle:report-export'])
-        ->name('api.products.export');
+        ->name('api.products.export.excel');
+
+    Route::get('/products/export/pdf', [ProductCatalogExportController::class, 'pdf'])
+        ->middleware(['permission:report.export', 'throttle:report-export'])
+        ->name('api.products.export.pdf');
 
     Route::get('/products/options', [ProductOptionController::class, 'index'])
         ->middleware('permission:product.view')

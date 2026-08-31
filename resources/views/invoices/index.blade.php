@@ -143,15 +143,15 @@
                                         })"
                                         :key="invoice.number"
                                     >
-                                        <tr class="hover:bg-surface-low">
-                                            <td class="whitespace-nowrap px-5 py-4 font-semibold text-ink sm:px-6" x-text="invoice.number"></td>
+                                        <tr class="hover:bg-surface-low" :class="invoice.is_cancelled ? 'bg-surface-low/60 text-muted opacity-70' : ''">
+                                            <td class="whitespace-nowrap px-5 py-4 font-semibold text-ink sm:px-6" :class="invoice.is_cancelled ? 'text-muted line-through' : ''" x-text="invoice.number"></td>
                                             <td class="px-5 py-4 sm:px-6">
                                                 <p class="font-medium text-ink" x-text="invoice.customer"></p>
                                                 <p class="mt-0.5 text-xs text-muted" x-text="invoice.email"></p>
                                             </td>
                                             <td class="whitespace-nowrap px-5 py-4 text-muted sm:px-6" x-text="invoice.issue_date"></td>
                                             <td class="whitespace-nowrap px-5 py-4 text-muted sm:px-6" x-text="invoice.due_date"></td>
-                                            <td class="whitespace-nowrap px-5 py-4 text-right font-semibold text-ink sm:px-6" x-text="invoice.amount"></td>
+                                            <td class="whitespace-nowrap px-5 py-4 text-right font-semibold text-ink sm:px-6" :class="invoice.is_cancelled ? 'text-muted line-through' : ''" x-text="invoice.amount"></td>
                                             <td class="whitespace-nowrap px-5 py-4 sm:px-6">
                                                 <span
                                                     class="badge"

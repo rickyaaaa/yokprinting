@@ -7,6 +7,16 @@ use Illuminate\Http\Response;
 class ReportCsvExport
 {
     /**
+     * Excel picks its CSV delimiter from the machine's regional list
+     * separator, which is ";" on Indonesian Windows - so a comma-delimited
+     * file opened by double-clicking landed entirely in column A, quotes and
+     * all. This one line tells Excel which delimiter the file actually uses;
+     * Google Sheets and LibreOffice detect it and skip the line. The file
+     * stays standards-compliant comma-delimited either way.
+     */
+    private const EXCEL_DELIMITER_HINT = "sep=,\r\n";
+
+    /**
      * @param  list<string>  $headers
      * @param  iterable<array<int, mixed>>  $rows
      */
@@ -24,7 +34,9 @@ class ReportCsvExport
         $csv = stream_get_contents($handle);
         fclose($handle);
 
-        return response("\u{FEFF}".$csv, 200, [
+        // BOM first (Excel needs it before anything else to read UTF-8), then
+        // the delimiter hint, then the data.
+        return response("\u{FEFF}".self::EXCEL_DELIMITER_HINT.$csv, 200, [
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="'.$filename.'"',
             'Cache-Control' => 'private, no-store, max-age=0',

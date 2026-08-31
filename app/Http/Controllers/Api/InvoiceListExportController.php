@@ -211,8 +211,17 @@ class InvoiceListExportController extends Controller
         return collect([$items, $notes])->filter()->implode("\n") ?: '-';
     }
 
+    /**
+     * Mirrors InvoiceIndexPageController::orderStatus() - a cancelled invoice
+     * is not waiting on production, so its stale workflow status must not be
+     * exported as if it were.
+     */
     private function orderStatusLabel(Invoice $invoice): string
     {
+        if ($invoice->status === Invoice::STATUS_CANCELLED) {
+            return 'Dibatalkan';
+        }
+
         if ($invoice->order_process_status === Invoice::ORDER_PROCESS_DRAFT
             && $invoice->production_status !== Invoice::PRODUCTION_DRAFT) {
             return match ($invoice->production_status) {
@@ -233,12 +242,14 @@ class InvoiceListExportController extends Controller
         };
     }
 
+    /**
+     * Mirrors InvoiceIndexPageController::status(). Cancellation overrides the
+     * payment status; draft does NOT - a draft invoice is a real transaction
+     * with a real payment status (see Invoice::scopeBusinessTransaction()), and
+     * showing "Draft" here hid whether it was actually paid.
+     */
     private function statusLabel(Invoice $invoice, float $paidAmount): string
     {
-        if ($invoice->status === Invoice::STATUS_DRAFT) {
-            return 'Draft';
-        }
-
         if ($invoice->status === Invoice::STATUS_CANCELLED) {
             return 'Dibatalkan';
         }

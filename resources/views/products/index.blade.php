@@ -82,7 +82,7 @@
                     <section
                         class="mt-6 card"
                         aria-labelledby="products-heading"
-                        x-data='productIndexTable(@json($products), @json(route("api.products.export")))'
+                        x-data='productIndexTable(@json($products), @json(["excel" => route("api.products.export.excel"), "pdf" => route("api.products.export.pdf")]))'
                         @open-product-bulk-stock.window="openBulkStockEditor()"
                     >
                         <div class="flex flex-col gap-4 border-b border-line px-5 py-4 sm:px-6 xl:flex-row xl:items-center xl:justify-between">
@@ -111,10 +111,14 @@
                                 </label>
                                 <div class="flex gap-2">
                                     @if ($canExportProducts)
-                                        {{-- Follows the table's own filters, so the file matches what is on screen. --}}
-                                        <a :href="exportUrl" class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-line bg-canvas px-3 py-2 text-xs font-semibold text-muted hover:bg-white hover:text-ink">
-                                            <i class="iconify tabler--download text-sm"></i>
-                                            Export
+                                        {{-- Both follow the table's own filters, so the file matches what is on screen. --}}
+                                        <a :href="pdfExportUrl" class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-line bg-canvas px-3 py-2 text-xs font-semibold text-muted hover:bg-white hover:text-ink">
+                                            <i class="iconify tabler--file-type-pdf text-sm"></i>
+                                            PDF
+                                        </a>
+                                        <a :href="excelExportUrl" class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-line bg-canvas px-3 py-2 text-xs font-semibold text-muted hover:bg-white hover:text-ink">
+                                            <i class="iconify tabler--file-type-xls text-sm"></i>
+                                            Excel
                                         </a>
                                     @endif
                                     <button type="button" class="inline-flex items-center justify-center rounded-lg border border-line bg-canvas px-3 py-2 text-xs font-semibold text-muted hover:bg-white hover:text-ink" x-show="isFiltered" x-cloak @click="resetFilters()">Reset</button>

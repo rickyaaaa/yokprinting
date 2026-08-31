@@ -113,6 +113,81 @@ class InvoiceWorkflowStatusDisplayTest extends TestCase
             ->assertSee('>Dibatalkan</option>', false);
     }
 
+    public function test_a_cancelled_invoice_shows_dibatalkan_in_both_status_columns(): void
+    {
+        // Cancellation restores the FIFO stock and drops the invoice out of
+        // every total, so its leftover payment_status/production_status must
+        // not keep reading as "Belum Bayar" / "Menunggu DP" - a bill to chase
+        // and a job to run, both untrue. Since the separate "Status Invoice"
+        // column is gone, these two columns are the only place it can show.
+        $customer = Customer::query()->create(['name' => 'PT Dibatalkan']);
+
+        Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-CANCELLED-DISPLAY',
+            'issue_date' => '2026-08-24',
+            'due_date' => '2026-09-07',
+            'status' => Invoice::STATUS_CANCELLED,
+            'payment_status' => Invoice::PAYMENT_UNPAID,
+            'production_status' => Invoice::PRODUCTION_AWAITING_DP,
+            'total_amount' => 500000,
+        ]);
+
+        $escapedQuote = chr(92).'u0022';
+
+        $this->get(route('invoices.index'))
+            ->assertOk()
+            ->assertSee("{$escapedQuote}status{$escapedQuote}:{$escapedQuote}Dibatalkan{$escapedQuote}", false)
+            ->assertSee("{$escapedQuote}order_status{$escapedQuote}:{$escapedQuote}Dibatalkan{$escapedQuote}", false)
+            ->assertDontSee("{$escapedQuote}status{$escapedQuote}:{$escapedQuote}Belum Bayar{$escapedQuote}", false)
+            ->assertDontSee("{$escapedQuote}order_status{$escapedQuote}:{$escapedQuote}Menunggu DP{$escapedQuote}", false)
+            // Row styling flag - the row is dimmed and struck through, so it
+            // reads as cancelled at a glance, not only from the two badges.
+            ->assertSee("{$escapedQuote}is_cancelled{$escapedQuote}:true", false);
+    }
+
+    public function test_a_cancelled_invoice_still_appears_in_the_list(): void
+    {
+        $customer = Customer::query()->create(['name' => 'PT Masih Tampil']);
+
+        Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-CANCELLED-VISIBLE',
+            'issue_date' => '2026-08-24',
+            'due_date' => '2026-09-07',
+            'status' => Invoice::STATUS_CANCELLED,
+            'payment_status' => Invoice::PAYMENT_UNPAID,
+            'total_amount' => 500000,
+        ]);
+
+        $this->get(route('invoices.index'))
+            ->assertOk()
+            ->assertSee('INV-CANCELLED-VISIBLE');
+    }
+
+    public function test_a_paid_draft_invoice_still_reports_its_payment_status_not_draft(): void
+    {
+        // The inverse of the cancelled case: draft is NOT a payment fact and
+        // must never overwrite one.
+        $customer = Customer::query()->create(['name' => 'PT Draft Lunas']);
+
+        Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-DRAFT-TETAP-LUNAS',
+            'issue_date' => '2026-08-24',
+            'due_date' => '2026-09-07',
+            'status' => Invoice::STATUS_DRAFT,
+            'payment_status' => Invoice::PAYMENT_PAID,
+            'total_amount' => 500000,
+        ]);
+
+        $escapedQuote = chr(92).'u0022';
+
+        $this->get(route('invoices.index'))
+            ->assertOk()
+            ->assertSee("{$escapedQuote}status{$escapedQuote}:{$escapedQuote}Lunas{$escapedQuote}", false);
+    }
+
     public function test_a_legacy_draft_status_filter_link_does_not_blank_the_list(): void
     {
         $customer = Customer::query()->create(['name' => 'PT Legacy Filter']);

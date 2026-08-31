@@ -58,6 +58,10 @@ class InvoiceIndexPageController extends Controller
                 'order_status' => $orderStatus,
                 'order_tone' => $orderTone,
                 'is_editable' => $invoice->isEditable(),
+                // Drives the muted/struck-through row styling, so a cancelled
+                // invoice is obvious at a glance and not only from reading its
+                // two status badges.
+                'is_cancelled' => $invoice->status === Invoice::STATUS_CANCELLED,
                 // Raw underlying values, kept for consumers that want the
                 // actual enum rather than a display label. Invoice.status
                 // stays available here (and in the database) for audit and
@@ -101,22 +105,30 @@ class InvoiceIndexPageController extends Controller
     }
 
     /**
-     * "Status Pembayaran" - derived purely from Invoice.payment_status.
-     * Invoice.status (draft/sent/cancelled) is a DIFFERENT concept and must
-     * never be shown here; see orderStatus() for the separate production/
-     * order-workflow column, which together with this one are the only two
-     * statuses the list shows.
-     * "Overdue" stays a live-computed (due_date + not-yet-paid) state
-     * layered on top, matching the existing convention elsewhere
-     * (InvoicePaymentDetailController, CustomerShowPageController) rather
-     * than trusting the daily-cron-updated payment_status=overdue column,
-     * which can be stale for up to a day right after it becomes true.
+     * "Status Pembayaran" - derived from Invoice.payment_status, except for a
+     * cancelled invoice.
+     *
+     * Cancellation overrides both status columns. A cancelled invoice is owed
+     * nothing and produced nothing: CancelInvoice restores its FIFO stock and
+     * scopeBusinessTransaction()/scopeReceivable() exclude it from every
+     * total. Leaving its stale payment_status/production_status on screen read
+     * as "Belum Bayar" and "Menunggu DP" - a bill still to chase and a job
+     * still to run, both untrue. It mattered more once the separate "Status
+     * Invoice" column was removed, since that was the only other place
+     * cancellation showed.
+     *
+     * "Overdue" stays a live-computed (due_date + not-yet-paid) state layered
+     * on top, matching the existing convention elsewhere
+     * (InvoicePaymentDetailController, CustomerShowPageController) rather than
+     * trusting the daily-cron-updated payment_status=overdue column, which can
+     * be stale for up to a day right after it becomes true.
      *
      * @return array{string, string}
      */
     private function status(Invoice $invoice): array
     {
         return match (true) {
+            $invoice->status === Invoice::STATUS_CANCELLED => ['Dibatalkan', 'danger'],
             $invoice->payment_status === Invoice::PAYMENT_PAID => ['Lunas', 'success'],
             $invoice->due_date->isPast() => ['Overdue', 'danger'],
             $invoice->payment_status === Invoice::PAYMENT_PARTIAL => ['Parsial', 'info'],
@@ -124,9 +136,19 @@ class InvoiceIndexPageController extends Controller
         };
     }
 
-    /** @return array{string, string} */
+    /**
+     * "Status Pesanan" - production/order workflow. Cancellation overrides it
+     * for the same reason as status() above: the order is not waiting on
+     * anything.
+     *
+     * @return array{string, string}
+     */
     private function orderStatus(Invoice $invoice): array
     {
+        if ($invoice->status === Invoice::STATUS_CANCELLED) {
+            return ['Dibatalkan', 'danger'];
+        }
+
         $status = $invoice->order_process_status;
 
         // Older invoices may still have the default order status while their

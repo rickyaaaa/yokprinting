@@ -2689,11 +2689,11 @@ Alpine.data('customerForm', (initialForm = {}, isEditMode = false, customerId = 
     },
 }));
 
-Alpine.data('productIndexTable', (initialProducts = [], exportEndpoint = '') => ({
+Alpine.data('productIndexTable', (initialProducts = [], exportEndpoints = {}) => ({
     query: '',
     statusFilter: 'all',
     categoryFilter: 'all',
-    exportEndpoint,
+    exportEndpoints,
     products: initialProducts,
     loading: false,
     error: '',
@@ -2805,11 +2805,13 @@ Alpine.data('productIndexTable', (initialProducts = [], exportEndpoint = '') => 
         });
     },
 
-    // Export mirrors whatever the table is currently showing, so the file and
+    // Exports mirror whatever the table is currently showing, so the file and
     // the screen never disagree. Status labels are the display strings the
     // filter pills use; the API takes stable keys instead.
-    get exportUrl() {
-        if (!this.exportEndpoint) {
+    exportUrlFor(format) {
+        const endpoint = this.exportEndpoints?.[format];
+
+        if (!endpoint) {
             return '';
         }
 
@@ -2831,7 +2833,15 @@ Alpine.data('productIndexTable', (initialProducts = [], exportEndpoint = '') => 
 
         const query = params.toString();
 
-        return query ? `${this.exportEndpoint}?${query}` : this.exportEndpoint;
+        return query ? `${endpoint}?${query}` : endpoint;
+    },
+
+    get excelExportUrl() {
+        return this.exportUrlFor('excel');
+    },
+
+    get pdfExportUrl() {
+        return this.exportUrlFor('pdf');
     },
 
     get lowStockProducts() {

@@ -80,7 +80,10 @@ class SalesReportExportApiTest extends TestCase
 
         $content = $response->getContent();
 
-        $this->assertStringStartsWith("\u{FEFF}Pelanggan,Email,Produk,Kategori,Invoice", $content);
+        // BOM, then the "sep=," hint Excel needs on an Indonesian machine
+        // (its regional list separator is ";", so without this the whole file
+        // lands in column A), then the header row.
+        $this->assertStringStartsWith("\u{FEFF}sep=,\r\nPelanggan,Email,Produk,Kategori,Invoice", $content);
         $this->assertStringContainsString('"PT Sinar Nusantara",finance@sinarnusantara.co.id,"Paket desain brand refresh","Jasa desain",INV-2026-0084,2026-07-23,2026-07-30,18450000,"Belum tersedia",Lunas', $content);
         $this->assertStringNotContainsString('INV-2026-0082', $content);
         $this->assertStringNotContainsString('INV-2026-0099', $content);

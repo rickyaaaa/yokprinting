@@ -7,6 +7,7 @@ use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\ActsAsOwner;
 use Tests\TestCase;
+use ZipArchive;
 
 /**
  * Client-confirmed: stock the company does not have is worth nothing, not
@@ -110,10 +111,25 @@ class InventoryValuationNeverNegativeTest extends TestCase
         $product = $this->product('EXPORT-OVERSOLD', stock: -5500, fallbackCost: 500);
         $this->deficitBatch($product, deficit: 5500, unitCost: 500);
 
-        $content = $this->get(route('api.products.export'))->assertOk()->getContent();
+        $workbook = $this->get(route('api.products.export.excel'))->assertOk()->getContent();
+        $path = tempnam(sys_get_temp_dir(), 'oversold-xlsx-');
+        file_put_contents($path, $workbook);
 
-        $this->assertStringContainsString('EXPORT-OVERSOLD', $content);
-        $this->assertStringNotContainsString('-2750000', $content);
+        try {
+            $archive = new ZipArchive;
+            $this->assertTrue($archive->open($path) === true);
+            $sheet = $archive->getFromName('xl/worksheets/sheet1.xml');
+            $archive->close();
+        } finally {
+            @unlink($path);
+        }
+
+        $this->assertIsString($sheet);
+        $this->assertStringContainsString('EXPORT-OVERSOLD', $sheet);
+        // Inventory value is 0, not -2.750.000. The negative stock itself is
+        // still reported as-is in the Stok column.
+        $this->assertStringNotContainsString('<v>-2750000</v>', $sheet);
+        $this->assertStringContainsString('<v>-5500</v>', $sheet);
     }
 
     private function product(string $sku, float $stock, float $fallbackCost): Product
