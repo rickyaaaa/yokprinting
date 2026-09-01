@@ -33,6 +33,7 @@ import {
     minimumStockForPayload,
     normalizeMinimumStock,
 } from './support/minimum-stock';
+import { printedItemNoun as printedNounForCategory } from './support/invoice-item-label';
 import { registerExpenseComponents } from './expenses';
 import { registerProfitLossComponents } from './profit-loss';
 import { registerCashBankComponents } from './cash-bank';
@@ -228,13 +229,14 @@ const buildInvoicePreviewSnapshot = (payload) => {
             const orderIncrement = Number(item.order_increment) || null;
             const sku = item.sku || '';
             const note = [
+                item.description || '',
                 sku ? `SKU: ${sku}` : '',
                 orderIncrement ? `Kelipatan jumlah ${formatNumber(orderIncrement)} ${unit}` : '',
             ].filter(Boolean).join(' · ');
 
             return {
                 key: `${item.product_id || 'item'}-${index}`,
-                name: item.description || item.product_name || `Item ${index + 1}`,
+                name: item.product_name || item.description || `Item ${index + 1}`,
                 note,
                 quantity,
                 unit,
@@ -1804,7 +1806,11 @@ Alpine.data('invoiceItems', () => ({
             return item.productName ?? this.productName(item.productId);
         }
 
-        return `Sablon Cup ${specs}${details ? ` (${details})` : ''}`;
+        return `Sablon ${this.printedItemNoun(item)} ${specs}${details ? ` (${details})` : ''}`;
+    },
+
+    printedItemNoun(item) {
+        return printedNounForCategory(this.productFor(item.productId)?.category ?? '');
     },
 
     addItem() {
