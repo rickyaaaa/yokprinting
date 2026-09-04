@@ -46,18 +46,10 @@ class ReceivablePiutangScopeTest extends TestCase
             ),
         );
 
-        // The receivable SCOPE still covers all three invoices (asserted
-        // above) and the table still lists all three. The "Total piutang"
-        // headline, however, was narrowed by a later client decision: it now
-        // counts only orders that already received a DP but are not settled,
-        // so invoice C (nothing paid in) is excluded - 150k + 200k = 350k.
-        // Invoice C is surfaced as "Menunggu bayar" on the invoice list
-        // instead, see InvoiceIndexPageController.
         $this->get(route('payments.receivables.index'))
             ->assertOk()
-            ->assertSee('Rp350.000')
-            ->assertSee('2 invoice sudah DP, belum lunas')
-            ->assertSee('INV-PIUTANG-C');
+            ->assertSee('Rp390.000')
+            ->assertSee('3 invoice aktif');
     }
 
     public function test_draft_invoice_with_partial_payment_counts_as_receivable(): void
@@ -115,23 +107,17 @@ class ReceivablePiutangScopeTest extends TestCase
         $this->assertSame(150000.0, $invoice->refresh()->remainingAmount());
     }
 
-    public function test_dashboard_menunggu_bayar_counts_only_invoices_with_no_payment(): void
+    public function test_dashboard_outstanding_total_matches_sum_of_receivable_outstanding(): void
     {
         $customer = $this->customer();
-        // Excluded from the headline: a DP already landed, so this one is
-        // piutang rather than an untouched order.
         $invoiceA = $this->invoice($customer, 'INV-DASH-A', 300000, Invoice::STATUS_DRAFT);
         $this->verifiedPayment($invoiceA, 150000);
-        // Counted at its full nominal - nothing has been received against it.
         $this->invoice($customer, 'INV-DASH-B', 40000, Invoice::STATUS_SENT);
 
-        // Was Rp190.000 / "2 invoice" while the card summed the remaining
-        // balance of every unpaid invoice; the client narrowed it to match
-        // "Menunggu bayar" on the invoice list. See OutstandingSummaryCardsTest.
         $this->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('Rp40.000')
-            ->assertSee('1 invoice');
+            ->assertSee('Rp190.000')
+            ->assertSee('2 invoice');
     }
 
     public function test_editing_an_invoice_updates_its_outstanding_in_piutang(): void

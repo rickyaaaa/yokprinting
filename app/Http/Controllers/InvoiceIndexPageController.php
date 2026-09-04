@@ -78,14 +78,11 @@ class InvoiceIndexPageController extends Controller
         $receivables = $invoices
             ->where('status', '!=', Invoice::STATUS_CANCELLED)
             ->where('payment_status', '!=', Invoice::PAYMENT_PAID);
-        // "Menunggu bayar" deliberately covers only invoices that have had no
-        // payment at all - an invoice with a DP already recorded is in
-        // progress and is tracked on the Piutang page instead. For these rows
-        // nothing has been received, so the full invoice nominal is what is
-        // still waiting to be paid.
-        $awaitingPayment = $receivables
-            ->filter(fn (Invoice $invoice): bool => (float) ($invoice->verified_paid_amount ?? 0) <= 0);
-        $outstanding = $awaitingPayment->sum(fn (Invoice $invoice): float => (float) $invoice->total_amount);
+        $outstanding = $receivables
+            ->sum(fn (Invoice $invoice): float => max(
+                0,
+                (float) $invoice->total_amount - (float) ($invoice->verified_paid_amount ?? 0),
+            ));
         $overdueCount = $receivables->filter(fn (Invoice $invoice): bool => $invoice->payment_status !== Invoice::PAYMENT_PAID
             && $invoice->due_date->isPast()
         )->count();
@@ -94,7 +91,7 @@ class InvoiceIndexPageController extends Controller
             'invoiceRows' => $invoiceRows,
             'summaryCards' => [
                 ['label' => 'Total invoice', 'value' => (string) $invoices->count(), 'caption' => 'Seluruh data tersimpan'],
-                ['label' => 'Menunggu bayar', 'value' => $this->rupiah($outstanding), 'caption' => $awaitingPayment->count().' invoice belum ada pembayaran'],
+                ['label' => 'Menunggu bayar', 'value' => $this->rupiah($outstanding), 'caption' => 'Sisa pembayaran terverifikasi'],
                 ['label' => 'Lewat tempo', 'value' => (string) $overdueCount, 'caption' => 'Butuh follow-up'],
             ],
             'filters' => [

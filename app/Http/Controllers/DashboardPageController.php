@@ -29,11 +29,8 @@ class DashboardPageController extends Controller
             ->businessTransaction()
             ->where('payment_status', Invoice::PAYMENT_PAID)
             ->count();
+        $receivableCount = Invoice::query()->receivable()->count();
         $overdueCount = Invoice::query()->receivable()->overdue()->count();
-        $awaitingPayment = $this->awaitingPaymentTotal();
-        // Still the balance-based total: the cashflow bars below split paid vs
-        // outstanding vs overdue on one consistent basis, so they must keep
-        // using it rather than the nominal-based "Menunggu bayar" figure.
         $outstanding = $this->outstandingTotal();
         $overdueAmount = $this->outstandingTotal(overdueOnly: true);
 
@@ -61,7 +58,7 @@ class DashboardPageController extends Controller
             'summaryCards' => [
                 ['label' => 'Pendapatan bulan ini', 'value' => $this->rupiah($revenueThisMonth), 'change' => $revenueInvoiceCount.' invoice', 'changeTone' => 'success', 'caption' => 'Invoice aktif bulan berjalan', 'icon' => 'revenue'],
                 ['label' => 'Invoice tertagih', 'value' => $this->rupiah($paid), 'change' => $paidInvoiceCount.' lunas', 'changeTone' => 'brand', 'caption' => 'Pembayaran terverifikasi', 'icon' => 'paid'],
-                ['label' => 'Menunggu bayar', 'value' => $this->rupiah($awaitingPayment['amount']), 'change' => $awaitingPayment['count'].' invoice', 'changeTone' => 'warning', 'caption' => 'Belum ada pembayaran', 'icon' => 'pending'],
+                ['label' => 'Menunggu bayar', 'value' => $this->rupiah($outstanding), 'change' => $receivableCount.' invoice', 'changeTone' => 'warning', 'caption' => 'Sisa pembayaran', 'icon' => 'pending'],
                 ['label' => 'Lewat tempo', 'value' => $this->rupiah($overdueAmount), 'change' => $overdueCount.' invoice', 'changeTone' => 'danger', 'caption' => 'Perlu tindak lanjut', 'icon' => 'overdue'],
             ],
             'cashflowSegments' => [
@@ -115,38 +112,6 @@ class DashboardPageController extends Controller
     /**
      * Calculate receivable totals in SQL without hydrating the whole invoice ledger.
      */
-    /**
-     * Full nominal of invoices nobody has paid into yet, plus how many.
-     *
-     * Same rule as "Menunggu bayar" on the invoice list: once a DP lands the
-     * order is in progress and is counted as piutang instead, so only
-     * untouched invoices are waiting here - and nothing having been received
-     * against them, the whole nominal is what is still due.
-     *
-     * @return array{amount: float, count: int}
-     */
-    private function awaitingPaymentTotal(): array
-    {
-        $verifiedPayments = Payment::query()
-            ->verified()
-            ->selectRaw('invoice_id, SUM(amount) as paid_amount')
-            ->groupBy('invoice_id');
-
-        $row = Invoice::query()
-            ->receivable()
-            ->leftJoinSub($verifiedPayments, 'verified_payments', function ($join): void {
-                $join->on('verified_payments.invoice_id', '=', 'invoices.id');
-            })
-            ->whereRaw('COALESCE(verified_payments.paid_amount, 0) <= 0')
-            ->selectRaw('COALESCE(SUM(invoices.total_amount), 0) as awaiting_total, COUNT(*) as invoice_count')
-            ->first();
-
-        return [
-            'amount' => max(0, (float) ($row->awaiting_total ?? 0)),
-            'count' => (int) ($row->invoice_count ?? 0),
-        ];
-    }
-
     private function outstandingTotal(bool $overdueOnly = false): float
     {
         $verifiedPayments = Payment::query()
