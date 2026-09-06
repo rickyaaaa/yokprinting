@@ -13,12 +13,13 @@ class ReceivablePageController extends Controller
             ->with('customer')
             ->withSum(['payments as verified_paid_amount' => fn ($query) => $query->verified()], 'amount')
             ->receivable()
-            // Nearest due date first (most actionable for collections) is the
-            // intentional default here, not a "recency" list - deliberately
-            // NOT flipped to newest-first. Deterministic secondary sort by id
-            // only, so same-day invoices don't shuffle between requests.
-            ->orderBy('due_date')
-            ->orderBy('id')
+            // Newest invoice first, by client decision - this replaces the
+            // earlier "nearest due date first" default. Collections can still
+            // reach that view by sorting on the Jatuh tempo column. Secondary
+            // sort by id (also newest first) keeps same-day invoices from
+            // shuffling between requests.
+            ->orderByDesc('issue_date')
+            ->orderByDesc('id')
             ->get();
 
         $receivables = $invoices->map(function (Invoice $invoice): array {
@@ -34,6 +35,10 @@ class ReceivablePageController extends Controller
                 'issued' => $invoice->issue_date->format('d M Y'),
                 'due' => $invoice->due_date->format('d M Y'),
                 'dueSort' => (int) $invoice->due_date->format('Ymd'),
+                // Sortable companions for the formatted date strings above:
+                // 'issued'/'due' are display-only and would sort as text.
+                'issuedSort' => (int) $invoice->issue_date->format('Ymd'),
+                'id' => $invoice->getKey(),
                 'total' => $this->rupiah((float) $invoice->total_amount),
                 'paid' => $this->rupiah($paid),
                 'outstanding' => $this->rupiah($remaining),

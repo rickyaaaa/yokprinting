@@ -139,7 +139,12 @@
                                                 <span class="font-mono text-[0.65rem]" x-text="sortIndicator('customer')"></span>
                                             </button>
                                         </th>
-                                        <th class="px-5 py-3">Tanggal</th>
+                                        <th class="px-5 py-3">
+                                            <button type="button" class="inline-flex items-center gap-1 hover:text-ink" @click="sortBy('issuedSort')">
+                                                Tanggal
+                                                <span class="font-mono text-[0.65rem]" x-text="sortIndicator('issuedSort')"></span>
+                                            </button>
+                                        </th>
                                         <th class="px-5 py-3">
                                             <button type="button" class="inline-flex items-center gap-1 hover:text-ink" @click="sortBy('dueSort')">
                                                 Jatuh tempo

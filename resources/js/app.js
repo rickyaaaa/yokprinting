@@ -34,6 +34,7 @@ import {
     normalizeMinimumStock,
 } from './support/minimum-stock';
 import { printedItemNoun as printedNounForCategory } from './support/invoice-item-label';
+import { defaultReceivableSort, initialDirectionFor, sortReceivables } from './support/receivable-sorting';
 import { registerExpenseComponents } from './expenses';
 import { registerProfitLossComponents } from './profit-loss';
 import { registerCashBankComponents } from './cash-bank';
@@ -1145,8 +1146,8 @@ Alpine.data('rolePermissionsForm', (roleCode) => ({
 Alpine.data('receivablesTable', (receivables = []) => ({
     query: '',
     statusFilter: 'all',
-    sortKey: 'dueSort',
-    sortDirection: 'asc',
+    sortKey: defaultReceivableSort.sortKey,
+    sortDirection: defaultReceivableSort.sortDirection,
     filters: [
         { key: 'all', label: 'Semua' },
         { key: 'Parsial', label: 'Parsial' },
@@ -1157,7 +1158,7 @@ Alpine.data('receivablesTable', (receivables = []) => ({
     get filteredReceivables() {
         const keyword = this.query.trim().toLocaleLowerCase('id');
 
-        return this.receivables
+        const rows = this.receivables
             .filter((receivable) => {
                 const matchesStatus = this.statusFilter === 'all' || receivable.status === this.statusFilter;
                 const matchesKeyword = !keyword ||
@@ -1166,21 +1167,9 @@ Alpine.data('receivablesTable', (receivables = []) => ({
                         .includes(keyword);
 
                 return matchesStatus && matchesKeyword;
-            })
-            .sort((first, second) => {
-                const firstValue = first[this.sortKey];
-                const secondValue = second[this.sortKey];
-
-                if (typeof firstValue === 'number' && typeof secondValue === 'number') {
-                    return this.sortDirection === 'asc'
-                        ? firstValue - secondValue
-                        : secondValue - firstValue;
-                }
-
-                return this.sortDirection === 'asc'
-                    ? String(firstValue).localeCompare(String(secondValue), 'id')
-                    : String(secondValue).localeCompare(String(firstValue), 'id');
             });
+
+        return sortReceivables(rows, this.sortKey, this.sortDirection);
     },
 
     setStatusFilter(filter) {
@@ -1194,7 +1183,7 @@ Alpine.data('receivablesTable', (receivables = []) => ({
         }
 
         this.sortKey = key;
-        this.sortDirection = key === 'dueSort' ? 'asc' : 'desc';
+        this.sortDirection = initialDirectionFor(key);
     },
 
     sortIndicator(key) {
