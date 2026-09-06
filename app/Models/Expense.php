@@ -24,6 +24,10 @@ class Expense extends Model
 
     public const CATEGORY_EXPEDITION = 'expedition';
 
+    public const CATEGORY_OPERATIONAL = 'operational';
+
+    public const CATEGORY_BANK_FEE = 'bank_fee';
+
     public const SUBCATEGORY_SALARY = 'salary';
 
     public const SUBCATEGORY_THR = 'thr';
@@ -103,6 +107,8 @@ class Expense extends Model
             self::CATEGORY_EMPLOYEE => 'Biaya Karyawan',
             self::CATEGORY_PREMISES => 'Biaya Tempat',
             self::CATEGORY_EXPEDITION => 'Biaya Ekspedisi',
+            self::CATEGORY_OPERATIONAL => 'Biaya Operasional',
+            self::CATEGORY_BANK_FEE => 'Biaya Admin Bank',
         ];
     }
 

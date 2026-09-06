@@ -195,6 +195,43 @@ class ProfitLossReportTest extends TestCase
         $this->assertSame(325.0, $summary['net_profit_maximum']);
     }
 
+    public function test_operational_and_bank_fee_expenses_are_recognized_and_reduce_both_net_profit_bounds(): void
+    {
+        // Regression guard, same shape as the Biaya Ekspedisi one above:
+        // running costs and bank charges are period expenses that never touch
+        // inventory/HPP, so they must land in recognized_expenses and pull
+        // both profit bounds down - not sit in the provisional bucket, and
+        // never silently vanish from recorded_expenses.
+        $customer = Customer::query()->create(['code' => 'CUS-PL-OPS', 'name' => 'Operational Test']);
+        $this->invoice($customer, 'INV-OPS', '2027-03-15', 1000, 600, 0, Invoice::SHIPPING_NONE, 10);
+        $this->expense(Expense::CATEGORY_OPERATIONAL, 120, '2027-03-15');
+        $this->expense(Expense::CATEGORY_BANK_FEE, 30, '2027-03-15');
+
+        $report = app(ProfitLossReport::class)->build('daily');
+        $summary = $report['summary'];
+
+        $this->assertSame(120.0, $summary['operational_expenses']);
+        $this->assertSame(30.0, $summary['bank_fee_expenses']);
+        $this->assertSame(150.0, $summary['recognized_expenses']);
+        $this->assertSame(150.0, $summary['recorded_expenses']);
+        $this->assertSame(0.0, $summary['unclassified_expenses']);
+        // Gross profit 400 - 150 recognized, with nothing provisional, so both
+        // bounds land on the same figure.
+        $this->assertSame(250.0, $summary['net_profit_minimum']);
+        $this->assertSame(250.0, $summary['net_profit_maximum']);
+        $this->assertFalse($report['accounting_policy']['profit_is_provisional']);
+    }
+
+    public function test_both_new_categories_are_selectable_when_recording_an_expense(): void
+    {
+        // The form dropdown and the validation whitelist both derive from
+        // categoryOptions(), so a category missing there is unrecordable.
+        $this->assertArrayHasKey(Expense::CATEGORY_OPERATIONAL, Expense::categoryOptions());
+        $this->assertArrayHasKey(Expense::CATEGORY_BANK_FEE, Expense::categoryOptions());
+        $this->assertContains(Expense::CATEGORY_OPERATIONAL, Expense::categories());
+        $this->assertContains(Expense::CATEGORY_BANK_FEE, Expense::categories());
+    }
+
     public function test_daily_weekly_monthly_yearly_and_custom_filters_use_server_periods(): void
     {
         $this->actingAs($this->owner);
@@ -278,8 +315,12 @@ class ProfitLossReportTest extends TestCase
             $this->assertStringContainsString('Pajak dipungut (bukan omzet)', $worksheet);
             $this->assertStringContainsString('Pengeluaran belum diklasifikasikan terhadap HPP', $worksheet);
             $this->assertStringContainsString('Total Biaya Ekspedisi', $worksheet);
-            $this->assertStringContainsString('<c r="B24" s="5"><v>35000</v></c>', $worksheet);
-            $this->assertStringContainsString('<c r="B25" s="5"><v>45000</v></c>', $worksheet);
+            $this->assertStringContainsString('Total Biaya Operasional', $worksheet);
+            $this->assertStringContainsString('Total Biaya Admin Bank', $worksheet);
+            // Net profit moved from rows 24/25 to 26/27 when Biaya Operasional
+            // and Biaya Admin Bank were inserted after Biaya Tempat.
+            $this->assertStringContainsString('<c r="B26" s="5"><v>35000</v></c>', $worksheet);
+            $this->assertStringContainsString('<c r="B27" s="5"><v>45000</v></c>', $worksheet);
             $this->assertStringContainsString('<v>20</v>', $worksheet);
         } finally {
             $archive->close();

@@ -89,11 +89,18 @@ class ProfitLossReport
         // of HPP - so unlike production/shopping it's unambiguously
         // "recognized", the same bucket as shipping_expenses/employee/premises.
         $expeditionExpenses = $this->expenseTotal($expenseRows, Expense::CATEGORY_EXPEDITION);
+        // Running costs and bank charges are period expenses: they are never
+        // absorbed into inventory/HPP, so like employee/premises they are
+        // recognized straight away rather than sitting in the provisional
+        // bucket. Owner-confirmed scope - owner withdrawals, tax remittances
+        // and balance corrections are deliberately NOT expenses and stay out.
+        $operationalExpenses = $this->expenseTotal($expenseRows, Expense::CATEGORY_OPERATIONAL);
+        $bankFeeExpenses = $this->expenseTotal($expenseRows, Expense::CATEGORY_BANK_FEE);
 
         // Production and shopping expenses cannot yet be reconciled to inventory/HPP.
         // Report both defensible boundaries instead of choosing one unsupported result.
         $unclassifiedExpenses = $this->money($productionExpenses + $shoppingExpenses);
-        $recognizedExpenses = $this->money($shippingExpenses + $expeditionExpenses + $employeeExpenses + $premisesExpenses);
+        $recognizedExpenses = $this->money($shippingExpenses + $expeditionExpenses + $employeeExpenses + $premisesExpenses + $operationalExpenses + $bankFeeExpenses);
         $recordedExpenses = $this->money($recognizedExpenses + $unclassifiedExpenses);
         $grossProfit = $this->money($salesRevenue - $totalHpp);
         $netProfitMaximum = $this->money($grossProfit - $recognizedExpenses);
@@ -130,6 +137,8 @@ class ProfitLossReport
                 'production_expenses' => $productionExpenses,
                 'employee_expenses' => $employeeExpenses,
                 'premises_expenses' => $premisesExpenses,
+                'operational_expenses' => $operationalExpenses,
+                'bank_fee_expenses' => $bankFeeExpenses,
                 'shopping_expenses' => $shoppingExpenses,
                 'unclassified_expenses' => $unclassifiedExpenses,
                 'recognized_expenses' => $recognizedExpenses,

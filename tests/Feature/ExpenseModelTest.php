@@ -19,6 +19,12 @@ class ExpenseModelTest extends TestCase
             Expense::CATEGORY_EMPLOYEE => 'Biaya Karyawan',
             Expense::CATEGORY_PREMISES => 'Biaya Tempat',
             Expense::CATEGORY_EXPEDITION => 'Biaya Ekspedisi',
+            // Approved later, so running costs recorded as a manual Kas & Bank
+            // entry have a home in Pengeluaran and therefore reach the P&L.
+            // Owner withdrawals, tax remittances and balance corrections were
+            // deliberately NOT approved - they are not expenses.
+            Expense::CATEGORY_OPERATIONAL => 'Biaya Operasional',
+            Expense::CATEGORY_BANK_FEE => 'Biaya Admin Bank',
         ], Expense::categoryOptions());
 
         $this->assertSame([

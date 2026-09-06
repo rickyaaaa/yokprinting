@@ -151,6 +151,14 @@
                                     <dd class="text-right tabular-nums text-ink" x-text="formatMoney(report.summary.premises_expenses)"></dd>
                                 </div>
                                 <div class="flex items-center justify-between gap-6 px-5 py-3">
+                                    <dt class="text-muted">Total Biaya Operasional</dt>
+                                    <dd class="text-right tabular-nums text-ink" x-text="formatMoney(report.summary.operational_expenses)"></dd>
+                                </div>
+                                <div class="flex items-center justify-between gap-6 px-5 py-3">
+                                    <dt class="text-muted">Total Biaya Admin Bank</dt>
+                                    <dd class="text-right tabular-nums text-ink" x-text="formatMoney(report.summary.bank_fee_expenses)"></dd>
+                                </div>
+                                <div class="flex items-center justify-between gap-6 px-5 py-3">
                                     <dt class="text-muted">Total Belanjaan</dt>
                                     <dd class="text-right tabular-nums text-ink" x-text="formatMoney(report.summary.shopping_expenses)"></dd>
                                 </div>

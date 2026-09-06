@@ -91,6 +91,8 @@
                 <tr><td>Total Biaya Produksi</td><td class="amount">{{ $money($summary['production_expenses']) }}</td></tr>
                 <tr><td>Total Biaya Karyawan</td><td class="amount">{{ $money($summary['employee_expenses']) }}</td></tr>
                 <tr><td>Total Biaya Tempat</td><td class="amount">{{ $money($summary['premises_expenses']) }}</td></tr>
+                <tr><td>Total Biaya Operasional</td><td class="amount">{{ $money($summary['operational_expenses']) }}</td></tr>
+                <tr><td>Total Biaya Admin Bank</td><td class="amount">{{ $money($summary['bank_fee_expenses']) }}</td></tr>
                 <tr><td>Total Belanjaan</td><td class="amount">{{ $money($summary['shopping_expenses']) }}</td></tr>
                 <tr class="total"><td>Total Pengeluaran Tercatat</td><td class="amount">{{ $money($summary['recorded_expenses']) }}</td></tr>
                 <tr class="total"><td>Pengeluaran Diakui di Laba Rugi</td><td class="amount">({{ $money($summary['recognized_expenses']) }})</td></tr>
