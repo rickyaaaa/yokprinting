@@ -38,10 +38,14 @@ class ReceivablePageController extends Controller
                 'paid' => $this->rupiah($paid),
                 'outstanding' => $this->rupiah($remaining),
                 'outstandingValue' => $remaining,
+                // Whether a DP has actually landed, which is what separates an
+                // order already in progress from one nobody has paid into yet.
+                'hasDownPayment' => $paid > 0,
                 'status' => $status,
             ];
         })->values();
 
+        $withDownPayment = $receivables->where('hasDownPayment', true);
         $overdue = $receivables->where('status', 'Overdue');
         $dueSoon = $receivables->filter(fn (array $row): bool => $row['status'] !== 'Overdue' && $row['dueSort'] <= (int) today()->addDays(7)->format('Ymd')
         );
@@ -51,7 +55,13 @@ class ReceivablePageController extends Controller
         return view('payments.receivables', [
             'receivables' => $receivables,
             'summaryCards' => [
-                ['label' => 'Total piutang', 'value' => $this->rupiah((float) $receivables->sum('outstandingValue')), 'caption' => $receivables->count().' invoice aktif', 'tone' => 'brand'],
+                // Client-confirmed rule: "Total piutang" counts only orders that
+                // already received a DP but have not been settled - an invoice
+                // nobody has paid into yet is surfaced as "Menunggu bayar" on
+                // the invoice list instead. The three breakdown cards below
+                // still cover every outstanding invoice, so they intentionally
+                // do not add up to this figure.
+                ['label' => 'Total piutang', 'value' => $this->rupiah((float) $withDownPayment->sum('outstandingValue')), 'caption' => $withDownPayment->count().' invoice sudah DP, belum lunas', 'tone' => 'brand'],
                 ['label' => 'Belum jatuh tempo', 'value' => $this->rupiah((float) $notDue->sum('outstandingValue')), 'caption' => $notDue->count().' invoice', 'tone' => 'success'],
                 ['label' => 'Jatuh tempo 7 hari', 'value' => $this->rupiah((float) $dueSoon->sum('outstandingValue')), 'caption' => $dueSoon->count().' invoice', 'tone' => 'warning'],
                 ['label' => 'Overdue', 'value' => $this->rupiah((float) $overdue->sum('outstandingValue')), 'caption' => $overdue->count().' invoice', 'tone' => 'danger'],
