@@ -190,8 +190,9 @@ class ProductController extends Controller
             'average_purchase_cost' => $product->average_purchase_cost === null ? null : (float) $product->average_purchase_cost,
             // The "HPP FIFO" value: unit cost of the oldest available FIFO
             // batch (what the next sale will actually draw from), NOT a
-            // weighted average across remaining batches. Falls back to the
-            // average-cost chain above only while no batch is available.
+            // weighted average across remaining batches. Once every batch is
+            // used up it shows the last purchase price instead - see
+            // Product::lastPurchaseCostFallback().
             // See Product::fifoUnitCost()/fifoInventoryValue().
             'fifo_hpp' => (float) $product->fifoUnitCost(),
             'fifo_inventory_value' => (float) $product->fifoInventoryValue(),

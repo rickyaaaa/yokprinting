@@ -179,7 +179,37 @@ class Product extends Model
             ->sort(fn (InventoryBatch $a, InventoryBatch $b): int => [$a->purchase_date, $a->getKey()] <=> [$b->purchase_date, $b->getKey()])
             ->first();
 
-        return $oldest ? (float) $oldest->unit_cost : $this->purchaseCostFallback();
+        return $oldest ? (float) $oldest->unit_cost : $this->lastPurchaseCostFallback();
+    }
+
+    /**
+     * Display fallback for "HPP FIFO" once every batch is used up.
+     *
+     * Client-confirmed: with no layer left there is no next batch to price,
+     * and the most useful figure is what the product last actually cost -
+     * not a weighted average, which lags behind the newest purchase and
+     * reads as a wrong "current" cost (reported as HPP FIFO 654 while the
+     * last purchase was 660).
+     *
+     * Deliberately NOT purchaseCostFallback(): that one leads with the
+     * average and is still what inventory valuation and stock shortfall use,
+     * where an average across everything bought is the right basis. Changing
+     * it there would move "Nilai persediaan" and "Kekurangan stok", which is
+     * out of scope here. The average stays as a last resort for legacy rows
+     * that never recorded a purchase price.
+     */
+    public function lastPurchaseCostFallback(): float
+    {
+        // First value that is actually a price. Null-coalescing alone is not
+        // enough: products.purchase_price is NOT NULL and defaults to 0, so a
+        // zero there would otherwise mask a real cost further down the chain.
+        foreach ([$this->last_purchase_price, $this->purchase_price, $this->average_purchase_cost] as $candidate) {
+            if ($candidate !== null && (float) $candidate > 0) {
+                return (float) $candidate;
+            }
+        }
+
+        return 0.0;
     }
 
     /**

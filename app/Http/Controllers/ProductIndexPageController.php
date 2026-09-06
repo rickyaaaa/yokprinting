@@ -34,7 +34,8 @@ class ProductIndexPageController extends Controller
                 'category' => $product->category ?: '-',
                 'unit' => strtoupper($product->unit),
                 // "HPP FIFO": cost of the oldest available batch (what the
-                // next sale draws from), NOT a weighted average - see
+                // next sale draws from), NOT a weighted average; falls back to
+                // the last purchase price when no batch is left - see
                 // Product::fifoUnitCost().
                 'purchasePrice' => $this->rupiah($product->fifoUnitCost()),
                 'purchasePriceValue' => $product->fifoUnitCost(),
