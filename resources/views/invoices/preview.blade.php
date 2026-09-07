@@ -194,8 +194,6 @@
                                         <tr>
                                             <td class="py-5 pr-4 align-top">
                                                 <p class="font-semibold text-ink" x-text="item.product_name || item.name"></p>
-                                                <p x-show="item.sku" class="mt-1 text-xs leading-5 text-muted" x-text="item.sku"></p>
-                                                <p x-show="item.description" class="mt-1 max-w-md text-xs leading-5 text-muted" x-text="item.description"></p>
                                             </td>
                                             <td class="px-2 py-5 text-center align-top text-ink" x-text="item.quantity_label"></td>
                                             <td class="px-2 py-5 text-right align-top text-muted" x-text="formatCurrency(item.unit_price)"></td>

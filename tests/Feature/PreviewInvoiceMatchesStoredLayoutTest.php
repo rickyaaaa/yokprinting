@@ -2,24 +2,27 @@
 
 namespace Tests\Feature;
 
+use App\Models\Customer;
+use App\Models\Invoice;
 use App\Models\User;
 use App\Services\Invoices\CalculateInvoicePreview;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * The preview and its downloaded PDF lay an item out the same way the stored
- * invoice does: product name on top, then SKU, then the spec description.
+ * Client-confirmed: the customer-facing invoice names an item by its product
+ * name and nothing else. SKU and the generated "Sablon ..." spec description
+ * are working detail that stays on the in-app Rincian tagihan.
  *
- * Previously the preview flattened all three into one label, so a line read
- * "Sablon Cup 12 Oz Datar (8gr)..." and the actual product - "Tutup
- * Strawless SJP D93" - never appeared anywhere on the document.
+ * Before this the preview showed the description in place of the product, so
+ * a line read "Sablon Cup 12 Oz Datar (8gr)..." and the actual product -
+ * "Tutup Strawless SJP D93" - appeared nowhere on the document.
  */
 class PreviewInvoiceMatchesStoredLayoutTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_the_pdf_shows_the_product_name_sku_and_description_separately(): void
+    public function test_the_preview_pdf_renders(): void
     {
         $this->actingAs(User::factory()->create(['role' => User::ROLE_OWNER]));
 
@@ -45,6 +48,45 @@ class PreviewInvoiceMatchesStoredLayoutTest extends TestCase
 
         // Amounts are still recalculated server side, never trusted from the client.
         $this->assertSame(120000.0, (float) $item['line_total']);
+    }
+
+    public function test_the_stored_invoice_document_carries_the_product_name_only(): void
+    {
+        $invoice = $this->storedInvoice();
+
+        $html = view('pdf.invoices.show', ['invoice' => $invoice->load('items', 'customer')])->render();
+
+        $this->assertStringContainsString('Tutup Strawless SJP D93', $html);
+        $this->assertStringNotContainsString('Sablon Tutup 12 Oz Datar', $html);
+        $this->assertStringNotContainsString('H-018', $html);
+    }
+
+    private function storedInvoice(): Invoice
+    {
+        $customer = Customer::query()->create(['code' => 'CUS-DOC-1', 'name' => 'PT Bahagia']);
+        $invoice = Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-2026-0055',
+            'issue_date' => '2026-09-07',
+            'due_date' => '2026-09-21',
+            'status' => Invoice::STATUS_SENT,
+            'subtotal' => 120000,
+            'total_amount' => 120000,
+        ]);
+        $invoice->items()->create([
+            'product_name' => 'Tutup Strawless SJP D93',
+            'sku' => 'H-018',
+            'description' => 'Sablon Tutup 12 Oz Datar (8gr) (Tinta Hitam - 1 warna)',
+            'cup_size' => '12 Oz',
+            'cup_model' => 'Datar',
+            'grammage' => '8gr',
+            'quantity' => 1000,
+            'unit_price' => 120,
+            'subtotal' => 120000,
+            'total_amount' => 120000,
+        ]);
+
+        return $invoice;
     }
 
     /** @return array<string, mixed> */
