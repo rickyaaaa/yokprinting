@@ -6,8 +6,10 @@ use App\Exports\ReportCsvExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ListCashBankTransactionsRequest;
 use App\Http\Requests\StoreManualCashBankTransactionRequest;
+use App\Http\Requests\SummariseCashBankRequest;
 use App\Http\Requests\UpdateBankAccountRequest;
 use App\Http\Requests\UpdateManualCashBankTransactionRequest;
+use Carbon\CarbonImmutable;
 use App\Models\ActivityLog;
 use App\Models\BankAccount;
 use App\Models\CashBankTransaction;
@@ -20,18 +22,35 @@ use Illuminate\Support\Facades\DB;
 
 class CashBankController extends Controller
 {
-    public function summary(CashBankService $cashBank): JsonResponse
+    public function summary(SummariseCashBankRequest $request, CashBankService $cashBank): JsonResponse
     {
         $account = $cashBank->activeAccount();
-        $monthStart = today()->startOfMonth();
-        $monthEnd = today()->endOfMonth();
+        $filters = $request->validated();
+
+        // The cards follow the Histori transaksi date filter, so the headline
+        // numbers always describe the rows underneath them. With no filter set
+        // they keep their original meaning: this calendar month.
+        $isFiltered = filled($filters['date_from'] ?? null) || filled($filters['date_to'] ?? null);
+        $rangeStart = $filters['date_from'] ?? today()->startOfMonth()->toDateString();
+        $rangeEnd = $filters['date_to'] ?? today()->endOfMonth()->toDateString();
+
         $base = $account->transactions()->posted()
-            ->whereBetween('transaction_date', [$monthStart, $monthEnd]);
+            ->whereBetween('transaction_date', [$rangeStart, $rangeEnd]);
         $income = (float) (clone $base)->where('type', CashBankTransaction::TYPE_INCOME)->sum('amount');
         $expense = (float) (clone $base)->where('type', CashBankTransaction::TYPE_EXPENSE)->sum('amount');
-        $balance = $cashBank->calculateBalance($account);
+
+        // Balance is a running total, not a per-period sum: with a range set
+        // it is the balance as that period closed, so it reconciles with the
+        // last running-balance figure in the table instead of jumping to a
+        // live all-time number.
+        $balance = $isFiltered
+            ? $cashBank->balanceBefore($account, CarbonImmutable::parse($rangeEnd)->addDay()->toDateString())
+            : $cashBank->calculateBalance($account);
 
         return response()->json(['data' => [
+            'is_filtered' => $isFiltered,
+            'range_from' => $rangeStart,
+            'range_to' => $rangeEnd,
             'account_id' => $account->getKey(),
             'account_name' => $account->name,
             'bank_name' => $account->bank_name,

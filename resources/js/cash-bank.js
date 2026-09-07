@@ -56,7 +56,13 @@ export function registerCashBankComponents(Alpine) {
             this.summaryError = '';
 
             try {
-                const response = await fetch('/api/cash-bank/summary', { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+                // Same range as the history below, so the cards and the rows
+                // can never tell two different stories.
+                const params = new URLSearchParams();
+                if (this.filters.date_from) params.set('date_from', this.filters.date_from);
+                if (this.filters.date_to) params.set('date_to', this.filters.date_to);
+                const query = params.toString();
+                const response = await fetch(`/api/cash-bank/summary${query ? `?${query}` : ''}`, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
                 const payload = await response.json().catch(() => ({}));
                 if (!response.ok || !payload.data) throw new Error(payload.message ?? 'Ringkasan Kas & Bank gagal dimuat.');
                 this.summary = payload.data;
@@ -216,7 +222,12 @@ export function registerCashBankComponents(Alpine) {
 
         resetFilters() {
             this.filters = { search: '', date_from: '', date_to: '', type: '', category: '', payment_method: '', sort: 'latest', per_page: 15 };
-            this.loadTransactions();
+            this.applyFilters();
+        },
+
+        // Every filter change has to refresh both halves of the page.
+        applyFilters() {
+            return Promise.all([this.loadSummary(), this.loadTransactions()]);
         },
 
         async exportCsv() {

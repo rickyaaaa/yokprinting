@@ -66,19 +66,19 @@
 
                     <section class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Ringkasan Kas dan Bank" :aria-busy="summaryLoading">
                         <article class="card p-5">
-                            <p class="text-sm font-medium text-muted">Saldo Bank</p>
+                            <p class="text-sm font-medium text-muted" x-text="summary.is_filtered ? 'Saldo Akhir Periode' : 'Saldo Bank'">Saldo Bank</p>
                             <div x-show="summaryLoading" class="mt-3 h-7 w-36 animate-pulse rounded bg-surface-high" aria-hidden="true"></div>
                             <p x-show="!summaryLoading" class="mt-2 min-h-8 text-2xl font-semibold" :class="summary.has_negative_balance ? 'text-red-700' : 'text-ink'" x-text="summaryLoaded ? formatRupiah(summary.current_balance) : '—'"></p>
                             <p class="mt-3 min-h-4 text-xs text-muted" x-text="summaryLoaded ? `${summary.bank_name} · ${summary.account_name}` : 'Data rekening belum tersedia'"></p>
                         </article>
                         <article class="card p-5">
-                            <p class="text-sm font-medium text-muted">Pemasukan Bulan Ini</p>
+                            <p class="text-sm font-medium text-muted" x-text="summary.is_filtered ? 'Pemasukan Periode Ini' : 'Pemasukan Bulan Ini'">Pemasukan Bulan Ini</p>
                             <div x-show="summaryLoading" class="mt-3 h-7 w-36 animate-pulse rounded bg-surface-high" aria-hidden="true"></div>
                             <p x-show="!summaryLoading" class="mt-2 min-h-8 text-2xl font-semibold text-green-700" x-text="summaryLoaded ? formatRupiah(summary.income_this_month) : '—'"></p>
                             <p class="mt-3 text-xs text-muted">Uang masuk berstatus tercatat</p>
                         </article>
                         <article class="card p-5">
-                            <p class="text-sm font-medium text-muted">Pengeluaran Bulan Ini</p>
+                            <p class="text-sm font-medium text-muted" x-text="summary.is_filtered ? 'Pengeluaran Periode Ini' : 'Pengeluaran Bulan Ini'">Pengeluaran Bulan Ini</p>
                             <div x-show="summaryLoading" class="mt-3 h-7 w-36 animate-pulse rounded bg-surface-high" aria-hidden="true"></div>
                             <p x-show="!summaryLoading" class="mt-2 min-h-8 text-2xl font-semibold text-red-700" x-text="summaryLoaded ? formatRupiah(summary.expense_this_month) : '—'"></p>
                             <p class="mt-3 text-xs text-muted">Uang keluar berstatus tercatat</p>
@@ -175,7 +175,7 @@
                             <h2 id="cash-bank-history-heading" class="font-semibold text-ink">Histori transaksi</h2>
                             <p class="mt-1 text-sm text-muted">Saldo berjalan dihitung dari saldo awal dan seluruh transaksi tercatat sebelumnya.</p>
                         </div>
-                        <form class="grid gap-3 border-b border-line p-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" @submit.prevent="loadTransactions()">
+                        <form class="grid gap-3 border-b border-line p-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" @submit.prevent="applyFilters()">
                             <label class="sm:col-span-2 lg:col-span-1"><span class="mb-1.5 block text-xs font-semibold text-muted">Pencarian</span><input type="search" class="form-control" x-model="filters.search" placeholder="Nomor, kategori, keterangan"></label>
                             <label><span class="mb-1.5 block text-xs font-semibold text-muted">Dari tanggal</span><input type="date" class="form-control" x-model="filters.date_from"></label>
                             <label><span class="mb-1.5 block text-xs font-semibold text-muted">Sampai tanggal</span><input type="date" class="form-control" x-model="filters.date_to"></label>
