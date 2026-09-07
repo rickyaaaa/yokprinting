@@ -35,6 +35,31 @@ class PreviewInvoiceMatchesStoredLayoutTest extends TestCase
         $this->assertStringStartsWith("%PDF", $pdf);
     }
 
+    public function test_the_downloaded_preview_prints_the_product_name_not_the_description(): void
+    {
+        // The exact complaint: the download kept showing the "Sablon ..." text
+        // instead of the product. Rendered as HTML rather than PDF bytes so the
+        // assertion can actually read what was printed.
+        $preview = app(CalculateInvoicePreview::class)->calculate($this->payload());
+
+        $html = view('pdf.invoices.preview', ['preview' => $preview])->render();
+
+        $this->assertStringContainsString('Tutup Strawless SJP D93', $html);
+        $this->assertStringNotContainsString('Sablon Tutup 12 Oz Datar', $html);
+        $this->assertStringNotContainsString('H-018', $html);
+    }
+
+    public function test_an_empty_product_name_falls_back_instead_of_printing_a_blank_line(): void
+    {
+        $payload = $this->payload();
+        $payload['items'][0]['product_name'] = '';
+
+        $preview = app(CalculateInvoicePreview::class)->calculate($payload);
+        $html = view('pdf.invoices.preview', ['preview' => $preview])->render();
+
+        $this->assertStringContainsString('Tutup Strawless SJP D93', $html);
+    }
+
     public function test_the_server_side_calculation_passes_the_new_fields_through_untouched(): void
     {
         $preview = app(CalculateInvoicePreview::class)->calculate($this->payload());

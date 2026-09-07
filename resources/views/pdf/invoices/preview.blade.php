@@ -161,7 +161,9 @@
                         <tr>
                             <td>
                                 {{-- Product name alone, same as the stored invoice PDF. --}}
-                                <div class="item-name">{{ $item['product_name'] ?? $item['name'] }}</div>
+                                {{-- ?: not ??, so an empty product_name falls through to the
+                                     label instead of printing a blank line. --}}
+                                <div class="item-name">{{ ($item['product_name'] ?? '') ?: ($item['name'] ?? '') }}</div>
                             </td>
                             <td class="center">{{ $item['quantity_label'] }}</td>
                             <td class="numeric muted">{{ $money($item['unit_price']) }}</td>
