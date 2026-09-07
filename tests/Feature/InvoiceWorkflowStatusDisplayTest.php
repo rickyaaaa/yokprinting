@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Customer;
 use App\Models\Invoice;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\Concerns\ActsAsOwner;
 use Tests\TestCase;
 
@@ -210,6 +211,14 @@ class InvoiceWorkflowStatusDisplayTest extends TestCase
     public function test_sent_partial_in_production_invoice_shows_parsial_not_draft(): void
     {
         // PHASE 2 test gate, exact scenario from the client brief.
+        //
+        // The clock is frozen because the invoice below is due 2026-09-07:
+        // on real time this passed until that date arrived and then failed,
+        // since an invoice reaching its due date is displayed as overdue
+        // rather than Parsial. What is being pinned is a partial payment
+        // still inside its term, so the run date must not decide it.
+        Carbon::setTestNow('2026-08-25');
+
         $customer = Customer::query()->create(['name' => 'PT Phase 2 Gate']);
 
         Invoice::query()->create([
@@ -230,5 +239,7 @@ class InvoiceWorkflowStatusDisplayTest extends TestCase
             ->assertSee("{$escapedQuote}status{$escapedQuote}:{$escapedQuote}Parsial{$escapedQuote}", false)
             ->assertSee("{$escapedQuote}order_status{$escapedQuote}:{$escapedQuote}Masih produksi{$escapedQuote}", false)
             ->assertDontSee("{$escapedQuote}status{$escapedQuote}:{$escapedQuote}Draft{$escapedQuote}", false);
+
+        Carbon::setTestNow();
     }
 }
