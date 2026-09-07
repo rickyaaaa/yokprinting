@@ -2,6 +2,7 @@
 
 namespace App\Services\Reports;
 
+use App\Models\CashBankTransaction;
 use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
@@ -70,6 +71,8 @@ class ProfitLossReport
             ->groupBy('category')
             ->get()
             ->keyBy('category');
+
+        $expenseRows = $this->withManualCashBankExpenses($expenseRows, $range['date_from'], $dateToExclusive);
 
         $grossSales = $this->money($invoiceSummary->gross_sales);
         $salesDiscount = $this->money($invoiceSummary->sales_discount);
@@ -157,6 +160,53 @@ class ProfitLossReport
                 'expense_count' => (int) $expenseRows->sum('transaction_count'),
             ],
         ];
+    }
+
+    /**
+     * Fold cash paid straight out of Kas & Bank into the expense totals.
+     *
+     * A cost recorded through the Pengeluaran menu writes an expenses row AND
+     * a matching Kas & Bank transaction, so counting cash movements wholesale
+     * would bill every one of those twice. Only source_type = manual is taken
+     * here: those exist solely in Kas & Bank and are the ones the report
+     * could not see before. Anything created from an Expense carries
+     * source_type = expense and is already counted above.
+     *
+     * Categories that are not business costs - owner withdrawals, balance
+     * corrections, tax - are dropped by
+     * CashBankTransaction::expenseCategoryFor().
+     *
+     * @param  IlluminateSupportCollection<string, object>  $rows
+     * @return IlluminateSupportCollection<string, object>
+     */
+    private function withManualCashBankExpenses($rows, string $dateFrom, string $dateToExclusive)
+    {
+        $manual = CashBankTransaction::query()
+            ->where('source_type', CashBankTransaction::SOURCE_MANUAL)
+            ->where('type', CashBankTransaction::TYPE_EXPENSE)
+            ->where('status', CashBankTransaction::STATUS_POSTED)
+            ->where('transaction_date', '>=', $dateFrom)
+            ->where('transaction_date', '<', $dateToExclusive)
+            ->selectRaw('category, COUNT(*) as transaction_count, COALESCE(SUM(amount), 0) as total')
+            ->groupBy('category')
+            ->get();
+
+        foreach ($manual as $row) {
+            $category = CashBankTransaction::expenseCategoryFor((string) $row->category);
+
+            if ($category === null) {
+                continue;
+            }
+
+            $existing = $rows->get($category);
+            $rows->put($category, (object) [
+                'category' => $category,
+                'transaction_count' => (int) ($existing->transaction_count ?? 0) + (int) $row->transaction_count,
+                'total' => (float) ($existing->total ?? 0) + (float) $row->total,
+            ]);
+        }
+
+        return $rows;
     }
 
     private function expenseTotal($rows, string $category): float

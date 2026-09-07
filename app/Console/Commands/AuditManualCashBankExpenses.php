@@ -119,16 +119,11 @@ class AuditManualCashBankExpenses extends Command
 
     /**
      * The Pengeluaran category a manual one would become, or null when there
-     * is no honest mapping.
+     * is no honest mapping. Deliberately the same rule the profit & loss
+     * report applies, so this audit can never disagree with the figures.
      */
     private function expenseCategoryFor(string $category): ?string
     {
-        $mapped = match ($category) {
-            'operational_cost' => Expense::CATEGORY_OPERATIONAL,
-            'bank_fee' => Expense::CATEGORY_BANK_FEE,
-            default => $category,
-        };
-
-        return in_array($mapped, Expense::categories(), true) ? $mapped : null;
+        return CashBankTransaction::expenseCategoryFor($category);
     }
 }
