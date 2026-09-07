@@ -35,6 +35,12 @@ class GenerateInvoicePreviewPdfRequest extends FormRequest
             'items' => ['required', 'array', 'min:1'],
             'items.*.name' => ['required', 'string', 'max:220'],
             'items.*.note' => ['nullable', 'string', 'max:300'],
+            // Laid out separately on the PDF, matching the stored invoice:
+            // product name, then SKU, then the spec description. Without these
+            // in the rules, validated() would drop them before rendering.
+            'items.*.product_name' => ['nullable', 'string', 'max:220'],
+            'items.*.sku' => ['nullable', 'string', 'max:100'],
+            'items.*.description' => ['nullable', 'string', 'max:300'],
             'items.*.quantity' => ['required', 'numeric', 'gt:0'],
             'items.*.unit' => ['nullable', 'string', 'max:20'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],

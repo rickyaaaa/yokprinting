@@ -160,8 +160,15 @@
                     @foreach ($preview['items'] as $item)
                         <tr>
                             <td>
-                                <div class="item-name">{{ $item['name'] }}</div>
-                                @if (! empty($item['note']))
+                                {{-- Same shape as the stored invoice PDF: product name, then SKU,
+                                     then the spec description, each on its own line. --}}
+                                <div class="item-name">{{ $item['product_name'] ?? $item['name'] }}</div>
+                                @if (! empty($item['sku']))
+                                    <div class="item-note">{{ $item['sku'] }}</div>
+                                @endif
+                                @if (! empty($item['description']))
+                                    <div class="item-note">{{ $item['description'] }}</div>
+                                @elseif (empty($item['sku']) && ! empty($item['note']))
                                     <div class="item-note">{{ $item['note'] }}</div>
                                 @endif
                             </td>

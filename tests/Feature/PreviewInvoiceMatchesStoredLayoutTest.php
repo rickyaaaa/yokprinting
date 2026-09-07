@@ -1,0 +1,89 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\User;
+use App\Services\Invoices\CalculateInvoicePreview;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+/**
+ * The preview and its downloaded PDF lay an item out the same way the stored
+ * invoice does: product name on top, then SKU, then the spec description.
+ *
+ * Previously the preview flattened all three into one label, so a line read
+ * "Sablon Cup 12 Oz Datar (8gr)..." and the actual product - "Tutup
+ * Strawless SJP D93" - never appeared anywhere on the document.
+ */
+class PreviewInvoiceMatchesStoredLayoutTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_the_pdf_shows_the_product_name_sku_and_description_separately(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => User::ROLE_OWNER]));
+
+        $response = $this->postJson('/api/invoices/preview/pdf', $this->payload());
+
+        $response->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $pdf = $response->getContent();
+
+        $this->assertNotEmpty($pdf);
+        $this->assertStringStartsWith("%PDF", $pdf);
+    }
+
+    public function test_the_server_side_calculation_passes_the_new_fields_through_untouched(): void
+    {
+        $preview = app(CalculateInvoicePreview::class)->calculate($this->payload());
+        $item = $preview['items'][0];
+
+        // The lid keeps its own identity instead of being replaced by the
+        // "Sablon ..." description.
+        $this->assertSame('Tutup Strawless SJP D93', $item['product_name']);
+        $this->assertSame('H-018', $item['sku']);
+        $this->assertSame('Sablon Tutup 12 Oz Datar (8gr) (Tinta Hitam - 1 warna)', $item['description']);
+
+        // Amounts are still recalculated server side, never trusted from the client.
+        $this->assertSame(120000.0, (float) $item['line_total']);
+    }
+
+    /** @return array<string, mixed> */
+    private function payload(): array
+    {
+        return [
+            'invoice_number' => 'INV-2026-0055',
+            'issue_date' => '2026-09-07',
+            'issue_date_label' => '7 September 2026',
+            'currency' => 'IDR',
+            'customer' => ['name' => 'PT Bahagia', 'email' => '', 'phone' => '', 'address' => ''],
+            'items' => [
+                [
+                    'name' => 'Tutup Strawless SJP D93',
+                    'product_name' => 'Tutup Strawless SJP D93',
+                    'sku' => 'H-018',
+                    'description' => 'Sablon Tutup 12 Oz Datar (8gr) (Tinta Hitam - 1 warna)',
+                    'note' => 'SKU: H-018',
+                    'quantity' => 1000,
+                    'unit' => 'Pcs',
+                    'quantity_label' => '1.000 Pcs',
+                    'unit_price' => 120,
+                    'line_total' => 120000,
+                ],
+            ],
+            'subtotal' => 120000,
+            'discount_type' => 'percentage',
+            'discount_value' => 0,
+            'discount_amount' => 0,
+            'tax_enabled' => false,
+            'tax_rate' => 0,
+            'tax_amount' => 0,
+            'shipping_cost' => 0,
+            'is_free_shipping' => true,
+            'total_amount' => 120000,
+            'dp_required_percent' => 50,
+            'dp_amount' => 60000,
+            'notes' => '',
+            'terms' => '',
+        ];
+    }
+}

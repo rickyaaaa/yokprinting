@@ -235,9 +235,22 @@ const buildInvoicePreviewSnapshot = (payload) => {
                 orderIncrement ? `Kelipatan jumlah ${formatNumber(orderIncrement)} ${unit}` : '',
             ].filter(Boolean).join(' · ');
 
+            const productName = item.product_name || item.description || `Item ${index + 1}`;
+
             return {
                 key: `${item.product_id || 'item'}-${index}`,
-                name: item.product_name || item.description || `Item ${index + 1}`,
+                // Carried separately so the preview and the PDF can lay a line
+                // out exactly like the stored invoice does - product name on
+                // top, then SKU, then the spec description - instead of
+                // flattening all three into one string and losing the product
+                // name behind it.
+                product_name: productName,
+                sku,
+                description: item.description || '',
+                // Kept for the server-side preview calculation, which spreads
+                // the row through untouched, and for anything still reading a
+                // single label.
+                name: productName,
                 note,
                 quantity,
                 unit,
