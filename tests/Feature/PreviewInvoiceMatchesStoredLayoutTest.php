@@ -56,8 +56,13 @@ class PreviewInvoiceMatchesStoredLayoutTest extends TestCase
 
         $html = view('pdf.invoices.show', ['invoice' => $invoice->load('items', 'customer')])->render();
 
+        // Both lines take the product name, never the "Sablon ..." text under it.
+        $this->assertStringContainsString('Cup PET 12Oz Datar SJP', $html);
         $this->assertStringContainsString('Tutup Strawless SJP D93', $html);
+
+        $this->assertStringNotContainsString('Sablon Cup 12 Oz Datar', $html);
         $this->assertStringNotContainsString('Sablon Tutup 12 Oz Datar', $html);
+        $this->assertStringNotContainsString('H-009', $html);
         $this->assertStringNotContainsString('H-018', $html);
     }
 
@@ -72,6 +77,18 @@ class PreviewInvoiceMatchesStoredLayoutTest extends TestCase
             'status' => Invoice::STATUS_SENT,
             'subtotal' => 120000,
             'total_amount' => 120000,
+        ]);
+        $invoice->items()->create([
+            'product_name' => 'Cup PET 12Oz Datar SJP',
+            'sku' => 'H-009',
+            'description' => 'Sablon Cup 12 Oz Datar (8gr) (Tinta Hitam - 1 warna)',
+            'cup_size' => '12 Oz',
+            'cup_model' => 'Datar',
+            'grammage' => '8gr',
+            'quantity' => 1000,
+            'unit_price' => 400,
+            'subtotal' => 400000,
+            'total_amount' => 400000,
         ]);
         $invoice->items()->create([
             'product_name' => 'Tutup Strawless SJP D93',
