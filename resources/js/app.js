@@ -34,7 +34,7 @@ import {
     normalizeMinimumStock,
 } from './support/minimum-stock';
 import { printedItemNoun as printedNounForCategory } from './support/invoice-item-label';
-import { defaultReceivableSort, initialDirectionFor, sortReceivables } from './support/receivable-sorting';
+import { defaultReceivableSort, initialDirectionFor, sortReceivables, withinInvoiceDateRange } from './support/receivable-table';
 import { registerExpenseComponents } from './expenses';
 import { registerProfitLossComponents } from './profit-loss';
 import { registerCashBankComponents } from './cash-bank';
@@ -1148,6 +1148,8 @@ Alpine.data('receivablesTable', (receivables = []) => ({
     statusFilter: 'all',
     sortKey: defaultReceivableSort.sortKey,
     sortDirection: defaultReceivableSort.sortDirection,
+    dateFrom: '',
+    dateTo: '',
     filters: [
         { key: 'all', label: 'Semua' },
         { key: 'Parsial', label: 'Parsial' },
@@ -1166,7 +1168,9 @@ Alpine.data('receivablesTable', (receivables = []) => ({
                         .toLocaleLowerCase('id')
                         .includes(keyword);
 
-                return matchesStatus && matchesKeyword;
+                return matchesStatus
+                    && matchesKeyword
+                    && withinInvoiceDateRange(receivable, this.dateFrom, this.dateTo);
             });
 
         return sortReceivables(rows, this.sortKey, this.sortDirection);
@@ -1174,6 +1178,26 @@ Alpine.data('receivablesTable', (receivables = []) => ({
 
     setStatusFilter(filter) {
         this.statusFilter = filter;
+    },
+
+    // Shortcut for the common "what was raised this month" question, which
+    // the dead month button in the header only looked like it answered.
+    setCurrentMonth() {
+        const now = new Date();
+        const pad = (value) => String(value).padStart(2, '0');
+        const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+        this.dateFrom = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
+        this.dateTo = `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`;
+    },
+
+    clearDateRange() {
+        this.dateFrom = '';
+        this.dateTo = '';
+    },
+
+    get hasDateRange() {
+        return this.dateFrom !== '' || this.dateTo !== '';
     },
 
     sortBy(key) {

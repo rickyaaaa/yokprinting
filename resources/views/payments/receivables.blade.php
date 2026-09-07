@@ -64,10 +64,6 @@
                                 <i class="iconify tabler--clock text-base"></i>
                                 Riwayat pembayaran
                             </a>
-                            <button type="button" class="btn btn-outline">
-                                <i class="iconify tabler--calendar text-base"></i>
-                                {{ now(config('app.timezone'))->locale('id')->translatedFormat('F Y') }}
-                            </button>
                             <a href="{{ route('notifications.due-invoices.index') }}" class="btn btn-primary">
                                 Lihat prioritas reminder
                             </a>
@@ -101,6 +97,12 @@
                             <div>
                                 <h2 id="receivables-heading" class="font-semibold text-ink">Tabel piutang</h2>
                                 <p class="mt-1 text-sm text-muted">Daftar invoice yang masih memiliki outstanding.</p>
+                                <p
+                                    x-show="hasDateRange"
+                                    x-cloak
+                                    class="mt-1 text-xs text-muted"
+                                    x-text="`Menampilkan ${filteredReceivables.length} invoice pada rentang tanggal ini. Kartu ringkasan di atas tetap menghitung seluruh piutang.`"
+                                ></p>
                             </div>
                             <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
                                 <div class="inline-flex w-fit rounded-lg bg-canvas p-1 text-xs font-semibold text-muted" aria-label="Filter status piutang">
@@ -114,6 +116,29 @@
                                             x-text="filter.label"
                                         ></button>
                                     </template>
+                                </div>
+                                <div class="flex flex-wrap items-end gap-2">
+                                    <label class="block">
+                                        <span class="mb-1 block text-xs font-medium text-muted">Tanggal invoice dari</span>
+                                        <input type="date" class="form-control" x-model="dateFrom" :max="dateTo || null" aria-label="Tanggal invoice dari">
+                                    </label>
+                                    <label class="block">
+                                        <span class="mb-1 block text-xs font-medium text-muted">sampai</span>
+                                        <input type="date" class="form-control" x-model="dateTo" :min="dateFrom || null" aria-label="Tanggal invoice sampai">
+                                    </label>
+                                    <button type="button" class="btn btn-outline" @click="setCurrentMonth()">
+                                        <i class="iconify tabler--calendar text-base"></i>
+                                        Bulan ini
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn btn-outline"
+                                        x-show="hasDateRange"
+                                        x-cloak
+                                        @click="clearDateRange()"
+                                    >
+                                        Reset tanggal
+                                    </button>
                                 </div>
                                 <label class="relative block min-w-64">
                                     <span class="sr-only">Cari piutang</span>

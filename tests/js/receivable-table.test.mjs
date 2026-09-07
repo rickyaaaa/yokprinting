@@ -5,7 +5,9 @@ import {
     defaultReceivableSort,
     initialDirectionFor,
     sortReceivables,
-} from '../../resources/js/support/receivable-sorting.js';
+    toDateKey,
+    withinInvoiceDateRange,
+} from '../../resources/js/support/receivable-table.js';
 
 const rows = [
     { id: 1, invoice: 'INV-001', issuedSort: 20260101, dueSort: 20260115, outstandingValue: 900 },
@@ -55,4 +57,40 @@ test('first click on a date or money column shows the largest first', () => {
     assert.equal(initialDirectionFor('dueSort'), 'desc');
     assert.equal(initialDirectionFor('outstandingValue'), 'desc');
     assert.equal(initialDirectionFor('customer'), 'asc');
+});
+
+test('an open range keeps every row', () => {
+    assert.equal(withinInvoiceDateRange(rows[0], '', ''), true);
+    assert.equal(withinInvoiceDateRange(rows[1], '', ''), true);
+});
+
+test('only one end of the range may be given', () => {
+    // From September onwards.
+    assert.equal(withinInvoiceDateRange(rows[1], '2026-09-01', ''), true);
+    assert.equal(withinInvoiceDateRange(rows[0], '2026-09-01', ''), false);
+
+    // Up to the end of June.
+    assert.equal(withinInvoiceDateRange(rows[0], '', '2026-06-30'), true);
+    assert.equal(withinInvoiceDateRange(rows[1], '', '2026-06-30'), false);
+});
+
+test('both ends are inclusive', () => {
+    const row = { issuedSort: 20260905 };
+    assert.equal(withinInvoiceDateRange(row, '2026-09-05', '2026-09-05'), true);
+    assert.equal(withinInvoiceDateRange(row, '2026-09-06', '2026-09-30'), false);
+    assert.equal(withinInvoiceDateRange(row, '2026-09-01', '2026-09-04'), false);
+});
+
+test('a half-typed date never hides every row', () => {
+    // Date inputs report partial values while the user is still typing; those
+    // must be ignored rather than filtering the table down to nothing.
+    assert.equal(toDateKey('2026-09'), null);
+    assert.equal(toDateKey(''), null);
+    assert.equal(toDateKey(undefined), null);
+    assert.equal(withinInvoiceDateRange(rows[0], '2026-09', 'rubbish'), true);
+});
+
+test('September 2026 selects only the September invoice', () => {
+    const inSeptember = rows.filter((row) => withinInvoiceDateRange(row, '2026-09-01', '2026-09-30'));
+    assert.deepEqual(inSeptember.map((row) => row.invoice), ['INV-002']);
 });

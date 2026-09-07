@@ -58,3 +58,31 @@ export function sortReceivables(rows, sortKey, sortDirection) {
         return (Number(second.id) || 0) - (Number(first.id) || 0);
     });
 }
+
+/**
+ * Turn a date input's YYYY-MM-DD into the numeric YYYYMMDD the rows carry.
+ *
+ * Returns null for an empty or malformed value so an unfinished input never
+ * silently filters every row away.
+ */
+export function toDateKey(value) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(String(value ?? '')) ? Number(String(value).replace(/-/g, '')) : null;
+}
+
+/**
+ * Is this row's invoice date inside the range? Either end may be left open.
+ *
+ * Filtering is on the invoice date rather than the due date, matching the
+ * column the table now sorts by.
+ */
+export function withinInvoiceDateRange(row, from, to) {
+    const issued = Number(row.issuedSort) || 0;
+    const start = toDateKey(from);
+    const end = toDateKey(to);
+
+    if (start !== null && issued < start) {
+        return false;
+    }
+
+    return !(end !== null && issued > end);
+}
