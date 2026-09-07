@@ -25,8 +25,8 @@ class AuditManualCashBankExpensesTest extends TestCase
         $this->manual('beli galon', 40000, 'Diketik bebas');
 
         $this->artisan('cashbank:audit-expense-candidates')
-            ->expectsOutputToContain('6 posted manual outflow(s)')
-            ->expectsOutputToContain('WOULD BECOME AN EXPENSE')
+            ->expectsOutputToContain('6 posted manual outflow(s) found')
+            ->expectsOutputToContain('COUNTED AS A COST IN THE PROFIT & LOSS')
             ->expectsOutputToContain('NEEDS A DECISION')
             ->expectsOutputToContain('CORRECTLY NOT AN EXPENSE')
             ->expectsOutputToContain('UNRECOGNISED CATEGORY')

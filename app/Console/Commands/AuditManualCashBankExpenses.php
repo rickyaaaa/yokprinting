@@ -15,11 +15,12 @@ class AuditManualCashBankExpenses extends Command
     /**
      * Read-only by design: it has no --apply flag at all.
      *
-     * Manual transactions never carry a source_id, so none of them is linked
-     * to an Expense and none reaches the profit & loss. This reports which of
-     * them should have been expenses, which deliberately should not, and
-     * which nobody can classify without asking - the free-text ones, since
-     * the manual category field is validated only as a string.
+     * Manual transactions never carry a source_id, so none of them is backed
+     * by an Expense row. Since ProfitLossReport folds manual outflows in
+     * directly, the ones in a cost category are already recognised; this
+     * reports which those are, which are deliberately not costs, and which
+     * nobody can classify without asking - the free-text ones, since the
+     * manual category field is validated only as a string.
      */
     public function handle(): int
     {
@@ -44,11 +45,11 @@ class AuditManualCashBankExpenses extends Command
         }
 
         $this->line('');
-        $this->info("{$transactions->count()} posted manual outflow(s), none of them currently reaching the profit & loss.");
+        $this->info("{$transactions->count()} posted manual outflow(s) found.");
 
         $this->report(
-            'WOULD BECOME AN EXPENSE',
-            'These map onto an existing Pengeluaran category, so a backfill could link them.',
+            'COUNTED AS A COST IN THE PROFIT & LOSS',
+            'These map onto a Pengeluaran category and the report already includes them.',
             $buckets['expense'],
         );
         $this->report(
@@ -71,11 +72,12 @@ class AuditManualCashBankExpenses extends Command
 
         $this->line('');
         $this->info(sprintf(
-            'Backfill scope: %d transaction(s) worth Rp%s.',
+            'Recognised as cost: %d transaction(s) worth Rp%s.',
             $backfillable->count(),
             number_format((float) $backfillable->sum('amount'), 0, ',', '.'),
         ));
-        $this->warn('No changes were made. Expense requires a payment proof and these rows have none, so how to handle that is still an open decision.');
+        $this->info('Nothing to repair, and nothing was changed. These reach the report straight from Kas & Bank.');
+        $this->line('<fg=gray>Re-entering them through Pengeluaran is only worth it if you want a payment proof and a recipient on file - and the Kas & Bank row must be cancelled first, or the cash leaves twice.</>');
 
         return self::SUCCESS;
     }
