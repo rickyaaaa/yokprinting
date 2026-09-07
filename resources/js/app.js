@@ -80,6 +80,7 @@ const emptyDashboardRevenueDataset = () => ({
     paid: [],
 });
 const invoicePreviewStorageKey = 'yokprinting.invoice.previewDraft';
+const previewSnapshotSchema = 2;
 const invoiceDraftStorageKey = 'yokprinting.invoice.editorDraft';
 const persistedInvoiceDraftStorageKey = 'yokprinting.invoice.persistedDraft';
 const seedInvoiceEditorDraft = () => {
@@ -213,6 +214,11 @@ const buildInvoicePreviewSnapshot = (payload) => {
     const dpPercent = clampNumber(payload.dp_required_percent, 0, 100);
 
     return {
+        // Bumped whenever the row shape changes. A snapshot written by an
+        // older bundle is discarded on read rather than rendered, which is
+        // what let a stale copy keep printing the spec description in place
+        // of the product name long after the fix shipped.
+        schema: previewSnapshotSchema,
         invoice_number: payload.invoice_number || 'Belum disimpan',
         issue_date: payload.issue_date,
         issue_date_label: formatLongDate(payload.issue_date),
@@ -1910,10 +1916,17 @@ Alpine.data('invoicePreviewActions', () => ({
 
         if (rawPreview) {
             try {
-                this.preview = {
-                    ...this.preview,
-                    ...JSON.parse(rawPreview),
-                };
+                const stored = JSON.parse(rawPreview);
+
+                if (Number(stored.schema) === previewSnapshotSchema) {
+                    this.preview = { ...this.preview, ...stored };
+                } else {
+                    // Written by an older bundle: its rows predate
+                    // product_name, so rendering it would show the spec
+                    // description as the item. Reopening the preview from the
+                    // editor rebuilds it in the current shape.
+                    window.sessionStorage.removeItem(invoicePreviewStorageKey);
+                }
             } catch {
                 window.sessionStorage.removeItem(invoicePreviewStorageKey);
             }
