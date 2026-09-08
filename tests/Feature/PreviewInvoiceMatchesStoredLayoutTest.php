@@ -6,6 +6,8 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\User;
 use App\Services\Invoices\CalculateInvoicePreview;
+use App\Services\Invoices\GenerateInvoicePdf;
+use ReflectionMethod;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -77,9 +79,17 @@ class PreviewInvoiceMatchesStoredLayoutTest extends TestCase
 
     public function test_the_stored_invoice_document_carries_the_product_name_only(): void
     {
+        // Renders the view the download actually reaches. An earlier version
+        // of this test rendered pdf.invoices.show, which nothing on this path
+        // uses - so it passed while the real document was still wrong.
         $invoice = $this->storedInvoice();
 
-        $html = view('pdf.invoices.show', ['invoice' => $invoice->load('items', 'customer')])->render();
+        $pdf = app(GenerateInvoicePdf::class);
+        $method = new ReflectionMethod($pdf, 'previewFor');
+        $method->setAccessible(true);
+        $preview = $method->invoke($pdf, $invoice->load('items', 'customer'));
+
+        $html = view('pdf.invoices.document', ['preview' => $preview])->render();
 
         // Both lines take the product name, never the "Sablon ..." text under it.
         $this->assertStringContainsString('Cup PET 12Oz Datar SJP', $html);

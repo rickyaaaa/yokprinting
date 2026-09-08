@@ -154,7 +154,14 @@ class GenerateInvoicePdf
                 ])->filter()->join(' · ');
 
                 return [
-                    'name' => $item->description ?: $item->product_name,
+                    // The document names a line by its product. The generated
+                    // "Sablon 12 Oz Datar (8gr) …" description used to lead
+                    // here, which is why a stored invoice printed the spec in
+                    // place of the product - the database was right all along.
+                    'product_name' => $item->product_name ?: $item->description,
+                    'name' => $item->product_name ?: $item->description,
+                    'description' => (string) $item->description,
+                    'sku' => (string) $item->sku,
                     'code' => $item->sku ?: '-',
                     'note' => $note,
                     'quantity' => $quantity,
