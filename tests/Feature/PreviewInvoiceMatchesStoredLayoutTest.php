@@ -7,8 +7,8 @@ use App\Models\Invoice;
 use App\Models\User;
 use App\Services\Invoices\CalculateInvoicePreview;
 use App\Services\Invoices\GenerateInvoicePdf;
-use ReflectionMethod;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use ReflectionMethod;
 use Tests\TestCase;
 
 /**
@@ -34,7 +34,7 @@ class PreviewInvoiceMatchesStoredLayoutTest extends TestCase
         $pdf = $response->getContent();
 
         $this->assertNotEmpty($pdf);
-        $this->assertStringStartsWith("%PDF", $pdf);
+        $this->assertStringStartsWith('%PDF', $pdf);
     }
 
     public function test_the_downloaded_preview_prints_the_product_name_not_the_description(): void

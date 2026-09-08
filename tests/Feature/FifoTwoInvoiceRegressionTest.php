@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Customer;
 use App\Models\InventoryBatch;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\Product;
 use App\Services\Inventory\FifoInventoryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -68,7 +69,7 @@ class FifoTwoInvoiceRegressionTest extends TestCase
             ->sum('total_cost');
     }
 
-    /** @return array{0: Invoice, 1: \App\Models\InvoiceItem} */
+    /** @return array{0: Invoice, 1: InvoiceItem} */
     private function sale(Customer $customer, Product $product, string $number, float $quantity): array
     {
         $invoice = Invoice::query()->create([
