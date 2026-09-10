@@ -5,20 +5,23 @@ namespace Tests\Feature;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\User;
+use App\Services\Invoices\BuildInvoiceDocument;
 use App\Services\Invoices\CalculateInvoicePreview;
-use App\Services\Invoices\GenerateInvoicePdf;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use ReflectionMethod;
 use Tests\TestCase;
 
 /**
  * Client-confirmed: the customer-facing invoice names an item by its product
- * name and nothing else. SKU and the generated "Sablon ..." spec description
- * are working detail that stays on the in-app Rincian tagihan.
+ * name, never by the generated "Sablon ..." spec description, which stays on
+ * the in-app Rincian tagihan.
  *
  * Before this the preview showed the description in place of the product, so
  * a line read "Sablon Cup 12 Oz Datar (8gr)..." and the actual product -
  * "Tutup Strawless SJP D93" - appeared nowhere on the document.
+ *
+ * The SKU used to be excluded here too. The reference layout the client later
+ * supplied gives it a Kode Barang column of its own, so it is now expected on
+ * the document - beside the product name, never instead of it.
  */
 class PreviewInvoiceMatchesStoredLayoutTest extends TestCase
 {
@@ -44,11 +47,16 @@ class PreviewInvoiceMatchesStoredLayoutTest extends TestCase
         // assertion can actually read what was printed.
         $preview = app(CalculateInvoicePreview::class)->calculate($this->payload());
 
-        $html = view('pdf.invoices.preview', ['preview' => $preview])->render();
+        $html = $this->renderPreview($preview);
 
         $this->assertStringContainsString('Tutup Strawless SJP D93', $html);
         $this->assertStringNotContainsString('Sablon Tutup 12 Oz Datar', $html);
-        $this->assertStringNotContainsString('H-018', $html);
+
+        // The SKU now has a column of its own - Kode Barang, from the reference
+        // layout - so it appears as a code beside the product rather than in
+        // place of its name. What this test guards is unchanged: the generated
+        // spec description must never stand in for the product.
+        $this->assertStringContainsString('H-018', $html);
     }
 
     public function test_an_empty_product_name_falls_back_instead_of_printing_a_blank_line(): void
@@ -57,7 +65,7 @@ class PreviewInvoiceMatchesStoredLayoutTest extends TestCase
         $payload['items'][0]['product_name'] = '';
 
         $preview = app(CalculateInvoicePreview::class)->calculate($payload);
-        $html = view('pdf.invoices.preview', ['preview' => $preview])->render();
+        $html = $this->renderPreview($preview);
 
         $this->assertStringContainsString('Tutup Strawless SJP D93', $html);
     }
@@ -84,12 +92,9 @@ class PreviewInvoiceMatchesStoredLayoutTest extends TestCase
         // uses - so it passed while the real document was still wrong.
         $invoice = $this->storedInvoice();
 
-        $pdf = app(GenerateInvoicePdf::class);
-        $method = new ReflectionMethod($pdf, 'previewFor');
-        $method->setAccessible(true);
-        $preview = $method->invoke($pdf, $invoice->load('items', 'customer'));
-
-        $html = view('pdf.invoices.document', ['preview' => $preview])->render();
+        $html = view('pdf.invoices.document', [
+            'document' => app(BuildInvoiceDocument::class)->fromInvoice($invoice->load('items', 'customer')),
+        ])->render();
 
         // Both lines take the product name, never the "Sablon ..." text under it.
         $this->assertStringContainsString('Cup PET 12Oz Datar SJP', $html);
@@ -97,8 +102,24 @@ class PreviewInvoiceMatchesStoredLayoutTest extends TestCase
 
         $this->assertStringNotContainsString('Sablon Cup 12 Oz Datar', $html);
         $this->assertStringNotContainsString('Sablon Tutup 12 Oz Datar', $html);
-        $this->assertStringNotContainsString('H-009', $html);
-        $this->assertStringNotContainsString('H-018', $html);
+
+        // Codes belong in Kode Barang, not in the name.
+        $this->assertStringContainsString('H-009', $html);
+        $this->assertStringContainsString('H-018', $html);
+    }
+
+    /**
+     * The draft and the stored invoice both print through
+     * BuildInvoiceDocument; rendering the template any other way in a test
+     * would assert against a shape production does not use.
+     *
+     * @param  array<string, mixed>  $preview
+     */
+    private function renderPreview(array $preview): string
+    {
+        return view('pdf.invoices.preview', [
+            'document' => app(BuildInvoiceDocument::class)->fromPreview($preview),
+        ])->render();
     }
 
     private function storedInvoice(): Invoice

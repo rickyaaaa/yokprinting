@@ -26,6 +26,7 @@ class GenerateInvoicePreviewPdfRequest extends FormRequest
         return [
             'invoice_number' => ['required', 'string', 'max:50'],
             'issue_date_label' => ['nullable', 'string', 'max:80'],
+            'due_date_label' => ['nullable', 'string', 'max:80'],
             'currency' => ['nullable', 'string', 'max:10'],
             'customer' => ['required', 'array'],
             'customer.name' => ['required', 'string', 'max:160'],
@@ -60,6 +61,12 @@ class GenerateInvoicePreviewPdfRequest extends FormRequest
             'total_amount' => ['exclude'],
             'remaining_amount' => ['exclude'],
             'remaining_payment' => ['exclude'],
+            // Two different audiences, kept as two fields all the way to the
+            // document: design_notes is the workshop's instruction, notes is
+            // addressed to the customer. validated() would drop design_notes
+            // without a rule, and a draft would print without it while the
+            // saved invoice printed with it.
+            'design_notes' => ['nullable', 'string', 'max:1000'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'terms' => ['nullable', 'string', 'max:1000'],
         ];

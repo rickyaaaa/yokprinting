@@ -80,7 +80,10 @@ const emptyDashboardRevenueDataset = () => ({
     paid: [],
 });
 const invoicePreviewStorageKey = 'yokprinting.invoice.previewDraft';
-const previewSnapshotSchema = 2;
+// Bumped to 3 when design_notes and the due date joined the snapshot: a copy
+// stored by the previous bundle has neither, and rendering it would show a
+// document missing the very fields this version added.
+const previewSnapshotSchema = 3;
 const invoiceDraftStorageKey = 'yokprinting.invoice.editorDraft';
 const persistedInvoiceDraftStorageKey = 'yokprinting.invoice.persistedDraft';
 const seedInvoiceEditorDraft = () => {
@@ -222,6 +225,8 @@ const buildInvoicePreviewSnapshot = (payload) => {
         invoice_number: payload.invoice_number || 'Belum disimpan',
         issue_date: payload.issue_date,
         issue_date_label: formatLongDate(payload.issue_date),
+        due_date: payload.due_date,
+        due_date_label: formatLongDate(payload.due_date),
         currency: 'IDR',
         customer: {
             name: payload.customer_name || 'Pelanggan',
@@ -277,6 +282,10 @@ const buildInvoicePreviewSnapshot = (payload) => {
         total_amount: totalAmount,
         dp_required_percent: dpPercent,
         dp_amount: totalAmount * dpPercent / 100,
+        // The workshop's instruction, carried separately from the customer
+        // note all the way to the document. Without it in the snapshot the
+        // draft PDF printed no design note while the saved invoice printed one.
+        design_notes: payload.design_notes || '',
         notes: payload.notes || 'Produksi berjalan setelah DP minimal diterima dan mockup/desain sudah di-ACC. Pelunasan dilakukan sebelum barang dikirim atau diambil.',
         terms: payload.terms || 'Minimal DP sebelum produksi. Pelunasan dilakukan sebelum barang dikirim atau diambil.',
     };
