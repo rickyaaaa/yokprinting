@@ -36,6 +36,8 @@ use App\Http\Controllers\Api\PurchaseOrderApprovalController;
 use App\Http\Controllers\Api\PurchaseOrderCancellationController;
 use App\Http\Controllers\Api\PurchaseOrderController;
 use App\Http\Controllers\Api\PurchaseOrderSubmissionController;
+use App\Http\Controllers\Api\PurchasePaymentCancellationController;
+use App\Http\Controllers\Api\PurchasePaymentController;
 use App\Http\Controllers\Api\ReceivableController;
 use App\Http\Controllers\Api\RecentActivitiesController;
 use App\Http\Controllers\Api\ReportExportController;
@@ -224,6 +226,14 @@ Route::middleware(['web', 'auth'])->group(function (): void {
     Route::post('/purchase-orders/{purchase_order}/cancel', [PurchaseOrderCancellationController::class, 'store'])
         ->middleware('permission:purchase_order.cancel')
         ->name('api.purchase-orders.cancel');
+
+    Route::post('/purchase-orders/{purchase_order}/payments', [PurchasePaymentController::class, 'store'])
+        ->middleware('permission:purchase_order.update')
+        ->name('api.purchase-orders.payments.store');
+
+    Route::post('/purchase-payments/{purchase_payment}/cancel', [PurchasePaymentCancellationController::class, 'store'])
+        ->middleware('permission:purchase_order.update')
+        ->name('api.purchase-payments.cancel');
 
     Route::post('/purchase-orders/{purchase_order}/goods-receipts', [GoodsReceiptController::class, 'store'])
         ->middleware('permission:goods_receipt.create')

@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Models\PurchasePayment;
 
 class StorePurchaseOrderRequest extends FormRequest
 {
@@ -50,6 +51,11 @@ class StorePurchaseOrderRequest extends FormRequest
             'shipping_cost' => ['sometimes', 'numeric', 'min:0'],
             'other_cost' => ['sometimes', 'numeric', 'min:0'],
             'notes' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'pay_immediately' => ['sometimes', 'boolean'],
+            'payment_date' => ['required_if:pay_immediately,true', 'nullable', 'date'],
+            'payment_method' => ['required_if:pay_immediately,true', 'nullable', Rule::in(array_keys(PurchasePayment::methodOptions()))],
+            'payment_reference' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'payment_notes' => ['sometimes', 'nullable', 'string', 'max:2000'],
         ];
     }
 
@@ -69,6 +75,9 @@ class StorePurchaseOrderRequest extends FormRequest
             'items.*.product_id.exists' => 'Barang tidak ditemukan.',
             'items.*.quantity.gt' => 'Jumlah barang harus lebih dari 0.',
             'items.*.unit_price.min' => 'Harga tidak boleh negatif.',
+            'payment_date.required_if' => 'Tanggal pembayaran wajib diisi jika Bayar langsung aktif.',
+            'payment_method.required_if' => 'Metode pembayaran wajib dipilih jika Bayar langsung aktif.',
+            'payment_method.in' => 'Metode pembayaran tidak valid.',
         ];
     }
 }

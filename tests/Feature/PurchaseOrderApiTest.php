@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Product;
 use App\Models\PurchaseOrder;
+use App\Models\PurchasePayment;
+use App\Models\CashBankTransaction;
 use App\Models\Role;
 use App\Models\Supplier;
 use App\Models\User;
@@ -222,6 +224,101 @@ class PurchaseOrderApiTest extends TestCase
 
         $this->postJson(route('api.purchase-orders.submit', $purchaseOrder))->assertOk();
         $this->postJson(route('api.purchase-orders.approve', $purchaseOrder))->assertForbidden();
+    }
+
+    public function test_draft_purchase_order_does_not_create_purchase_payment_or_cash_outflow(): void
+    {
+        $supplier = $this->createSupplier();
+        $product = $this->createProduct();
+
+        $purchaseOrder = $this->createPurchaseOrder($supplier, $product);
+
+        $this->assertSame(PurchaseOrder::PAYMENT_UNPAID, $purchaseOrder->refresh()->payment_status);
+        $this->assertSame(0.0, (float) $purchaseOrder->paid_amount);
+        $this->assertDatabaseCount('purchase_payments', 0);
+        $this->assertDatabaseMissing('cash_bank_transactions', [
+            'source_type' => CashBankTransaction::SOURCE_PURCHASE_PAYMENT,
+        ]);
+    }
+
+    public function test_pay_immediately_creates_verified_purchase_payment_and_cash_outflow_atomically(): void
+    {
+        $supplier = $this->createSupplier();
+        $product = $this->createProduct(purchasePrice: 700);
+
+        $response = $this->postJson(route('api.purchase-orders.store'), [
+            'supplier_id' => $supplier->id,
+            'order_date' => '2026-09-11',
+            'items' => [['product_id' => $product->id, 'quantity' => 100, 'unit_price' => 700]],
+            'pay_immediately' => true,
+            'payment_date' => '2026-09-11',
+            'payment_method' => PurchasePayment::METHOD_BANK_TRANSFER,
+            'payment_reference' => 'TRX-PO-1',
+        ])->assertCreated();
+
+        $purchaseOrder = PurchaseOrder::query()->findOrFail($response->json('data.id'));
+        $payment = PurchasePayment::query()->sole();
+        $transaction = CashBankTransaction::query()->sole();
+
+        $response
+            ->assertJsonPath('data.payment_status', PurchaseOrder::PAYMENT_PAID)
+            ->assertJsonPath('data.paid_amount', 70000)
+            ->assertJsonPath('data.outstanding_amount', 0)
+            ->assertJsonPath('data.payments.0.status', PurchasePayment::STATUS_VERIFIED);
+        $this->assertSame($purchaseOrder->id, $payment->purchase_order_id);
+        $this->assertSame(70000.0, (float) $payment->amount);
+        $this->assertSame(CashBankTransaction::SOURCE_PURCHASE_PAYMENT, $transaction->source_type);
+        $this->assertSame($payment->id, $transaction->source_id);
+        $this->assertSame(CashBankTransaction::TYPE_EXPENSE, $transaction->type);
+        $this->assertSame(CashBankTransaction::PAYMENT_METHOD_TRANSFER, $transaction->payment_method);
+        $this->assertSame(70000.0, (float) $transaction->amount);
+        $this->assertDatabaseCount('expenses', 0);
+    }
+
+    public function test_payment_endpoint_records_partial_payable_and_prevents_duplicate_ledger_rows(): void
+    {
+        $supplier = $this->createSupplier();
+        $product = $this->createProduct();
+        $purchaseOrder = $this->createPurchaseOrder($supplier, $product, unitPrice: 700, quantity: 100);
+
+        $response = $this->postJson(route('api.purchase-orders.payments.store', $purchaseOrder), [
+            'payment_date' => '2026-09-11',
+            'method' => PurchasePayment::METHOD_CASH,
+            'amount' => 35000,
+        ])->assertCreated();
+
+        $payment = PurchasePayment::query()->sole();
+        $this->assertSame(PurchaseOrder::PAYMENT_PARTIAL, $purchaseOrder->refresh()->payment_status);
+        $this->assertSame(35000.0, (float) $purchaseOrder->paid_amount);
+        $this->assertSame(1, CashBankTransaction::query()->where('source_type', CashBankTransaction::SOURCE_PURCHASE_PAYMENT)->count());
+
+        $this->app->make(\App\Services\CashBank\CashBankService::class)->recordPurchasePayment($payment);
+        $this->assertSame(1, CashBankTransaction::query()->where('source_type', CashBankTransaction::SOURCE_PURCHASE_PAYMENT)->count());
+        $response->assertJsonPath('data.cash_bank_transaction_id', CashBankTransaction::query()->sole()->id);
+    }
+
+    public function test_cancelling_purchase_payment_reverses_cash_outflow_and_reopens_payable(): void
+    {
+        $supplier = $this->createSupplier();
+        $product = $this->createProduct();
+        $purchaseOrder = $this->createPurchaseOrder($supplier, $product, unitPrice: 700, quantity: 100);
+        $this->postJson(route('api.purchase-orders.payments.store', $purchaseOrder), [
+            'payment_date' => '2026-09-11',
+            'method' => PurchasePayment::METHOD_CASH,
+            'amount' => 70000,
+        ])->assertCreated();
+        $payment = PurchasePayment::query()->sole();
+        $transaction = CashBankTransaction::query()->sole();
+
+        $this->postJson(route('api.purchase-payments.cancel', $payment), ['reason' => 'Salah rekening'])
+            ->assertOk()
+            ->assertJsonPath('data.status', PurchasePayment::STATUS_CANCELLED)
+            ->assertJsonPath('data.cash_bank_transaction_status', CashBankTransaction::STATUS_CANCELLED);
+
+        $this->assertSame(PurchaseOrder::PAYMENT_UNPAID, $purchaseOrder->refresh()->payment_status);
+        $this->assertSame(PurchasePayment::STATUS_CANCELLED, $payment->refresh()->status);
+        $this->assertSame(CashBankTransaction::STATUS_CANCELLED, $transaction->refresh()->status);
+        $this->assertDatabaseHas('cash_bank_transactions', ['id' => $transaction->id]);
     }
 
     private function createSupplier(): Supplier

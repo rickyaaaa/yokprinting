@@ -59,14 +59,16 @@ class PurchaseOrderController extends Controller
         )->load('items.supplierPriceList');
 
         return response()->json([
-            'message' => 'PO berhasil disimpan sebagai draft.',
+            'message' => $request->boolean('pay_immediately')
+                ? 'PO dan pembayaran berhasil disimpan.'
+                : 'PO berhasil disimpan sebagai draft.',
             'data' => $this->serialize($purchaseOrder, withItems: true),
         ], 201);
     }
 
     public function show(PurchaseOrder $purchaseOrder): JsonResponse
     {
-        $purchaseOrder->load(['supplier', 'items.product', 'items.supplierPriceList', 'creator:id,name', 'approver:id,name', 'canceller:id,name']);
+        $purchaseOrder->load(['supplier', 'items.product', 'items.supplierPriceList', 'purchasePayments.recorder', 'purchasePayments.cashBankTransaction', 'creator:id,name', 'approver:id,name', 'canceller:id,name']);
 
         return response()->json([
             'data' => $this->serialize($purchaseOrder, withItems: true),
@@ -105,6 +107,10 @@ class PurchaseOrderController extends Controller
             'shipping_cost' => (float) $purchaseOrder->shipping_cost,
             'other_cost' => (float) $purchaseOrder->other_cost,
             'grand_total' => (float) $purchaseOrder->grand_total,
+            'payment_status' => $purchaseOrder->payment_status,
+            'payment_status_label' => $purchaseOrder->paymentStatusLabel(),
+            'paid_amount' => (float) $purchaseOrder->paid_amount,
+            'outstanding_amount' => $purchaseOrder->outstandingAmount(),
             'status' => $purchaseOrder->status,
             'status_label' => $purchaseOrder->statusLabel(),
             'is_editable' => $purchaseOrder->isEditable(),
@@ -140,6 +146,22 @@ class PurchaseOrderController extends Controller
                     'valid_from' => $item->supplierPriceList->valid_from?->toDateString(),
                     'valid_until' => $item->supplierPriceList->valid_until?->toDateString(),
                 ] : null,
+            ])->values();
+
+            $data['payments'] = $purchaseOrder->purchasePayments->map(fn ($payment): array => [
+                'id' => $payment->getKey(),
+                'payment_number' => $payment->payment_number,
+                'payment_date' => $payment->payment_date?->toDateString(),
+                'method' => $payment->method,
+                'method_label' => $payment->methodLabel(),
+                'reference' => $payment->reference,
+                'amount' => (float) $payment->amount,
+                'status' => $payment->status,
+                'status_label' => $payment->statusLabel(),
+                'cash_bank_transaction_id' => $payment->cashBankTransaction?->getKey(),
+                'recorded_by' => $payment->recorder?->name,
+                'cancelled_at' => $payment->cancelled_at?->toISOString(),
+                'cancellation_reason' => $payment->cancellation_reason,
             ])->values();
         }
 

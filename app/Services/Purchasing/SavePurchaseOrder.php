@@ -15,6 +15,7 @@ class SavePurchaseOrder
     public function __construct(
         private readonly GeneratePurchaseOrderNumber $generatePurchaseOrderNumber,
         private readonly ActivityLogger $activityLogger,
+        private readonly RecordPurchasePayment $recordPurchasePayment,
     ) {}
 
     /**
@@ -46,6 +47,18 @@ class SavePurchaseOrder
 
             $this->logSupplierPriceUsage($purchaseOrder, $items);
 
+            if ((bool) ($data['pay_immediately'] ?? false)) {
+                $this->recordPurchasePayment->handle($purchaseOrder, [
+                    'payment_date' => $data['payment_date'],
+                    'method' => $data['payment_method'],
+                    'reference' => $data['payment_reference'] ?? null,
+                    'amount' => $purchaseOrder->grand_total,
+                    'notes' => $data['payment_notes'] ?? null,
+                ], $creatorId);
+
+                $purchaseOrder->refresh();
+            }
+
             return $purchaseOrder->load(['items', 'supplier']);
         });
     }
@@ -64,7 +77,7 @@ class SavePurchaseOrder
 
             if (! $locked->isEditable()) {
                 throw ValidationException::withMessages([
-                    'status' => 'PO yang sudah diajukan/disetujui tidak bisa diedit. Batalkan lalu buat PO baru kalau harga/qty perlu berubah.',
+                    'status' => 'PO yang sudah diajukan atau sudah punya pembayaran tidak bisa diedit. Batalkan lalu buat PO baru jika harga/qty perlu berubah.',
                 ]);
             }
 

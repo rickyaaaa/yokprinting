@@ -199,6 +199,10 @@ export const registerPurchaseOrderComponents = (Alpine) => {
             shipping_cost: 0,
             other_cost: 0,
             notes: '',
+            pay_immediately: false,
+            payment_date: config.today,
+            payment_method: '',
+            payment_reference: '',
         },
         items: [{ product_id: '', productSearch: '', productPickerOpen: false, pickerStyle: '', quantity: '', unit_price: '', supplier_price_list_id: null, priceReference: null, priceReferenceLoading: false }],
 
@@ -378,6 +382,11 @@ export const registerPurchaseOrderComponents = (Alpine) => {
             if (!this.form.supplier_id) errors.supplier_id = 'Supplier wajib dipilih.';
             if (!this.form.order_date) errors.order_date = 'Tanggal PO wajib diisi.';
 
+            if (this.form.pay_immediately) {
+                if (!this.form.payment_date) errors.payment_date = 'Tanggal pembayaran wajib diisi.';
+                if (!this.form.payment_method) errors.payment_method = 'Metode pembayaran wajib dipilih.';
+            }
+
             this.items.forEach((item, index) => {
                 if (!item.product_id) errors[`items.${index}.product_id`] = 'Barang wajib dipilih.';
                 if (!(Number(item.quantity) > 0)) errors[`items.${index}.quantity`] = 'Jumlah harus lebih dari 0.';
@@ -460,6 +469,9 @@ export const registerPurchaseOrderComponents = (Alpine) => {
         acting: false,
         receipts: [],
         receiptsLoading: true,
+        paymentSaving: false,
+        paymentErrors: {},
+        paymentForm: { amount: '', payment_date: config.today, method: '', reference: '' },
 
         async init() {
             await Promise.all([this.loadPurchaseOrder(), this.loadReceipts()]);
@@ -540,6 +552,75 @@ export const registerPurchaseOrderComponents = (Alpine) => {
             await this.performAction(`/api/purchase-orders/${this.po.id}/cancel`, {
                 reason: reason.trim() === '' ? null : reason.trim(),
             });
+        },
+
+        async recordPayment() {
+            if (this.paymentSaving || !this.po) {
+                return;
+            }
+
+            this.paymentSaving = true;
+            this.paymentErrors = {};
+            this.error = '';
+
+            try {
+                const response = await fetch(`/api/purchase-orders/${this.po.id}/payments`, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: jsonHeaders(),
+                    body: JSON.stringify(this.paymentForm),
+                });
+                const payload = await parseJsonResponse(response);
+
+                if (!response.ok) {
+                    this.paymentErrors = Object.fromEntries(
+                        Object.entries(payload.errors ?? {}).map(([field, messages]) => [field, Array.isArray(messages) ? messages[0] : String(messages)]),
+                    );
+                    throw payload;
+                }
+
+                this.paymentForm = { amount: '', payment_date: config.today, method: '', reference: '' };
+                await this.loadPurchaseOrder();
+            } catch (error) {
+                this.error = Object.values(error?.errors ?? {}).flat()[0] ?? error?.message ?? 'Pembayaran PO belum berhasil dicatat.';
+            } finally {
+                this.paymentSaving = false;
+            }
+        },
+
+        async cancelPayment(payment) {
+            if (this.paymentSaving || !window.confirm(`Batalkan pembayaran ${payment.payment_number}? Kas & Bank akan ditandai reversed.`)) {
+                return;
+            }
+
+            const reason = window.prompt('Alasan pembatalan (opsional):', '');
+
+            if (reason === null) {
+                return;
+            }
+
+            this.paymentSaving = true;
+            this.error = '';
+
+            try {
+                const response = await fetch(`/api/purchase-payments/${payment.id}/cancel`, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: jsonHeaders(),
+                    body: JSON.stringify({ reason: reason.trim() || null }),
+                });
+                const payload = await parseJsonResponse(response);
+
+                if (!response.ok) {
+                    throw payload;
+                }
+
+                await this.loadPurchaseOrder();
+            } catch (error) {
+                this.error = Object.values(error?.errors ?? {}).flat()[0] ?? error?.message ?? 'Pembayaran PO belum berhasil dibatalkan.';
+            } finally {
+                this.paymentSaving = false;
+            }
         },
 
         async performAction(endpoint, body) {

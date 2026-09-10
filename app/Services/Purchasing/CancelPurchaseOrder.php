@@ -23,6 +23,7 @@ class CancelPurchaseOrder
                 $message = match (true) {
                     $locked->status === PurchaseOrder::STATUS_CANCELLED => 'PO ini sudah dibatalkan sebelumnya.',
                     $locked->hasPostedGoodsReceipt() => 'PO ini sudah punya penerimaan barang yang diposting, tidak bisa dibatalkan.',
+                    $locked->payment_status !== PurchaseOrder::PAYMENT_UNPAID => 'PO yang sudah memiliki pembayaran tidak bisa dibatalkan. Batalkan payment terlebih dahulu.',
                     default => 'PO yang sudah ditutup tidak bisa dibatalkan.',
                 };
 

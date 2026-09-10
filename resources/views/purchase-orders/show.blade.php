@@ -40,7 +40,7 @@
 
                 <main
                     class="mx-auto w-full max-w-[1180px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
-                    x-data='purchaseOrderShowPage(@json(["purchaseOrderId" => $purchaseOrderId]))'
+                    x-data='purchaseOrderShowPage(@json(["purchaseOrderId" => $purchaseOrderId, "today" => now()->toDateString(), "canPay" => $can("purchase_order.update"), "paymentMethods" => \App\Models\PurchasePayment::methodOptions()]))'
                     x-init="init()"
                 >
                     <div x-show="error" x-cloak class="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900" x-text="error" role="alert"></div>
@@ -106,6 +106,46 @@
                                 <div class="mt-4" x-show="po.notes">
                                     <dt class="text-xs font-semibold text-muted">Catatan</dt>
                                     <dd class="mt-1 whitespace-pre-line text-sm text-ink" x-text="po.notes"></dd>
+                                </div>
+                            </section>
+
+                            <section class="card">
+                                <div class="flex flex-col gap-3 border-b border-line px-5 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+                                    <div>
+                                        <h2 class="font-semibold text-ink">Pembayaran PO</h2>
+                                        <p class="mt-1 text-sm text-muted">Pembayaran tercatat otomatis sebagai uang keluar di Kas &amp; Bank.</p>
+                                    </div>
+                                    <span class="badge" :class="po.payment_status === 'paid' ? 'badge-success' : 'badge-warning'" x-text="po.payment_status_label"></span>
+                                </div>
+                                <div class="grid gap-4 border-b border-line px-5 py-4 sm:grid-cols-3 sm:px-6">
+                                    <div><p class="text-xs font-semibold text-muted">Total PO</p><p class="mt-1 font-semibold text-ink" x-text="formatRupiah(po.grand_total)"></p></div>
+                                    <div><p class="text-xs font-semibold text-muted">Sudah dibayar</p><p class="mt-1 font-semibold text-ink" x-text="formatRupiah(po.paid_amount)"></p></div>
+                                    <div><p class="text-xs font-semibold text-muted">Sisa hutang</p><p class="mt-1 font-semibold" :class="po.outstanding_amount > 0 ? 'text-red-700' : 'text-green-700'" x-text="formatRupiah(po.outstanding_amount)"></p></div>
+                                </div>
+                                <form x-show="config.canPay && po.outstanding_amount > 0 && po.status !== 'cancelled'" class="grid gap-4 border-b border-line p-5 sm:grid-cols-2 lg:grid-cols-4 sm:px-6" @submit.prevent="recordPayment()">
+                                    <label><span class="mb-1.5 block text-xs font-semibold text-muted">Nominal pembayaran</span><input type="number" min="0.01" step="0.01" class="form-control" x-model="paymentForm.amount" required><span x-show="paymentErrors.amount" class="mt-1.5 block text-xs text-red-700" x-text="paymentErrors.amount"></span></label>
+                                    <label><span class="mb-1.5 block text-xs font-semibold text-muted">Tanggal</span><input type="date" class="form-control" x-model="paymentForm.payment_date" required></label>
+                                    <label><span class="mb-1.5 block text-xs font-semibold text-muted">Metode</span><select class="form-control" x-model="paymentForm.method" required><option value="">Pilih metode</option><template x-for="(label, value) in config.paymentMethods" :key="value"><option :value="value" x-text="label"></option></template></select></label>
+                                    <div class="flex items-end"><button type="submit" class="btn btn-primary w-full disabled:cursor-wait" :disabled="paymentSaving" x-text="paymentSaving ? 'Mencatat...' : 'Catat pembayaran'"></button></div>
+                                    <label class="sm:col-span-2 lg:col-span-4"><span class="mb-1.5 block text-xs font-semibold text-muted">Referensi <span class="font-normal text-muted">(opsional)</span></span><input type="text" maxlength="100" class="form-control" x-model="paymentForm.reference" placeholder="Nomor transfer atau catatan"></label>
+                                </form>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full min-w-[700px] text-left text-sm">
+                                        <thead><tr class="border-b border-line text-xs font-semibold text-muted"><th class="px-5 py-3 sm:px-6">Nomor payment</th><th class="px-4 py-3">Tanggal</th><th class="px-4 py-3">Metode</th><th class="px-4 py-3 text-right">Nominal</th><th class="px-4 py-3">Status</th><th class="px-4 py-3 text-right">Aksi</th></tr></thead>
+                                        <tbody class="divide-y divide-line">
+                                            <template x-for="payment in (po.payments ?? [])" :key="payment.id">
+                                                <tr>
+                                                    <td class="px-5 py-3 font-mono text-xs font-semibold text-brand-800 sm:px-6" x-text="payment.payment_number"></td>
+                                                    <td class="px-4 py-3 text-muted" x-text="formatDate(payment.payment_date)"></td>
+                                                    <td class="px-4 py-3 text-ink" x-text="payment.method_label"></td>
+                                                    <td class="px-4 py-3 text-right font-semibold text-ink" x-text="formatRupiah(payment.amount)"></td>
+                                                    <td class="px-4 py-3"><span class="badge" :class="payment.status === 'cancelled' ? 'badge-danger' : 'badge-success'" x-text="payment.status_label"></span></td>
+                                                    <td class="px-4 py-3 text-right"><button x-show="payment.status === 'verified' && config.canPay" type="button" class="btn btn-sm btn-danger-outline" :disabled="paymentSaving" @click="cancelPayment(payment)">Batalkan</button></td>
+                                                </tr>
+                                            </template>
+                                            <tr x-show="(po.payments ?? []).length === 0"><td colspan="6" class="px-5 py-8 text-center text-muted">Belum ada pembayaran PO.</td></tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </section>
 

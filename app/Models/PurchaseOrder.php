@@ -12,6 +12,12 @@ class PurchaseOrder extends Model
 {
     use SoftDeletes;
 
+    public const PAYMENT_UNPAID = 'unpaid';
+
+    public const PAYMENT_PARTIAL = 'partial';
+
+    public const PAYMENT_PAID = 'paid';
+
     public const STATUS_DRAFT = 'draft';
 
     public const STATUS_WAITING_APPROVAL = 'waiting_approval';
@@ -44,6 +50,8 @@ class PurchaseOrder extends Model
         'shipping_cost' => 0,
         'other_cost' => 0,
         'grand_total' => 0,
+        'payment_status' => self::PAYMENT_UNPAID,
+        'paid_amount' => 0,
     ];
 
     /**
@@ -81,6 +89,7 @@ class PurchaseOrder extends Model
             'shipping_cost' => 'decimal:2',
             'other_cost' => 'decimal:2',
             'grand_total' => 'decimal:2',
+            'paid_amount' => 'decimal:2',
             'approved_at' => 'datetime',
             'cancelled_at' => 'datetime',
         ];
@@ -99,6 +108,11 @@ class PurchaseOrder extends Model
     public function goodsReceipts(): HasMany
     {
         return $this->hasMany(GoodsReceipt::class);
+    }
+
+    public function purchasePayments(): HasMany
+    {
+        return $this->hasMany(PurchasePayment::class);
     }
 
     public function hasPostedGoodsReceipt(): bool
@@ -132,13 +146,15 @@ class PurchaseOrder extends Model
      */
     public function isEditable(): bool
     {
-        return $this->status === self::STATUS_DRAFT;
+        return $this->status === self::STATUS_DRAFT
+            && ($this->payment_status ?? self::PAYMENT_UNPAID) === self::PAYMENT_UNPAID;
     }
 
     public function canBeCancelled(): bool
     {
         return ! in_array($this->status, [self::STATUS_CANCELLED, self::STATUS_CLOSED], true)
-            && ! $this->hasPostedGoodsReceipt();
+            && ! $this->hasPostedGoodsReceipt()
+            && ($this->payment_status ?? self::PAYMENT_UNPAID) === self::PAYMENT_UNPAID;
     }
 
     /**
@@ -163,5 +179,24 @@ class PurchaseOrder extends Model
     public function statusLabel(): string
     {
         return self::statusLabels()[$this->status] ?? $this->status;
+    }
+
+    public static function paymentStatusLabels(): array
+    {
+        return [
+            self::PAYMENT_UNPAID => 'Belum dibayar',
+            self::PAYMENT_PARTIAL => 'Sebagian dibayar',
+            self::PAYMENT_PAID => 'Lunas',
+        ];
+    }
+
+    public function paymentStatusLabel(): string
+    {
+        return self::paymentStatusLabels()[$this->payment_status] ?? $this->payment_status;
+    }
+
+    public function outstandingAmount(): float
+    {
+        return round(max(0, (float) $this->grand_total - (float) $this->paid_amount), 2, PHP_ROUND_HALF_UP);
     }
 }

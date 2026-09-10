@@ -27,7 +27,7 @@
 
                 <main
                     class="mx-auto w-full max-w-[1180px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
-                    x-data='purchaseOrderFormPage(@json(["today" => now()->toDateString(), "indexUrl" => route("purchase-orders.index")]))'
+                    x-data='purchaseOrderFormPage(@json(["today" => now()->toDateString(), "indexUrl" => route("purchase-orders.index"), "paymentMethods" => \App\Models\PurchasePayment::methodOptions()]))'
                     x-init="init()"
                 >
                     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -185,11 +185,42 @@
                                         <span class="text-lg font-bold tracking-[-0.025em] text-brand-800" x-text="formatRupiah(grandTotal)"></span>
                                     </div>
                                 </div>
+                                <div class="mt-5 border-t border-line pt-4">
+                                    <label class="flex items-start gap-3">
+                                        <input type="checkbox" class="mt-1 h-4 w-4 accent-brand-700" x-model="form.pay_immediately">
+                                        <span>
+                                            <span class="block font-semibold text-ink">Bayar langsung</span>
+                                            <span class="mt-1 block text-xs leading-5 text-muted">Buat payment terverifikasi dan catat uang keluar otomatis.</span>
+                                        </span>
+                                    </label>
+                                    <p x-show="!form.pay_immediately" class="mt-3 text-xs leading-5 text-muted">PO disimpan sebagai hutang pembelian. Kas &amp; Bank belum berkurang.</p>
+                                    <div x-show="form.pay_immediately" x-cloak class="mt-4 space-y-3">
+                                        <label class="block">
+                                            <span class="mb-1.5 block text-xs font-semibold text-muted">Tanggal pembayaran</span>
+                                            <input type="date" class="form-control" x-model="form.payment_date" :aria-invalid="Boolean(errors.payment_date)">
+                                            <span class="mt-1.5 block text-xs text-red-700" x-show="errors.payment_date" x-text="errors.payment_date"></span>
+                                        </label>
+                                        <label class="block">
+                                            <span class="mb-1.5 block text-xs font-semibold text-muted">Metode pembayaran</span>
+                                            <select class="form-control" x-model="form.payment_method" :aria-invalid="Boolean(errors.payment_method)">
+                                                <option value="">Pilih metode</option>
+                                                <template x-for="(label, value) in config.paymentMethods" :key="value">
+                                                    <option :value="value" x-text="label"></option>
+                                                </template>
+                                            </select>
+                                            <span class="mt-1.5 block text-xs text-red-700" x-show="errors.payment_method" x-text="errors.payment_method"></span>
+                                        </label>
+                                        <label class="block">
+                                            <span class="mb-1.5 block text-xs font-semibold text-muted">Referensi pembayaran <span class="font-normal text-muted">(opsional)</span></span>
+                                            <input type="text" maxlength="100" class="form-control" x-model="form.payment_reference" placeholder="Nomor transfer atau catatan">
+                                        </label>
+                                    </div>
+                                </div>
                                 <button
                                     type="submit"
                                     class="btn btn-primary mt-5 w-full disabled:cursor-wait"
                                     :disabled="saving"
-                                    x-text="saving ? 'Menyimpan...' : 'Simpan sebagai Draft'"
+                                    x-text="saving ? 'Menyimpan...' : (form.pay_immediately ? 'Simpan & Bayar PO' : 'Simpan sebagai Draft')"
                                 ></button>
                             </div>
                         </section>

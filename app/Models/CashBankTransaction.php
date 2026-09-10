@@ -16,7 +16,22 @@ class CashBankTransaction extends Model
 
     public const SOURCE_EXPENSE = 'expense';
 
+    /**
+     * Money paid out against a purchase order.
+     *
+     * Its own source rather than SOURCE_EXPENSE, because buying stock is not an
+     * operating cost. The profit and loss report reads operating costs from the
+     * Expense table and, beyond that, only picks up SOURCE_MANUAL rows - so a
+     * purchase payment stays out of it by construction. Filed under
+     * SOURCE_EXPENSE the same money would have been counted twice: once as
+     * stock bought, again as an operating cost.
+     */
+    public const SOURCE_PURCHASE_PAYMENT = 'purchase_payment';
+
     public const SOURCE_MANUAL = 'manual';
+
+    /** Kas & Bank category for a purchase payment. Deliberately not an Expense category. */
+    public const CATEGORY_PURCHASE_PAYMENT = 'purchase_payment';
 
     public const STATUS_POSTED = 'posted';
 

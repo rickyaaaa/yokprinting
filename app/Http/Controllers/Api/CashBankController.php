@@ -254,6 +254,7 @@ class CashBankController extends Controller
             'source_label' => match ($transaction->source_type) {
                 CashBankTransaction::SOURCE_PAYMENT => 'Pembayaran Invoice',
                 CashBankTransaction::SOURCE_EXPENSE => 'Pengeluaran',
+                CashBankTransaction::SOURCE_PURCHASE_PAYMENT => 'Pembayaran PO',
                 default => 'Manual',
             },
             'income' => $transaction->type === CashBankTransaction::TYPE_INCOME ? (float) $transaction->amount : 0,
@@ -271,6 +272,7 @@ class CashBankController extends Controller
         return [
             'invoice_payment' => 'Pembayaran Invoice', 'owner_capital' => 'Modal Owner',
             'supplier_refund' => 'Refund Supplier', 'other_income' => 'Pendapatan Lain',
+            CashBankTransaction::CATEGORY_PURCHASE_PAYMENT => 'Pembayaran PO',
             'bank_fee' => 'Biaya Admin Bank', 'owner_withdrawal' => 'Penarikan Owner',
             'tax' => 'Pajak', 'operational_cost' => 'Biaya Operasional', 'balance_adjustment' => 'Koreksi Saldo',
         ][$category] ?? str($category)->replace('_', ' ')->title()->toString();

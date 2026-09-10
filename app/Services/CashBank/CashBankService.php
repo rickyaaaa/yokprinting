@@ -7,6 +7,7 @@ use App\Models\BankAccount;
 use App\Models\CashBankTransaction;
 use App\Models\Expense;
 use App\Models\Payment;
+use App\Models\PurchasePayment;
 use App\Services\Security\ActivityLogger;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +18,7 @@ class CashBankService
     public function __construct(
         private readonly PaymentBankMethodPolicy $paymentMethods,
         private readonly ExpenseBankMethodPolicy $expenseMethods,
+        private readonly PurchasePaymentBankMethodPolicy $purchasePaymentMethods,
         private readonly ActivityLogger $activityLogger,
     ) {}
 
@@ -131,9 +133,71 @@ class CashBankService
         });
     }
 
+    /**
+     * Record the cash going out for a verified purchase payment.
+     *
+     * Idempotent by (source_type, source_id): the row is looked up under a lock
+     * before anything is created, so a retried request, a double-clicked button
+     * or a second call inside the same flow all return the transaction that
+     * already exists rather than paying the supplier twice on paper.
+     *
+     * Only a verified payment moves money. A pending one returns null, which is
+     * what keeps an approved-but-unpaid purchase order out of Kas & Bank.
+     */
+    public function recordPurchasePayment(PurchasePayment $payment): ?CashBankTransaction
+    {
+        return DB::transaction(function () use ($payment): ?CashBankTransaction {
+            $locked = PurchasePayment::query()->lockForUpdate()->findOrFail($payment->getKey());
+
+            if ($locked->status !== PurchasePayment::STATUS_VERIFIED) {
+                return null;
+            }
+
+            $existing = CashBankTransaction::query()
+                ->where('source_type', CashBankTransaction::SOURCE_PURCHASE_PAYMENT)
+                ->where('source_id', $locked->getKey())
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
+
+            $account = $this->activeAccount(lock: true);
+            $locked->loadMissing('purchaseOrder.supplier');
+
+            return CashBankTransaction::query()->create([
+                'bank_account_id' => $account->getKey(),
+                'transaction_number' => $this->nextTransactionNumber($account, CashBankTransaction::TYPE_EXPENSE, $locked->payment_date->format('Ym')),
+                'transaction_date' => $locked->payment_date,
+                'type' => CashBankTransaction::TYPE_EXPENSE,
+                'category' => CashBankTransaction::CATEGORY_PURCHASE_PAYMENT,
+                'payment_method' => $this->purchasePaymentMethods->isBankMethod($locked->method)
+                    ? CashBankTransaction::PAYMENT_METHOD_TRANSFER
+                    : CashBankTransaction::PAYMENT_METHOD_CASH,
+                'amount' => $locked->amount,
+                'description' => trim('Pembayaran PO '.$locked->purchaseOrder?->po_number.' - '.$locked->purchaseOrder?->supplier?->name, ' -'),
+                'source_type' => CashBankTransaction::SOURCE_PURCHASE_PAYMENT,
+                'source_id' => $locked->getKey(),
+                'status' => CashBankTransaction::STATUS_POSTED,
+                'created_by' => $locked->recorded_by,
+            ]);
+        });
+    }
+
     public function cancelPaymentTransaction(Payment $payment, ?int $cancelledBy = null): ?CashBankTransaction
     {
         return $this->cancelSourceTransaction(CashBankTransaction::SOURCE_PAYMENT, $payment->getKey(), $cancelledBy);
+    }
+
+    /**
+     * Reverse the outflow for a cancelled purchase payment. The row is marked
+     * cancelled, never deleted - the ledger has to keep showing that the money
+     * went out and came back.
+     */
+    public function cancelPurchasePaymentTransaction(PurchasePayment $payment, ?int $cancelledBy = null): ?CashBankTransaction
+    {
+        return $this->cancelSourceTransaction(CashBankTransaction::SOURCE_PURCHASE_PAYMENT, $payment->getKey(), $cancelledBy);
     }
 
     public function cancelExpenseTransaction(Expense $expense, ?int $cancelledBy = null): ?CashBankTransaction
