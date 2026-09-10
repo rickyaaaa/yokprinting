@@ -209,9 +209,12 @@ class BuildInvoiceDocument
     }
 
     /**
+     * The company block, also used by the on-screen preview so that page and
+     * the printed document name the same business and the same bank account.
+     *
      * @return array<string, string|null>
      */
-    private function company(): array
+    public function company(): array
     {
         $profile = CompanyProfile::query()->where('is_default', true)->first();
 
