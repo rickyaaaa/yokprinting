@@ -694,7 +694,7 @@ class ExampleTest extends TestCase
             ->assertSee('Bank Contoh')
             ->assertDontSee('012 345 6789')
             ->assertDontSee('Bank Central Asia')
-            ->assertSee('Kode Barang')
+            ->assertDontSee('Kode Barang')
             ->assertSee('preview-action-notice')
             ->assertSee('invoicePreviewActions')
             ->assertSee('!canSendWhatsApp')

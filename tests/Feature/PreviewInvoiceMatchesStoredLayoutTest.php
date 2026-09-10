@@ -11,17 +11,17 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Client-confirmed: the customer-facing invoice names an item by its product
- * name, never by the generated "Sablon ..." spec description, which stays on
- * the in-app Rincian tagihan.
+ * Client-confirmed, and reconfirmed when the new layout was specified: the
+ * customer-facing invoice names an item by its product name and nothing else.
+ * The SKU and the generated "Sablon ..." spec description are working detail
+ * that stays on the in-app Rincian tagihan.
  *
  * Before this the preview showed the description in place of the product, so
  * a line read "Sablon Cup 12 Oz Datar (8gr)..." and the actual product -
  * "Tutup Strawless SJP D93" - appeared nowhere on the document.
  *
- * The SKU used to be excluded here too. The reference layout the client later
- * supplied gives it a Kode Barang column of its own, so it is now expected on
- * the document - beside the product name, never instead of it.
+ * The reference layout has a Kode Barang column. It is deliberately not
+ * reproduced: with the code excluded there is nothing the column could hold.
  */
 class PreviewInvoiceMatchesStoredLayoutTest extends TestCase
 {
@@ -51,12 +51,7 @@ class PreviewInvoiceMatchesStoredLayoutTest extends TestCase
 
         $this->assertStringContainsString('Tutup Strawless SJP D93', $html);
         $this->assertStringNotContainsString('Sablon Tutup 12 Oz Datar', $html);
-
-        // The SKU now has a column of its own - Kode Barang, from the reference
-        // layout - so it appears as a code beside the product rather than in
-        // place of its name. What this test guards is unchanged: the generated
-        // spec description must never stand in for the product.
-        $this->assertStringContainsString('H-018', $html);
+        $this->assertStringNotContainsString('H-018', $html);
     }
 
     public function test_an_empty_product_name_falls_back_instead_of_printing_a_blank_line(): void
@@ -102,10 +97,8 @@ class PreviewInvoiceMatchesStoredLayoutTest extends TestCase
 
         $this->assertStringNotContainsString('Sablon Cup 12 Oz Datar', $html);
         $this->assertStringNotContainsString('Sablon Tutup 12 Oz Datar', $html);
-
-        // Codes belong in Kode Barang, not in the name.
-        $this->assertStringContainsString('H-009', $html);
-        $this->assertStringContainsString('H-018', $html);
+        $this->assertStringNotContainsString('H-009', $html);
+        $this->assertStringNotContainsString('H-018', $html);
     }
 
     /**

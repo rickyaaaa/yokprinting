@@ -189,9 +189,10 @@
                             <table class="w-full min-w-[580px] text-left text-xs sm:text-sm">
                                 <thead>
                                     {{-- Same columns the printed document uses, so
-                                         what is checked here is what goes out. --}}
+                                         what is checked here is what goes out.
+                                         No item code on either: the client keeps
+                                         it on the in-app Rincian tagihan. --}}
                                     <tr class="border-b-2 border-brand-700 text-xs font-semibold text-muted">
-                                        <th class="w-28 pb-3 pr-4">Kode Barang</th>
                                         <th class="pb-3 pr-4">Nama Barang</th>
                                         <th class="w-16 px-2 pb-3 text-center">Jumlah</th>
                                         <th class="w-32 px-2 pb-3 text-right">Harga</th>
@@ -201,7 +202,6 @@
                                 <tbody class="divide-y divide-line">
                                     <template x-for="item in preview.items" :key="item.key">
                                         <tr>
-                                            <td class="py-5 pr-4 align-top text-muted" x-text="item.sku || item.code || '-'"></td>
                                             <td class="py-5 pr-4 align-top">
                                                 <p class="font-semibold text-ink" x-text="item.product_name || item.name"></p>
                                             </td>

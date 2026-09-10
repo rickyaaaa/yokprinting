@@ -25,9 +25,11 @@ class InvoiceDocumentLayoutTest extends TestCase
         $this->assertStringContainsString('Cup PP 12Oz Datar 7GR ASB', $html);
         $this->assertStringContainsString('Tutup Strawless D93', $html);
 
-        // Codes come from the line's SKU snapshot.
-        $this->assertStringContainsString('100030', $html);
-        $this->assertStringContainsString('100121', $html);
+        // Item codes stay off the customer's copy, so the reference layout's
+        // Kode Barang column is not reproduced.
+        $this->assertStringNotContainsString('100030', $html);
+        $this->assertStringNotContainsString('100121', $html);
+        $this->assertStringNotContainsString('Kode Barang', $html);
 
         // Line amounts, then the summary.
         $this->assertStringContainsString('1.440.000', $html);
@@ -70,8 +72,7 @@ class InvoiceDocumentLayoutTest extends TestCase
             'Tanggal',            // invoice info block
             'Nomor',
             'Jatuh Tempo',
-            'Kode Barang',        // item table
-            'Nama Barang',
+            'Nama Barang',        // item table
             'Total Harga',
             'Terbilang',
             'KETERANGAN',
