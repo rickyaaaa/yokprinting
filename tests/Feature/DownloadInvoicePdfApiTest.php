@@ -6,6 +6,7 @@ use App\Models\Invoice;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Invoices\BuildInvoiceDocument;
 use App\Services\Invoices\GeneratedInvoicePdf;
 use App\Services\Invoices\GenerateInvoicePdf;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -119,7 +120,12 @@ class DownloadInvoicePdfApiTest extends TestCase
                 ->once()
                 ->andReturnUsing(function (array $preview) use (&$capturedPreview): GeneratedInvoicePdf {
                     $capturedPreview = $preview;
-                    $html = view('pdf.invoices.preview', ['preview' => $preview])->render();
+                    // Rendered through the builder, exactly as the real
+                    // service does, so this asserts against the same contract
+                    // production uses rather than a shape only the test knows.
+                    $html = view('pdf.invoices.preview', [
+                        'document' => app(BuildInvoiceDocument::class)->fromPreview($preview),
+                    ])->render();
 
                     $this->assertStringContainsString('Rp3.000', $html);
                     $this->assertStringContainsString('- Rp300', $html);

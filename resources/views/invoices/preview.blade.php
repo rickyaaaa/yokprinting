@@ -1,6 +1,10 @@
 @php
-    $yokPrintingLogo = 'data:image/png;base64,'.base64_encode(file_get_contents(public_path('images/yokprinting-logo.png')));
-    $yokPrintingAddress = 'Jl. Karyawan II, RT.005/RW.005, Karang Tengah, Kec. Karang Tengah, Kota Tangerang, Banten 15157';
+    // Identity arrives from the company profile through
+    // InvoicePreviewPageController - the same block the printed document uses.
+    // It was written in here by hand, so this page could name a business and a
+    // bank account that settings had already changed.
+    $companyName = $company['name'];
+    $companyAddress = $company['address'];
 @endphp
 
 <!DOCTYPE html>
@@ -128,16 +132,18 @@
                     <div class="flex flex-col gap-8 border-b border-line pb-8 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                             <div class="flex items-center gap-3">
-                                <div class="flex h-14 w-48 items-center rounded-lg border border-line bg-white px-3" aria-hidden="true">
-                                    <img src="{{ $yokPrintingLogo }}" alt="" class="max-h-9 w-auto object-contain">
-                                </div>
+                                @if ($company['logo_data_uri'])
+                                    <div class="flex h-14 w-48 items-center rounded-lg border border-line bg-white px-3" aria-hidden="true">
+                                        <img src="{{ $company['logo_data_uri'] }}" alt="" class="max-h-9 w-auto object-contain">
+                                    </div>
+                                @endif
                                 <div>
-                                    <p class="text-lg font-bold tracking-[-0.02em] text-ink">YokPrinting.ID</p>
+                                    <p class="text-lg font-bold tracking-[-0.02em] text-ink">{{ $companyName }}</p>
                                     <p class="mt-0.5 text-xs text-muted">Sablon cup & cetak kemasan F&B</p>
                                 </div>
                             </div>
                             <address class="mt-5 max-w-xs text-xs not-italic leading-5 text-muted sm:text-sm sm:leading-6">
-                                {{ $yokPrintingAddress }}<br>
+                                {{ $companyAddress }}<br>
                                 admin@yokprinting.id &middot; @yokprinting.id
                                 {{--
                                 admin@yokprinting.id · @yokprinting.id
@@ -182,8 +188,11 @@
                         <div class="overflow-x-auto">
                             <table class="w-full min-w-[580px] text-left text-xs sm:text-sm">
                                 <thead>
+                                    {{-- Same columns the printed document uses, so
+                                         what is checked here is what goes out. --}}
                                     <tr class="border-b-2 border-brand-700 text-xs font-semibold text-muted">
-                                        <th class="pb-3 pr-4">Deskripsi</th>
+                                        <th class="w-28 pb-3 pr-4">Kode Barang</th>
+                                        <th class="pb-3 pr-4">Nama Barang</th>
                                         <th class="w-16 px-2 pb-3 text-center">Jumlah</th>
                                         <th class="w-32 px-2 pb-3 text-right">Harga</th>
                                         <th class="w-32 pb-3 pl-2 text-right">Total</th>
@@ -192,6 +201,7 @@
                                 <tbody class="divide-y divide-line">
                                     <template x-for="item in preview.items" :key="item.key">
                                         <tr>
+                                            <td class="py-5 pr-4 align-top text-muted" x-text="item.sku || item.code || '-'"></td>
                                             <td class="py-5 pr-4 align-top">
                                                 <p class="font-semibold text-ink" x-text="item.product_name || item.name"></p>
                                             </td>
@@ -237,34 +247,60 @@
                     <div class="grid gap-6 border-t border-line pt-8 sm:grid-cols-2">
                         <section aria-labelledby="payment-heading">
                             <h2 id="payment-heading" class="text-sm font-semibold text-ink">Instruksi pembayaran</h2>
+                            {{-- From the company profile, like the printed
+                                 document. These were written into the template
+                                 by hand, so this page could name an account
+                                 that settings had already changed. --}}
                             <div class="mt-3 rounded-lg bg-canvas p-4 text-sm">
-                                <div class="flex justify-between gap-4">
-                                    <span class="text-muted">Bank</span>
-                                    <span class="font-medium text-ink">Bank Central Asia</span>
-                                </div>
-                                <div class="mt-2 flex justify-between gap-4">
-                                    <span class="text-muted">No. rekening</span>
-                                    <span class="font-mono font-semibold text-ink">012 345 6789</span>
-                                </div>
-                                <div class="mt-2 flex justify-between gap-4">
-                                    <span class="text-muted">Atas nama</span>
-                                    <span class="font-medium text-ink">YokPrinting Indonesia</span>
-                                </div>
+                                @if ($company['bank_account'])
+                                    <div class="flex justify-between gap-4">
+                                        <span class="text-muted">Bank</span>
+                                        <span class="font-medium text-ink">{{ $company['bank_name'] ?? '-' }}</span>
+                                    </div>
+                                    <div class="mt-2 flex justify-between gap-4">
+                                        <span class="text-muted">No. rekening</span>
+                                        <span class="font-mono font-semibold text-ink">{{ $company['bank_account'] }}</span>
+                                    </div>
+                                    @if ($company['bank_holder'])
+                                        <div class="mt-2 flex justify-between gap-4">
+                                            <span class="text-muted">Atas nama</span>
+                                            <span class="font-medium text-ink">{{ $company['bank_holder'] }}</span>
+                                        </div>
+                                    @endif
+                                @else
+                                    <p class="text-muted">Rekening pembayaran belum diisi di Profil Perusahaan.</p>
+                                @endif
                             </div>
                         </section>
 
+                        {{-- Two audiences, two headings - the same split the
+                             printed document makes. Merged into one block, an
+                             internal production instruction would read as a
+                             message to the customer. --}}
                         <section aria-labelledby="notes-heading">
                             <h2 id="notes-heading" class="text-sm font-semibold text-ink">Catatan</h2>
-                            <p class="mt-3 text-sm leading-6 text-muted" x-text="preview.notes">
-                                Produksi berjalan setelah DP minimal 50% diterima dan mockup/desain sudah di-ACC. Pelunasan dilakukan sebelum barang dikirim atau diambil.
-                            </p>
+
+                            <template x-if="preview.design_notes">
+                                <div class="mt-3">
+                                    <p class="text-xs font-semibold text-ink">Catatan desain/produksi</p>
+                                    <p class="mt-1 whitespace-pre-line text-sm leading-6 text-muted" x-text="preview.design_notes"></p>
+                                </div>
+                            </template>
+
+                            <div class="mt-3">
+                                <p class="text-xs font-semibold text-ink">Catatan untuk pelanggan</p>
+                                <p class="mt-1 whitespace-pre-line text-sm leading-6 text-muted" x-text="preview.notes">
+                                    Produksi berjalan setelah DP minimal 50% diterima dan mockup/desain sudah di-ACC. Pelunasan dilakukan sebelum barang dikirim atau diambil.
+                                </p>
+                            </div>
+
                             <p class="mt-3 text-xs leading-5 text-muted" x-text="preview.terms"></p>
                         </section>
                     </div>
 
                     <footer class="mt-10 flex flex-col gap-2 border-t border-line pt-5 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
                         <p>Invoice ini dibuat secara elektronik dan sah tanpa tanda tangan.</p>
-                        <p class="font-medium text-brand-800">YokPrinting.ID · {{ $yokPrintingAddress }}</p>
+                        <p class="font-medium text-brand-800">{{ $companyName }}@if ($companyAddress) · {{ $companyAddress }}@endif</p>
                     </footer>
                 </div>
             </article>

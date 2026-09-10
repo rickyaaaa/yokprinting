@@ -11,6 +11,10 @@ use Illuminate\Support\Str;
 
 class GenerateInvoicePdf
 {
+    public function __construct(
+        private readonly BuildInvoiceDocument $buildInvoiceDocument,
+    ) {}
+
     public function generate(Invoice $invoice): GeneratedInvoicePdf
     {
         $invoice->loadMissing(['customer', 'items']);
@@ -23,7 +27,9 @@ class GenerateInvoicePdf
         $dompdf = new Dompdf($options);
         $dompdf->setPaper('a4');
         $dompdf->loadHtml(
-            view('pdf.invoices.document', ['preview' => $this->previewFor($invoice)])->render(),
+            view('pdf.invoices.document', [
+                'document' => $this->buildInvoiceDocument->fromInvoice($invoice),
+            ])->render(),
             'UTF-8',
         );
         $dompdf->render();
@@ -108,7 +114,9 @@ class GenerateInvoicePdf
         $dompdf = new Dompdf($options);
         $dompdf->setPaper('a4');
         $dompdf->loadHtml(
-            view('pdf.invoices.preview', ['preview' => $preview])->render(),
+            view('pdf.invoices.preview', [
+                'document' => $this->buildInvoiceDocument->fromPreview($preview),
+            ])->render(),
             'UTF-8',
         );
         $dompdf->render();

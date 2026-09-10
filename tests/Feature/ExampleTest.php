@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\CompanyProfile;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Payment;
@@ -656,6 +657,18 @@ class ExampleTest extends TestCase
 
     public function test_invoice_preview_page_is_available(): void
     {
+        // Identity and address used to be written into the template, so this
+        // asserted a constant. They now come from the company profile, the same
+        // source the printed document reads.
+        CompanyProfile::query()->create([
+            'business_name' => 'YokPrinting.ID',
+            'address' => 'Jl. Karyawan II',
+            'bank_name' => 'Bank Contoh',
+            'bank_account' => '999-888-7777',
+            'bank_holder' => 'PT Contoh',
+            'is_default' => true,
+        ]);
+
         $this->get('/invoices/preview')
             ->assertOk()
             ->assertSee('YokPrinting.ID')
@@ -672,6 +685,16 @@ class ExampleTest extends TestCase
             ->assertSee('Simpan invoice')
             ->assertSee('Kirim via WA')
             ->assertSee('Unduh PDF')
+            // The two note kinds are labelled separately here, as on the
+            // printed document, and the bank comes from the profile above
+            // rather than from the template.
+            ->assertSee('Catatan desain/produksi')
+            ->assertSee('Catatan untuk pelanggan')
+            ->assertSee('999-888-7777')
+            ->assertSee('Bank Contoh')
+            ->assertDontSee('012 345 6789')
+            ->assertDontSee('Bank Central Asia')
+            ->assertSee('Kode Barang')
             ->assertSee('preview-action-notice')
             ->assertSee('invoicePreviewActions')
             ->assertSee('!canSendWhatsApp')

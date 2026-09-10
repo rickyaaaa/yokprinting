@@ -13,6 +13,7 @@ use App\Http\Controllers\DueInvoicePageController;
 use App\Http\Controllers\InvoiceEditPageController;
 use App\Http\Controllers\InvoiceIndexPageController;
 use App\Http\Controllers\InvoicePaymentPageController;
+use App\Http\Controllers\InvoicePreviewPageController;
 use App\Http\Controllers\PaymentHistoryPageController;
 use App\Http\Controllers\ProductIndexPageController;
 use App\Http\Controllers\ProfitLossReportPageController;
@@ -110,7 +111,7 @@ Route::middleware('auth')->group(function () {
     Route::view('/invoices/create', 'invoices.create')
         ->middleware('permission:invoice.create')
         ->name('invoices.create');
-    Route::view('/invoices/preview', 'invoices.preview')
+    Route::get('/invoices/preview', InvoicePreviewPageController::class)
         ->middleware('permission:invoice.create')
         ->name('invoices.preview');
     Route::get('/invoices/{invoice:invoice_number}/edit', InvoiceEditPageController::class)

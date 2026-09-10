@@ -21,6 +21,11 @@ class InvoicePreviewPdfController extends Controller
         $input = $request->validated();
         $preview = $calculateInvoicePreview->calculate($input);
 
+        // The seller is whoever is signed in, taken from the session rather
+        // than the request body: a stored invoice reads it from created_by, and
+        // a name the client could set would not be the same fact.
+        $preview['seller_name'] = $request->user()?->name;
+
         $pdf = $generateInvoicePdf->generatePreview($preview);
 
         return response($pdf->contents, Response::HTTP_OK, [
