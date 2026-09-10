@@ -210,25 +210,26 @@
         <table class="items">
             <thead>
                 <tr>
-                    <th style="width: 14%;">Kode Barang</th>
-                    <th style="width: 38%;">Nama Barang</th>
-                    <th class="num" style="width: 10%;">Kts.</th>
-                    <th class="num" style="width: 13%;">@Harga</th>
-                    <th class="num" style="width: 11%;">Diskon</th>
-                    <th class="num" style="width: 14%;">Total Harga</th>
+                    {{-- No Kode Barang column. The reference layout has one,
+                         but the client's standing decision is that the code
+                         stays off the customer's copy, and a column with
+                         nothing allowed in it is worse than no column. --}}
+                    <th style="width: 46%;">Nama Barang</th>
+                    <th class="num" style="width: 12%;">Kts.</th>
+                    <th class="num" style="width: 14%;">@Harga</th>
+                    <th class="num" style="width: 12%;">Diskon</th>
+                    <th class="num" style="width: 16%;">Total Harga</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse ($document['items'] as $item)
                     <tr>
-                        <td>{{ $item['code'] ?? '-' }}</td>
-                        {{-- Product name only. The generated "Sablon 12 Oz
-                             Datar (8gr) …" description is working detail that
-                             the client already decided stays on the in-app
-                             Rincian tagihan; the new layout adds a Kode Barang
-                             column but does not reopen that. It is carried in
-                             the view-model, so showing it is a one-line change
-                             if that decision ever turns around. --}}
+                        {{-- Product name and nothing else. Both the SKU and the
+                             generated "Sablon 12 Oz Datar (8gr) …" description
+                             are working detail the client keeps on the in-app
+                             Rincian tagihan. Both still travel in the
+                             view-model, so printing either is one line here if
+                             that decision ever turns around. --}}
                         <td><div class="item-name">{{ $item['name'] }}</div></td>
                         <td class="num">{{ $item['quantity_label'] }}{{ $item['unit'] ? ' '.$item['unit'] : '' }}</td>
                         <td class="num">{{ number_format($item['unit_price'], 0, ',', '.') }}</td>
@@ -236,7 +237,7 @@
                         <td class="num">{{ number_format($item['line_total'], 0, ',', '.') }}</td>
                     </tr>
                 @empty
-                    <tr><td colspan="6">Belum ada item.</td></tr>
+                    <tr><td colspan="5">Belum ada item.</td></tr>
                 @endforelse
             </tbody>
         </table>
