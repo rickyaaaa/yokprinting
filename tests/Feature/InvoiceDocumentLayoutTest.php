@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\CompanyProfile;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\User;
 use App\Services\Invoices\BuildInvoiceDocument;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -122,7 +123,6 @@ class InvoiceDocumentLayoutTest extends TestCase
         $stored = $builder->fromInvoice($invoice);
         $draft = $builder->fromPreview([
             'invoice_number' => 'INV/2026/0052',
-            'status_label' => 'Invoice tersimpan',
             'issue_date_label' => $stored['issue_date_label'],
             'due_date_label' => $stored['due_date_label'],
             'currency' => 'IDR',
@@ -167,6 +167,54 @@ class InvoiceDocumentLayoutTest extends TestCase
                 "Item mismatch on {$key}",
             );
         }
+    }
+
+    public function test_the_seller_is_the_business_not_the_operator_who_saved_it(): void
+    {
+        CompanyProfile::query()->create([
+            'business_name' => 'YokPrinting',
+            'is_default' => true,
+        ]);
+
+        $invoice = $this->fixtureInvoice();
+        $invoice->update([
+            'created_by' => User::factory()->create(['name' => 'Admin YokPrinting'])->id,
+        ]);
+
+        $html = $this->render($invoice->fresh(['customer', 'items']));
+
+        $this->assertStringContainsString('Penjual', $html);
+        $this->assertStringContainsString('YokPrinting', $html);
+
+        // The operator account name never reaches a document a customer reads.
+        $this->assertStringNotContainsString('Admin YokPrinting', $html);
+    }
+
+    public function test_free_shipping_reads_the_same_in_both_places(): void
+    {
+        $invoice = $this->fixtureInvoice();
+        $invoice->update([
+            'is_free_shipping' => true,
+            'shipping_cost' => 25_000,
+            'shipping_type' => Invoice::SHIPPING_COMPANY_FREE_SHIPPING,
+        ]);
+
+        $html = $this->render($invoice->fresh(['customer', 'items']));
+
+        // Once in the Pengiriman row, once in the totals - the same wording
+        // both times, which is the whole point of the rename.
+        $this->assertSame(2, substr_count($html, 'Free Ongkir'));
+        $this->assertStringNotContainsString('Gratis ongkir', $html);
+        $this->assertStringNotContainsString('Ongkir (gratis)', $html);
+    }
+
+    public function test_the_internal_status_label_is_not_printed(): void
+    {
+        $html = $this->render($this->fixtureInvoice());
+
+        $this->assertStringContainsString('INVOICE', $html);
+        $this->assertStringNotContainsString('Invoice tersimpan', $html);
+        $this->assertStringNotContainsString('Terkirim', $html);
     }
 
     /**

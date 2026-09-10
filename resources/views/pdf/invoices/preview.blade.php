@@ -66,7 +66,6 @@
             .company-legal { font-size: 8px; }
             .company-meta { padding-top: 4px; font-size: 8px; line-height: 1.55; }
             .doc-title { font-size: 20px; font-weight: 700; letter-spacing: 1px; text-align: right; }
-            .doc-status { padding-top: 3px; font-size: 8px; text-align: right; }
 
             .rule { height: 1px; background: #111; font-size: 0; line-height: 0; }
 
@@ -170,8 +169,10 @@
                     </div>
                 </td>
                 <td style="width: 38%;">
+                    {{-- Title only. The internal status ("Invoice tersimpan")
+                         used to sit under it; it describes our workflow, not
+                         anything the customer needs from this document. --}}
                     <div class="doc-title">INVOICE</div>
-                    <div class="doc-status">{{ $document['status_label'] }}</div>
                 </td>
             </tr>
         </table>
@@ -318,7 +319,7 @@
                         </tr>
                         @if ($showShippingRow)
                             <tr>
-                                <td class="k">{{ $document['is_free_shipping'] ? 'Ongkir (gratis)' : 'Ongkir' }}</td>
+                                <td class="k">{{ $document['is_free_shipping'] ? 'Free Ongkir' : 'Ongkir' }}</td>
                                 <td class="v">{{ $document['is_free_shipping'] ? '- '.$money($document['shipping_cost']) : $money($document['shipping_cost']) }}</td>
                             </tr>
                         @endif

@@ -30,15 +30,13 @@ class BuildInvoiceDocument
      */
     public function fromInvoice(Invoice $invoice): array
     {
-        $invoice->loadMissing(['customer', 'items', 'creator']);
+        $invoice->loadMissing(['customer', 'items']);
 
         return $this->compose(
             number: (string) $invoice->invoice_number,
-            statusLabel: $invoice->sent_at ? 'Terkirim' : 'Invoice tersimpan',
             issueDateLabel: $invoice->issue_date?->locale('id')->translatedFormat('j F Y'),
             dueDateLabel: $invoice->due_date?->locale('id')->translatedFormat('j F Y'),
             currency: (string) $invoice->currency,
-            sellerName: $invoice->creator?->name,
             customer: [
                 'name' => $invoice->customer?->name,
                 'address' => $invoice->customer?->address,
@@ -83,11 +81,9 @@ class BuildInvoiceDocument
 
         return $this->compose(
             number: (string) ($preview['invoice_number'] ?? ''),
-            statusLabel: (string) ($preview['status_label'] ?? 'Draft'),
             issueDateLabel: $preview['issue_date_label'] ?? null,
             dueDateLabel: $preview['due_date_label'] ?? null,
             currency: (string) ($preview['currency'] ?? 'IDR'),
-            sellerName: $preview['seller_name'] ?? null,
             customer: [
                 'name' => $customer['name'] ?? null,
                 'address' => $customer['address'] ?? null,
@@ -132,11 +128,9 @@ class BuildInvoiceDocument
      */
     private function compose(
         string $number,
-        string $statusLabel,
         ?string $issueDateLabel,
         ?string $dueDateLabel,
         string $currency,
-        ?string $sellerName,
         array $customer,
         array $items,
         float $subtotal,
@@ -155,14 +149,20 @@ class BuildInvoiceDocument
         ?string $customerNotes,
         ?string $terms,
     ): array {
+        $company = $this->company();
+
         return [
-            'company' => $this->company(),
+            'company' => $company,
             'number' => $number,
-            'status_label' => $statusLabel,
             'issue_date_label' => $this->blankToNull($issueDateLabel),
             'due_date_label' => $this->blankToNull($dueDateLabel),
             'currency' => $currency,
-            'seller_name' => $this->blankToNull($sellerName),
+
+            // The seller is the business, not whoever happened to press save.
+            // It used to read created_by, which printed an operator account
+            // name ("Admin YokPrinting") on a document sent to customers.
+            'seller_name' => $company['name'],
+
             'shipping_label' => $this->shippingLabel($shippingType, $shippingCost, $isFreeShipping),
 
             'customer' => [
@@ -283,12 +283,12 @@ class BuildInvoiceDocument
     private function shippingLabel(?string $shippingType, float $shippingCost, bool $isFreeShipping): ?string
     {
         if ($isFreeShipping) {
-            return 'Gratis ongkir';
+            return 'Free Ongkir';
         }
 
         return match ($shippingType) {
             Invoice::SHIPPING_PAID_BY_CUSTOMER => 'Ongkir dibayar pelanggan',
-            Invoice::SHIPPING_COMPANY_FREE_SHIPPING => 'Gratis ongkir',
+            Invoice::SHIPPING_COMPANY_FREE_SHIPPING => 'Free Ongkir',
             default => $shippingCost > 0 ? 'Ongkir dibayar pelanggan' : null,
         };
     }
