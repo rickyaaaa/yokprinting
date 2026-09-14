@@ -200,6 +200,7 @@ export const registerPurchaseOrderComponents = (Alpine) => {
             other_cost: 0,
             notes: '',
             pay_immediately: false,
+            payment_amount: '',
             payment_date: config.today,
             payment_method: '',
             payment_reference: '',
@@ -367,6 +368,12 @@ export const registerPurchaseOrderComponents = (Alpine) => {
             return this.subtotal + (Number(this.form.shipping_cost) || 0) + (Number(this.form.other_cost) || 0);
         },
 
+        syncPaymentAmount() {
+            if (!this.form.payment_amount || Number(this.form.payment_amount) <= 0) {
+                this.form.payment_amount = this.grandTotal;
+            }
+        },
+
         clearError(field) {
             if (!this.errors[field]) {
                 return;
@@ -383,6 +390,9 @@ export const registerPurchaseOrderComponents = (Alpine) => {
             if (!this.form.order_date) errors.order_date = 'Tanggal PO wajib diisi.';
 
             if (this.form.pay_immediately) {
+                this.syncPaymentAmount();
+                if (!(Number(this.form.payment_amount) > 0)) errors.payment_amount = 'Nominal pembayaran harus lebih dari 0.';
+                if (Number(this.form.payment_amount) > this.grandTotal) errors.payment_amount = 'Nominal pembayaran tidak boleh melebihi total PO.';
                 if (!this.form.payment_date) errors.payment_date = 'Tanggal pembayaran wajib diisi.';
                 if (!this.form.payment_method) errors.payment_method = 'Metode pembayaran wajib dipilih.';
             }

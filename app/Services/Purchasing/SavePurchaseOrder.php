@@ -52,7 +52,7 @@ class SavePurchaseOrder
                     'payment_date' => $data['payment_date'],
                     'method' => $data['payment_method'],
                     'reference' => $data['payment_reference'] ?? null,
-                    'amount' => $purchaseOrder->grand_total,
+                    'amount' => $data['payment_amount'],
                     'notes' => $data['payment_notes'] ?? null,
                 ], $creatorId);
 

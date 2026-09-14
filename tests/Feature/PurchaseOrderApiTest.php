@@ -251,6 +251,7 @@ class PurchaseOrderApiTest extends TestCase
             'order_date' => '2026-09-11',
             'items' => [['product_id' => $product->id, 'quantity' => 100, 'unit_price' => 700]],
             'pay_immediately' => true,
+            'payment_amount' => 70000,
             'payment_date' => '2026-09-11',
             'payment_method' => PurchasePayment::METHOD_BANK_TRANSFER,
             'payment_reference' => 'TRX-PO-1',
@@ -272,6 +273,37 @@ class PurchaseOrderApiTest extends TestCase
         $this->assertSame(CashBankTransaction::TYPE_EXPENSE, $transaction->type);
         $this->assertSame(CashBankTransaction::PAYMENT_METHOD_TRANSFER, $transaction->payment_method);
         $this->assertSame(70000.0, (float) $transaction->amount);
+        $this->assertDatabaseCount('expenses', 0);
+    }
+
+    public function test_pay_immediately_accepts_a_custom_partial_amount(): void
+    {
+        $supplier = $this->createSupplier();
+        $product = $this->createProduct(purchasePrice: 700);
+
+        $response = $this->postJson(route('api.purchase-orders.store'), [
+            'supplier_id' => $supplier->id,
+            'order_date' => '2026-09-11',
+            'items' => [['product_id' => $product->id, 'quantity' => 100, 'unit_price' => 700]],
+            'pay_immediately' => true,
+            'payment_amount' => 30000,
+            'payment_date' => '2026-09-11',
+            'payment_method' => PurchasePayment::METHOD_BANK_TRANSFER,
+        ])->assertCreated();
+
+        $response
+            ->assertJsonPath('data.payment_status', PurchaseOrder::PAYMENT_PARTIAL)
+            ->assertJsonPath('data.paid_amount', 30000)
+            ->assertJsonPath('data.outstanding_amount', 40000);
+
+        $this->assertDatabaseHas('purchase_payments', [
+            'amount' => 30000,
+            'status' => PurchasePayment::STATUS_VERIFIED,
+        ]);
+        $this->assertDatabaseHas('cash_bank_transactions', [
+            'amount' => 30000,
+            'source_type' => CashBankTransaction::SOURCE_PURCHASE_PAYMENT,
+        ]);
         $this->assertDatabaseCount('expenses', 0);
     }
 

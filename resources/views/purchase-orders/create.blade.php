@@ -187,16 +187,22 @@
                                 </div>
                                 <div class="mt-5 border-t border-line pt-4">
                                     <label class="flex items-start gap-3">
-                                        <input type="checkbox" class="mt-1 h-4 w-4 accent-brand-700" x-model="form.pay_immediately">
+                                         <input type="checkbox" class="mt-1 h-4 w-4 accent-brand-700" x-model="form.pay_immediately" @change="if (form.pay_immediately) syncPaymentAmount()">
                                         <span>
                                             <span class="block font-semibold text-ink">Bayar langsung</span>
                                             <span class="mt-1 block text-xs leading-5 text-muted">Buat payment terverifikasi dan catat uang keluar otomatis.</span>
                                         </span>
                                     </label>
                                     <p x-show="!form.pay_immediately" class="mt-3 text-xs leading-5 text-muted">PO disimpan sebagai hutang pembelian. Kas &amp; Bank belum berkurang.</p>
-                                    <div x-show="form.pay_immediately" x-cloak class="mt-4 space-y-3">
-                                        <label class="block">
-                                            <span class="mb-1.5 block text-xs font-semibold text-muted">Tanggal pembayaran</span>
+                                     <div x-show="form.pay_immediately" x-cloak class="mt-4 space-y-3">
+                                         <label class="block">
+                                             <span class="mb-1.5 block text-xs font-semibold text-muted">Nominal pembayaran</span>
+                                            <input type="number" min="0.01" step="0.01" class="form-control" x-model="form.payment_amount" :placeholder="grandTotal" :aria-invalid="Boolean(errors.payment_amount)" :required="form.pay_immediately">
+                                             <span class="mt-1.5 block text-xs text-muted">Default mengikuti total PO, tetapi bisa diubah untuk DP atau pembayaran sebagian.</span>
+                                             <span class="mt-1.5 block text-xs text-red-700" x-show="errors.payment_amount" x-text="errors.payment_amount"></span>
+                                         </label>
+                                         <label class="block">
+                                             <span class="mb-1.5 block text-xs font-semibold text-muted">Tanggal pembayaran</span>
                                             <input type="date" class="form-control" x-model="form.payment_date" :aria-invalid="Boolean(errors.payment_date)">
                                             <span class="mt-1.5 block text-xs text-red-700" x-show="errors.payment_date" x-text="errors.payment_date"></span>
                                         </label>

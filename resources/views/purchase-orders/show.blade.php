@@ -9,6 +9,12 @@
     $can = fn (string $permission): bool => (bool) ($currentUser?->isActive() && (
         $currentUser->role === \App\Models\User::ROLE_OWNER || $rolePermissions->contains($permission)
     ));
+    $pageConfig = [
+        'purchaseOrderId' => $purchaseOrderId,
+        'today' => now()->toDateString(),
+        'canPay' => $can('purchase_order.update'),
+        'paymentMethods' => \App\Models\PurchasePayment::methodOptions(),
+    ];
 @endphp
 
 <!DOCTYPE html>
@@ -40,7 +46,7 @@
 
                 <main
                     class="mx-auto w-full max-w-[1180px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
-                    x-data='purchaseOrderShowPage(@json(["purchaseOrderId" => $purchaseOrderId, "today" => now()->toDateString(), "canPay" => $can("purchase_order.update"), "paymentMethods" => \App\Models\PurchasePayment::methodOptions()]))'
+                    x-data='purchaseOrderShowPage(@js($pageConfig))'
                     x-init="init()"
                 >
                     <div x-show="error" x-cloak class="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900" x-text="error" role="alert"></div>

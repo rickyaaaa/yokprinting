@@ -52,6 +52,7 @@ class StorePurchaseOrderRequest extends FormRequest
             'other_cost' => ['sometimes', 'numeric', 'min:0'],
             'notes' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'pay_immediately' => ['sometimes', 'boolean'],
+            'payment_amount' => ['required_if:pay_immediately,true', 'nullable', 'numeric', 'gt:0'],
             'payment_date' => ['required_if:pay_immediately,true', 'nullable', 'date'],
             'payment_method' => ['required_if:pay_immediately,true', 'nullable', Rule::in(array_keys(PurchasePayment::methodOptions()))],
             'payment_reference' => ['sometimes', 'nullable', 'string', 'max:100'],
@@ -76,6 +77,8 @@ class StorePurchaseOrderRequest extends FormRequest
             'items.*.quantity.gt' => 'Jumlah barang harus lebih dari 0.',
             'items.*.unit_price.min' => 'Harga tidak boleh negatif.',
             'payment_date.required_if' => 'Tanggal pembayaran wajib diisi jika Bayar langsung aktif.',
+            'payment_amount.required_if' => 'Nominal pembayaran wajib diisi jika Bayar langsung aktif.',
+            'payment_amount.gt' => 'Nominal pembayaran harus lebih dari 0.',
             'payment_method.required_if' => 'Metode pembayaran wajib dipilih jika Bayar langsung aktif.',
             'payment_method.in' => 'Metode pembayaran tidak valid.',
         ];

@@ -13,7 +13,7 @@ class UpdatePurchaseOrderRequest extends StorePurchaseOrderRequest
     {
         $rules = parent::rules();
 
-        foreach (['pay_immediately', 'payment_date', 'payment_method', 'payment_reference', 'payment_notes'] as $field) {
+        foreach (['pay_immediately', 'payment_amount', 'payment_date', 'payment_method', 'payment_reference', 'payment_notes'] as $field) {
             unset($rules[$field]);
         }
 
