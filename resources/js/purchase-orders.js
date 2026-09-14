@@ -589,7 +589,7 @@ export const registerPurchaseOrderComponents = (Alpine) => {
                     throw payload;
                 }
 
-                this.paymentForm = { amount: '', payment_date: config.today, method: '', reference: '' };
+                this.paymentForm = { amount: '', payment_date: this.config.today, method: '', reference: '' };
                 await this.loadPurchaseOrder();
             } catch (error) {
                 this.error = Object.values(error?.errors ?? {}).flat()[0] ?? error?.message ?? 'Pembayaran PO belum berhasil dicatat.';

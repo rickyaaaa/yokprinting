@@ -46,7 +46,8 @@
 
                 <main
                     class="mx-auto w-full max-w-[1180px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
-                    x-data='purchaseOrderShowPage(@js($pageConfig))'
+                    data-page-config="{{ json_encode($pageConfig) }}"
+                    x-data="purchaseOrderShowPage(JSON.parse($el.dataset.pageConfig))"
                     x-init="init()"
                 >
                     <div x-show="error" x-cloak class="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900" x-text="error" role="alert"></div>
