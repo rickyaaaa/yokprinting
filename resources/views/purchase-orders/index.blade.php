@@ -81,13 +81,14 @@
                         <div x-show="loading" class="p-10 text-center text-sm text-muted">Memuat daftar PO...</div>
 
                         <div x-show="!loading" class="overflow-x-auto">
-                            <table class="w-full min-w-[1000px] text-left text-sm">
+                            <table class="w-full min-w-[1160px] text-left text-sm">
                                 <thead>
                                     <tr class="border-b border-line text-xs font-semibold text-muted">
                                         <th class="px-5 py-3">Nomor PO</th>
                                         <th class="px-5 py-3">Supplier</th>
                                         <th class="px-5 py-3">Tanggal</th>
                                         <th class="px-5 py-3 text-right">Total</th>
+                                        <th class="px-5 py-3 text-right">Dibayar</th>
                                         <th class="px-5 py-3">Status</th>
                                         <th class="px-5 py-3 text-right">Aksi</th>
                                     </tr>
@@ -101,6 +102,10 @@
                                             <td class="px-5 py-4 text-ink" x-text="po.supplier?.name ?? '-' "></td>
                                             <td class="whitespace-nowrap px-5 py-4 text-muted" x-text="formatDate(po.order_date)"></td>
                                             <td class="whitespace-nowrap px-5 py-4 text-right font-semibold text-ink" x-text="formatRupiah(po.grand_total)"></td>
+                                            <td class="whitespace-nowrap px-5 py-4 text-right">
+                                                <span class="block font-semibold text-ink" x-text="formatRupiah(po.paid_amount)"></span>
+                                                <span class="mt-1 block text-xs text-muted" x-text="`Sisa ${formatRupiah(po.outstanding_amount)}`"></span>
+                                            </td>
                                             <td class="px-5 py-4">
                                                 <span class="badge" :class="statusClass(po.status)" x-text="po.status_label"></span>
                                             </td>
@@ -137,7 +142,7 @@
                                         </tr>
                                     </template>
                                     <tr x-show="purchaseOrders.length === 0">
-                                        <td colspan="6" class="px-5 py-12 text-center text-muted">Belum ada PO yang sesuai filter.</td>
+                                        <td colspan="7" class="px-5 py-12 text-center text-muted">Belum ada PO yang sesuai filter.</td>
                                     </tr>
                                 </tbody>
                             </table>

@@ -206,7 +206,9 @@ class PurchaseOrderApiTest extends TestCase
         $this->getJson(route('api.purchase-orders.index', ['status' => PurchaseOrder::STATUS_APPROVED]))
             ->assertOk()
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', $approved->id);
+            ->assertJsonPath('data.0.id', $approved->id)
+            ->assertJsonPath('data.0.paid_amount', 0)
+            ->assertJsonPath('data.0.outstanding_amount', 70000);
 
         $this->getJson(route('api.purchase-orders.index', ['search' => $draft->po_number]))
             ->assertOk()
