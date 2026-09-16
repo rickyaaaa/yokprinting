@@ -116,7 +116,7 @@
                                 </div>
                             </section>
 
-                            <section class="card">
+                            <section id="po-payment-section" class="card scroll-mt-24">
                                 <div class="flex flex-col gap-3 border-b border-line px-5 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-6">
                                     <div>
                                         <h2 class="font-semibold text-ink">Pembayaran PO</h2>

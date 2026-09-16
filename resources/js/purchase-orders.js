@@ -485,6 +485,10 @@ export const registerPurchaseOrderComponents = (Alpine) => {
 
         async init() {
             await Promise.all([this.loadPurchaseOrder(), this.loadReceipts()]);
+
+            if (window.location.hash === '#po-payment-section') {
+                document.getElementById('po-payment-section')?.scrollIntoView({ block: 'start' });
+            }
         },
 
         async loadPurchaseOrder() {
@@ -503,6 +507,7 @@ export const registerPurchaseOrderComponents = (Alpine) => {
                 }
 
                 this.po = payload.data;
+                this.paymentForm.amount = this.po.outstanding_amount > 0 ? this.po.outstanding_amount : '';
             } catch (error) {
                 this.error = error?.message ?? 'Detail PO belum berhasil dimuat.';
             } finally {
@@ -589,7 +594,6 @@ export const registerPurchaseOrderComponents = (Alpine) => {
                     throw payload;
                 }
 
-                this.paymentForm = { amount: '', payment_date: this.config.today, method: '', reference: '' };
                 await this.loadPurchaseOrder();
             } catch (error) {
                 this.error = Object.values(error?.errors ?? {}).flat()[0] ?? error?.message ?? 'Pembayaran PO belum berhasil dicatat.';

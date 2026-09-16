@@ -130,6 +130,11 @@
                                                         :href="`{{ route('goods-receipts.create') }}?purchase_order_id=${po.id}`"
                                                         class="btn btn-sm btn-outline"
                                                     >Terima Barang</a>
+                                                    <a
+                                                        x-show="po.outstanding_amount > 0 && po.status !== 'cancelled' && {{ $can('purchase_order.update') ? 'true' : 'false' }}"
+                                                        :href="`/purchase-orders/${po.id}#po-payment-section`"
+                                                        class="btn btn-sm btn-primary"
+                                                    >Bayar</a>
                                                     <button
                                                         x-show="po.can_be_cancelled && {{ $can('purchase_order.cancel') ? 'true' : 'false' }}"
                                                         type="button"
