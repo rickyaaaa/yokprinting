@@ -156,7 +156,12 @@ class GenerateInvoicePdf
             'items' => $invoice->items->values()->map(function ($item): array {
                 $quantity = (float) $item->quantity;
                 $unit = $item->unit ?: 'Pcs';
-                $note = collect([
+                $name = (string) ($item->product_name ?: $item->description);
+                $isLid = preg_match('/\b(?:tutup|lid)\b/ui', $name) === 1;
+
+                // LID/tutup is a component, not a printed cup, so its order
+                // document should not carry cup printing specifications.
+                $note = $isLid ? null : collect([
                     $item->sku ? "SKU: {$item->sku}" : null,
                     $item->screen_printing_color ? "Tinta: {$item->screen_printing_color}" : null,
                     $item->jenis_cetak ? "Cetak: {$item->jenis_cetak}" : null,
@@ -168,8 +173,8 @@ class GenerateInvoicePdf
                     // "Sablon 12 Oz Datar (8gr) …" description used to lead
                     // here, which is why a stored invoice printed the spec in
                     // place of the product - the database was right all along.
-                    'product_name' => $item->product_name ?: $item->description,
-                    'name' => $item->product_name ?: $item->description,
+                    'product_name' => $name,
+                    'name' => $name,
                     'description' => (string) $item->description,
                     'sku' => (string) $item->sku,
                     'code' => $item->sku ?: '-',

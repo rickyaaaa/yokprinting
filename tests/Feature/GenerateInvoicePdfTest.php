@@ -78,6 +78,49 @@ class GenerateInvoicePdfTest extends TestCase
         $this->assertStringContainsString('Cetak: 1 warna', $html);
     }
 
+    public function test_sales_order_batch_hides_cup_printing_details_for_lid_items(): void
+    {
+        $invoice = $this->invoice();
+        $invoice->items()->createMany([
+            [
+                'product_name' => 'Cup Injection 12Oz Datar Natural',
+                'sku' => 'H-001',
+                'screen_printing_color' => 'Putih',
+                'jenis_cetak' => '1 warna',
+                'order_increment' => 500,
+                'quantity' => 500,
+                'unit' => 'Pcs',
+                'unit_price' => 500,
+                'subtotal' => 250000,
+                'total_amount' => 250000,
+            ],
+            [
+                'product_name' => 'Tutup Injection Sambung Natural',
+                'sku' => 'H-040',
+                'screen_printing_color' => 'Hitam',
+                'jenis_cetak' => '1 warna',
+                'order_increment' => 500,
+                'quantity' => 500,
+                'unit' => 'Pcs',
+                'unit_price' => 300,
+                'subtotal' => 150000,
+                'total_amount' => 150000,
+            ],
+        ]);
+        $invoice->load('items');
+
+        $method = new \ReflectionMethod(GenerateInvoicePdf::class, 'previewFor');
+        $method->setAccessible(true);
+        $items = $method->invoke(app(GenerateInvoicePdf::class), $invoice)['items'];
+
+        $this->assertSame(
+            'SKU: H-001 · Tinta: Putih · Cetak: 1 warna · Kelipatan jumlah 500 Pcs',
+            $items[2]['note'],
+        );
+        $this->assertNull($items[3]['note']);
+        $this->assertSame('Tutup Injection Sambung Natural', $items[3]['name']);
+    }
+
     private function invoice(): Invoice
     {
         $customer = Customer::query()->create([
