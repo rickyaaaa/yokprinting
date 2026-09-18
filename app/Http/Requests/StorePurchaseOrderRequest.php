@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Models\PurchasePayment;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use App\Models\PurchasePayment;
 
 class StorePurchaseOrderRequest extends FormRequest
 {

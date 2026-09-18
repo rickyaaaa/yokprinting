@@ -17,8 +17,7 @@ class InvoicePaymentPageController extends Controller
         Request $request,
         Invoice $invoice,
         BuildInvoiceDocument $buildInvoiceDocument,
-    ): View
-    {
+    ): View {
         $invoice->load([
             'customer',
             'items' => fn ($query) => $query->orderBy('sort_order')->orderBy('id'),
