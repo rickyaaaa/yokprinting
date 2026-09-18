@@ -113,7 +113,7 @@ class BuildInvoiceDocument
             isFreeShipping: (bool) ($preview['is_free_shipping'] ?? false),
             shippingType: $preview['shipping_type'] ?? null,
             totalAmount: (float) ($preview['total_amount'] ?? 0),
-            dpRequiredPercent: (float) ($preview['dp_required_percent'] ?? 0),
+            dpRequiredPercent: (float) ($preview['dp_required_percent'] ?? 50),
             dpAmount: (float) ($preview['dp_amount'] ?? 0),
             designNotes: $preview['design_notes'] ?? null,
             customerNotes: $preview['notes'] ?? null,

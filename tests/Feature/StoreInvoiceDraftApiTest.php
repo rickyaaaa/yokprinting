@@ -40,7 +40,7 @@ class StoreInvoiceDraftApiTest extends TestCase
             'customer_id' => $payload['customer_id'],
             'status' => 'draft',
             'total_amount' => 22408125,
-            'dp_required_percent' => 0,
+            'dp_required_percent' => 50,
         ]);
         $this->assertDatabaseHas('invoice_items', [
             'product_id' => $payload['items'][0]['product_id'],

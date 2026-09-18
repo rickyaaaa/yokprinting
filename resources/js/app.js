@@ -197,7 +197,7 @@ const buildInvoiceDraftPayload = (form) => {
         is_free_shipping: form.querySelector('[name="is_free_shipping"]')?.checked ?? false,
         order_process_status: form.querySelector('[name="order_process_status"]')?.value ?? 'draft',
         design_notes: form.querySelector('[name="design_notes"]')?.value ?? '',
-        dp_required_percent: dpValue === '' ? null : Number(dpValue),
+        dp_required_percent: dpValue === '' ? 50 : Number(dpValue),
     };
 };
 
@@ -216,7 +216,7 @@ const buildInvoicePreviewSnapshot = (payload) => {
     const taxAmount = taxEnabled ? taxableBase * taxRate / 100 : 0;
     const shippingCost = Math.max(0, Number(payload.shipping_cost) || 0);
     const totalAmount = taxableBase + taxAmount + (payload.is_free_shipping ? 0 : shippingCost);
-    const dpPercent = clampNumber(payload.dp_required_percent, 0, 100);
+    const dpPercent = clampNumber(payload.dp_required_percent ?? 50, 0, 100);
 
     return {
         // Bumped whenever the row shape changes. A snapshot written by an
@@ -288,8 +288,8 @@ const buildInvoicePreviewSnapshot = (payload) => {
         // note all the way to the document. Without it in the snapshot the
         // draft PDF printed no design note while the saved invoice printed one.
         design_notes: payload.design_notes || '',
-        notes: payload.notes || 'Produksi berjalan setelah pembayaran awal diterima dan mockup/desain sudah di-ACC. Pelunasan dilakukan sebelum barang dikirim atau diambil.',
-        terms: payload.terms || 'Pembayaran awal sebelum produksi. Pelunasan dilakukan sebelum barang dikirim atau diambil.',
+        notes: payload.notes || 'Produksi berjalan setelah DP minimal diterima dan mockup/desain sudah di-ACC. Pelunasan dilakukan sebelum barang dikirim atau diambil.',
+        terms: payload.terms || 'Minimal DP 50% sebelum produksi. Pelunasan dilakukan sebelum barang dikirim atau diambil.',
     };
 };
 
@@ -1908,7 +1908,7 @@ Alpine.data('invoicePreviewActions', () => ({
         shipping_cost: 0,
         is_free_shipping: false,
         total_amount: 0,
-        dp_required_percent: 0,
+        dp_required_percent: 50,
         dp_amount: 0,
         notes: '',
         terms: '',

@@ -237,7 +237,7 @@
                                     <dd class="text-xl font-bold tracking-[-0.025em] text-brand-800" x-text="formatCurrency(preview.total_amount)">Rp0</dd>
                                 </div>
                                 <div x-show="preview.dp_amount > 0" class="flex justify-between gap-6 rounded-lg bg-brand-50 px-3 py-2">
-                                    <dt class="font-semibold text-brand-900">Minimal DP <span x-text="`${preview.dp_required_percent}%`">0%</span></dt>
+                                    <dt class="font-semibold text-brand-900">Minimal DP <span x-text="`${preview.dp_required_percent}%`">50%</span></dt>
                                     <dd class="font-bold text-brand-900" x-text="formatCurrency(preview.dp_amount)">Rp0</dd>
                                 </div>
                             </dl>
