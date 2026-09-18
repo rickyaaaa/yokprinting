@@ -3,7 +3,6 @@
 namespace App\Services\Purchasing;
 
 use App\Models\PurchaseOrder;
-use App\Models\PurchasePayment;
 
 class SyncPurchaseOrderPaymentStatus
 {

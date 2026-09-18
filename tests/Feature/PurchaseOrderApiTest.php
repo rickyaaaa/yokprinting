@@ -2,13 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Models\CashBankTransaction;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\PurchasePayment;
-use App\Models\CashBankTransaction;
 use App\Models\Role;
 use App\Models\Supplier;
 use App\Models\User;
+use App\Services\CashBank\CashBankService;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\ActsAsOwner;
@@ -326,7 +327,7 @@ class PurchaseOrderApiTest extends TestCase
         $this->assertSame(35000.0, (float) $purchaseOrder->paid_amount);
         $this->assertSame(1, CashBankTransaction::query()->where('source_type', CashBankTransaction::SOURCE_PURCHASE_PAYMENT)->count());
 
-        $this->app->make(\App\Services\CashBank\CashBankService::class)->recordPurchasePayment($payment);
+        $this->app->make(CashBankService::class)->recordPurchasePayment($payment);
         $this->assertSame(1, CashBankTransaction::query()->where('source_type', CashBankTransaction::SOURCE_PURCHASE_PAYMENT)->count());
         $response->assertJsonPath('data.cash_bank_transaction_id', CashBankTransaction::query()->sole()->id);
     }
