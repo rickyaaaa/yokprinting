@@ -3416,7 +3416,10 @@ Alpine.data('companyProfileSettings', (initialForm = {}) => ({
     },
 
     get sampleInvoiceNumber() {
-        return `${this.form.invoicePrefix || 'INV'}-${new Date().getFullYear()}-0001`;
+        const now = new Date();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+
+        return `${this.form.invoicePrefix || 'INV'}-${now.getFullYear()}-${month}-0001`;
     },
 
     get validationMessages() {
