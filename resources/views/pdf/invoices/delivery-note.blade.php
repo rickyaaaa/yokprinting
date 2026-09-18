@@ -281,17 +281,6 @@
                         <td>{{ $index + 1 }}</td>
                         <td>
                             <div class="item-name">{{ $item->product_name }}</div>
-                            @if ($item->sku)
-                                <div class="item-meta">SKU: {{ $item->sku }}</div>
-                            @endif
-                            @if ($item->description)
-                                <div class="item-meta">{{ $item->description }}</div>
-                            @endif
-                            @if ($item->cup_size || $item->cup_model || $item->grammage)
-                                <div class="item-meta">
-                                    Spec: {{ collect([$item->cup_size, $item->cup_model, $item->grammage, $item->screen_printing_color ? 'Tinta '.$item->screen_printing_color : null, $item->jenis_cetak])->filter()->join(' / ') }}
-                                </div>
-                            @endif
                         </td>
                         <td class="numeric">{{ rtrim(rtrim(number_format((float) $item->quantity, 4, ',', '.'), '0'), ',') }}</td>
                         <td class="numeric">Pcs</td>
