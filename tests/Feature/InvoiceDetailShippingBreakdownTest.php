@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\CompanyProfile;
 use App\Models\Invoice;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,6 +21,28 @@ class InvoiceDetailShippingBreakdownTest extends TestCase
 {
     use ActsAsOwner;
     use RefreshDatabase;
+
+    public function test_invoice_detail_uses_company_profile_for_payment_instructions(): void
+    {
+        CompanyProfile::query()->create([
+            'business_name' => 'YokPrinting Test',
+            'legal_name' => 'PT YokPrinting Test',
+            'email' => 'billing@yokprinting.test',
+            'address' => 'Jl. Uji Coba No. 1',
+            'bank_name' => 'BCA',
+            'bank_account' => '746836223',
+            'bank_holder' => 'YOKPRINTING',
+            'is_default' => true,
+        ]);
+
+        $this->get(route('payments.invoices.show', $this->invoice([
+            'invoice_number' => 'INV-BANK-TEST',
+        ])->invoice_number))
+            ->assertOk()
+            ->assertSeeInOrder(['BCA', '746836223', 'YOKPRINTING'])
+            ->assertDontSee('012 345 6789')
+            ->assertDontSee('Bank Central Asia');
+    }
 
     public function test_invoice_without_shipping_shows_no_ongkir_line(): void
     {

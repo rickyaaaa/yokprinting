@@ -103,11 +103,11 @@
         'status' => $payment->statusLabel(),
     ]);
 
-    $paymentMethods = [
-        ['label' => 'Bank', 'value' => 'Bank Central Asia'],
-        ['label' => 'No. rekening', 'value' => '012 345 6789'],
-        ['label' => 'Atas nama', 'value' => 'PT Ruang Karya Digital'],
-    ];
+    $paymentMethods = collect([
+        ['label' => 'Bank', 'value' => $company['bank_name'] ?? null],
+        ['label' => 'No. rekening', 'value' => $company['bank_account'] ?? null],
+        ['label' => 'Atas nama', 'value' => $company['bank_holder'] ?? $company['legal_name'] ?? null],
+    ])->filter(fn (array $method): bool => filled($method['value']))->values();
 @endphp
 
 <!DOCTYPE html>
@@ -725,14 +725,18 @@
 
                             <section class="rounded-xl border border-brand-200 bg-brand-50 p-5 text-sm text-brand-900" aria-labelledby="payment-method-heading">
                                 <h2 id="payment-method-heading" class="font-semibold">Instruksi pembayaran</h2>
-                                <dl class="mt-4 space-y-3">
-                                    @foreach ($paymentMethods as $method)
-                                        <div class="flex justify-between gap-4">
-                                            <dt class="text-brand-800">{{ $method['label'] }}</dt>
-                                            <dd class="text-right font-semibold">{{ $method['value'] }}</dd>
-                                        </div>
-                                    @endforeach
-                                </dl>
+                                @if ($paymentMethods->isNotEmpty())
+                                    <dl class="mt-4 space-y-3">
+                                        @foreach ($paymentMethods as $method)
+                                            <div class="flex justify-between gap-4">
+                                                <dt class="text-brand-800">{{ $method['label'] }}</dt>
+                                                <dd class="text-right font-semibold">{{ $method['value'] }}</dd>
+                                            </div>
+                                        @endforeach
+                                    </dl>
+                                @else
+                                    <p class="mt-4 text-brand-800">Rekening pembayaran belum diisi di Pengaturan profil usaha.</p>
+                                @endif
                             </section>
                         </aside>
                     </div>

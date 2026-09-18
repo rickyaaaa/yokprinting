@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Invoice;
 use App\Models\User;
+use App\Services\Invoices\BuildInvoiceDocument;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 
@@ -12,7 +13,11 @@ class InvoicePaymentPageController extends Controller
     /**
      * Show the stored invoice payment and production workflow detail.
      */
-    public function __invoke(Request $request, Invoice $invoice): View
+    public function __invoke(
+        Request $request,
+        Invoice $invoice,
+        BuildInvoiceDocument $buildInvoiceDocument,
+    ): View
     {
         $invoice->load([
             'customer',
@@ -30,6 +35,7 @@ class InvoicePaymentPageController extends Controller
         return view('payments.invoice-detail', [
             'invoiceModel' => $invoice,
             'canUpdateProduction' => $canUpdateProduction,
+            'company' => $buildInvoiceDocument->company(),
         ]);
     }
 }
