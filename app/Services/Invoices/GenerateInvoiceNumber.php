@@ -15,9 +15,11 @@ class GenerateInvoiceNumber
 
     public function generate(?CarbonInterface $date = null): string
     {
-        $year = ($date ?? CarbonImmutable::now())->year;
+        $date ??= CarbonImmutable::now();
+        $year = $date->year;
+        $month = $date->month;
 
-        return DB::transaction(function () use ($year): string {
+        return DB::transaction(function () use ($year, $month): string {
             $now = now();
 
             DB::table('invoice_number_sequences')->insertOrIgnore([
@@ -41,9 +43,10 @@ class GenerateInvoiceNumber
                 ]);
 
             return sprintf(
-                '%s-%d-%0'.self::SEQUENCE_DIGITS.'d',
+                '%s-%d-%02d-%0'.self::SEQUENCE_DIGITS.'d',
                 self::PREFIX,
                 $year,
+                $month,
                 $nextNumber,
             );
         });
@@ -52,19 +55,23 @@ class GenerateInvoiceNumber
     private function latestPersistedSequence(int $year): int
     {
         $pattern = sprintf('%s-%d-%%', self::PREFIX, $year);
-        $exactPattern = sprintf(
-            '/^%s-%d-(\d+)$/',
-            preg_quote(self::PREFIX, '/'),
-            $year,
-        );
+        $prefix = preg_quote(self::PREFIX, '/');
+        $exactPatterns = [
+            sprintf('/^%s-%d-(\d+)$/', $prefix, $year),
+            sprintf('/^%s-%d-\d{2}-(\d+)$/', $prefix, $year),
+        ];
 
         return Invoice::withTrashed()
             ->where('invoice_number', 'like', $pattern)
             ->pluck('invoice_number')
-            ->map(function (string $invoiceNumber) use ($exactPattern): int {
-                return preg_match($exactPattern, $invoiceNumber, $matches) === 1
-                    ? (int) $matches[1]
-                    : 0;
+            ->map(function (string $invoiceNumber) use ($exactPatterns): int {
+                foreach ($exactPatterns as $pattern) {
+                    if (preg_match($pattern, $invoiceNumber, $matches) === 1) {
+                        return (int) $matches[1];
+                    }
+                }
+
+                return 0;
             })
             ->max() ?? 0;
     }

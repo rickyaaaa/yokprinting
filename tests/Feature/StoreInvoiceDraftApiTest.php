@@ -21,7 +21,7 @@ class StoreInvoiceDraftApiTest extends TestCase
         $response
             ->assertCreated()
             ->assertJsonPath('message', 'Invoice berhasil disimpan.')
-            ->assertJsonPath('data.invoice_number', 'INV-2026-0001')
+            ->assertJsonPath('data.invoice_number', 'INV-2026-07-0001')
             ->assertJsonPath('data.status', 'draft')
             ->assertJsonPath('data.sent_at', null)
             ->assertJsonPath('data.production_status', 'draft')
@@ -36,7 +36,7 @@ class StoreInvoiceDraftApiTest extends TestCase
             ->assertJsonPath('data.items_count', 2);
 
         $this->assertDatabaseHas('invoices', [
-            'invoice_number' => 'INV-2026-0001',
+            'invoice_number' => 'INV-2026-07-0001',
             'customer_id' => $payload['customer_id'],
             'status' => 'draft',
             'total_amount' => 22408125,
@@ -94,7 +94,7 @@ class StoreInvoiceDraftApiTest extends TestCase
             ->assertJsonPath('data.items_count', 1);
 
         $this->assertDatabaseHas('invoices', [
-            'invoice_number' => 'INV-2026-0001',
+            'invoice_number' => 'INV-2026-07-0001',
             'production_status' => 'awaiting_dp',
             'dp_required_percent' => 50,
             'design_notes' => 'Logo tengah, tinta hitam, tunggu ACC mockup.',

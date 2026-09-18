@@ -17,15 +17,15 @@ class GenerateInvoiceNumberTest extends TestCase
         $generator = app(GenerateInvoiceNumber::class);
 
         $this->assertSame(
-            'INV-2026-0001',
+            'INV-2026-07-0001',
             $generator->generate(CarbonImmutable::parse('2026-07-23')),
         );
         $this->assertSame(
-            'INV-2026-0002',
+            'INV-2026-12-0002',
             $generator->generate(CarbonImmutable::parse('2026-12-31')),
         );
         $this->assertSame(
-            'INV-2027-0001',
+            'INV-2027-01-0001',
             $generator->generate(CarbonImmutable::parse('2027-01-01')),
         );
     }
@@ -48,6 +48,6 @@ class GenerateInvoiceNumberTest extends TestCase
         $number = app(GenerateInvoiceNumber::class)
             ->generate(CarbonImmutable::parse('2026-07-23'));
 
-        $this->assertSame('INV-2026-0043', $number);
+        $this->assertSame('INV-2026-07-0043', $number);
     }
 }

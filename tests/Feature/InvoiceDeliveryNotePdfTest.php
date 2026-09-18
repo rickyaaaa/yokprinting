@@ -136,6 +136,7 @@ class InvoiceDeliveryNotePdfTest extends TestCase
         $this->assertStringContainsString('SURAT JALAN', $html);
         $this->assertStringContainsString('SJ-2026-0099', $html);
         $this->assertStringContainsString('INV-2026-0099', $html);
+        $this->assertStringNotContainsString('No. Surat Jalan', $html);
         $this->assertStringContainsString('PT Kopi Bahagia', $html);
         $this->assertStringContainsString('081234567890', $html);
         $this->assertStringContainsString('Jl. Merdeka No. 10', $html);

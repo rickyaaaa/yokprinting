@@ -51,7 +51,7 @@ class GenerateInvoicePdfTest extends TestCase
                 'items' => [[
                     'code' => 'SKU-001',
                     'name' => 'Cup Injection',
-                    'note' => '',
+                    'note' => 'SKU: SKU-001 · Tinta: Hitam · Cetak: 1 warna · Kelipatan jumlah 500 Pcs',
                     'quantity_label' => '10 Pcs',
                     'unit_price' => 6000,
                     'line_total' => 60000,
@@ -74,6 +74,8 @@ class GenerateInvoicePdfTest extends TestCase
         $this->assertStringContainsString('Minimal DP 50%', $html);
         $this->assertStringContainsString('Rp30.000', $html);
         $this->assertStringContainsString('Total piutang', $html);
+        $this->assertStringContainsString('Tinta: Hitam', $html);
+        $this->assertStringContainsString('Cetak: 1 warna', $html);
     }
 
     private function invoice(): Invoice

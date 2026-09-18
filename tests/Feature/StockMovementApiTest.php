@@ -226,7 +226,7 @@ class StockMovementApiTest extends TestCase
             'quantity' => -1000,
             'stock_before' => 1200,
             'stock_after' => 200,
-            'reference_number' => 'INV-2026-0001',
+            'reference_number' => 'INV-2026-07-0001',
         ]);
         $this->assertSame('200.0000', $product->refresh()->stock);
     }

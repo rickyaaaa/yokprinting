@@ -158,6 +158,8 @@ class GenerateInvoicePdf
                 $unit = $item->unit ?: 'Pcs';
                 $note = collect([
                     $item->sku ? "SKU: {$item->sku}" : null,
+                    $item->screen_printing_color ? "Tinta: {$item->screen_printing_color}" : null,
+                    $item->jenis_cetak ? "Cetak: {$item->jenis_cetak}" : null,
                     $item->order_increment ? 'Kelipatan jumlah '.number_format((float) $item->order_increment, 0, ',', '.')." {$unit}" : null,
                 ])->filter()->join(' · ');
 

@@ -205,6 +205,11 @@
                                         <input class="form-control mt-1.5" x-model="form.bankAccount">
                                     </label>
                                     <label class="block md:col-span-2">
+                                        <span class="text-sm font-medium text-ink">Nama pemilik rekening</span>
+                                        <input class="form-control mt-1.5" x-model="form.bankHolder" placeholder="Contoh: PT Yok Printing Indonesia">
+                                        <span class="mt-1 block text-xs text-muted">Akan dicetak sebagai keterangan pembayaran di invoice.</span>
+                                    </label>
+                                    <label class="block md:col-span-2">
                                         <span class="text-sm font-medium text-ink">Catatan default invoice</span>
                                         <textarea class="form-control mt-1.5 min-h-24" x-model="form.notes"></textarea>
                                     </label>

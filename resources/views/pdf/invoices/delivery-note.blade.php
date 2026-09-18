@@ -254,10 +254,6 @@
                     <div class="eyebrow">Detail Pengiriman</div>
                     <table class="meta-table">
                         <tr>
-                            <td class="muted">No. Surat Jalan</td>
-                            <td>{{ $invoice->deliveryNoteNumber() }}</td>
-                        </tr>
-                        <tr>
                             <td class="muted">Ref. Invoice</td>
                             <td>{{ $invoice->invoice_number }}</td>
                         </tr>
