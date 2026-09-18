@@ -175,7 +175,7 @@
                                         </select>
                                     </div>
                                     <div>
-                                        <label for="dp-required-percent" class="mb-2 block text-sm font-medium text-ink">Minimal DP produksi (opsional)</label>
+                                        <label for="dp-required-percent" class="mb-2 block text-sm font-medium text-ink">Minimal DP produksi</label>
                                         <div class="relative">
                                             <input
                                                 id="dp-required-percent"
@@ -185,8 +185,7 @@
                                                 min="0"
                                                 max="100"
                                                 step="1"
-                                                value="{{ (float) $invoiceModel->dp_required_percent > 0 ? (float) $invoiceModel->dp_required_percent : '' }}"
-                                                placeholder="Kosong = tidak ada minimum"
+                                                value="{{ (float) $invoiceModel->dp_required_percent > 0 ? (float) $invoiceModel->dp_required_percent : 50 }}"
                                                 class="form-control pr-9"
                                                 :class="{ 'border-red-400 ring-2 ring-red-100': fieldErrors.dp_required_percent }"
                                             >

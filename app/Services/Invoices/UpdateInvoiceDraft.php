@@ -131,7 +131,7 @@ class UpdateInvoiceDraft
                 'gross_profit' => $totals['gross_profit'],
                 'production_status' => $data['production_status'] ?? $locked->production_status,
                 'dp_required_percent' => array_key_exists('dp_required_percent', $data)
-                    ? ($data['dp_required_percent'] ?? 0)
+                    ? ($data['dp_required_percent'] ?? 50)
                     : $locked->dp_required_percent,
                 'notes' => $data['notes'] ?? null,
                 'terms' => $data['terms'] ?? null,

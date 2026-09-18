@@ -104,7 +104,7 @@ class InvoiceProductionStatusApiTest extends TestCase
         $this->assertDatabaseMissing('activity_logs', ['action' => 'production_status_updated']);
     }
 
-    public function test_one_verified_payment_is_required_before_production_or_delivery_can_progress(): void
+    public function test_minimum_dp_is_required_before_new_customer_production_or_delivery_can_progress(): void
     {
         $invoice = $this->createInvoice(paymentStatus: Invoice::PAYMENT_UNPAID);
 
@@ -119,7 +119,7 @@ class InvoiceProductionStatusApiTest extends TestCase
             'payment_number' => 'PAY-DP-0001',
             'payment_date' => now()->toDateString(),
             'method' => Payment::METHOD_TRANSFER_BCA,
-            'amount' => 200000,
+            'amount' => 500000,
             'status' => Payment::STATUS_VERIFIED,
             'currency' => 'IDR',
             'verified_at' => now(),
@@ -154,6 +154,41 @@ class InvoiceProductionStatusApiTest extends TestCase
             ->assertJsonValidationErrors('production_status');
 
         $this->assertSame(Invoice::PRODUCTION_DRAFT, $invoice->refresh()->production_status);
+    }
+
+    public function test_returning_customer_can_progress_with_dp_below_50_percent(): void
+    {
+        $invoice = $this->createInvoice(paymentStatus: Invoice::PAYMENT_UNPAID);
+        Invoice::query()->create([
+            'customer_id' => $invoice->customer_id,
+            'invoice_number' => 'INV-STATUS-0000',
+            'issue_date' => now()->subMonth()->toDateString(),
+            'due_date' => now()->subWeeks(3)->toDateString(),
+            'status' => Invoice::STATUS_SENT,
+            'payment_status' => Invoice::PAYMENT_PAID,
+            'production_status' => Invoice::PRODUCTION_COMPLETED,
+            'currency' => 'IDR',
+            'subtotal' => 1000000,
+            'total_amount' => 1000000,
+            'dp_required_percent' => 50,
+            'paid_at' => now()->subMonth(),
+        ]);
+        $invoice->payments()->create([
+            'payment_number' => 'PAY-DP-RETURNING-0001',
+            'payment_date' => now()->toDateString(),
+            'method' => Payment::METHOD_TRANSFER_BCA,
+            'amount' => 200000,
+            'status' => Payment::STATUS_VERIFIED,
+            'currency' => 'IDR',
+            'verified_at' => now(),
+        ]);
+
+        $this->actingAs(User::factory()->create())
+            ->patchJson($this->updateUrl($invoice), [
+                'production_status' => Invoice::PRODUCTION_IN_PRODUCTION,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.production_status', Invoice::PRODUCTION_IN_PRODUCTION);
     }
 
     public function test_paid_invoice_can_be_marked_completed(): void
@@ -230,7 +265,7 @@ class InvoiceProductionStatusApiTest extends TestCase
             'currency' => 'IDR',
             'subtotal' => 1000000,
             'total_amount' => 1000000,
-            'dp_required_percent' => 0,
+            'dp_required_percent' => 50,
         ]);
     }
 

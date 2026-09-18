@@ -38,15 +38,24 @@ class UpdateInvoiceProductionStatus
             ], true);
             $paidAmount = $lockedInvoice->verifiedPaidAmount();
             $requiredDpAmount = $lockedInvoice->requiredDpAmount();
+            $hasPreviousPaidInvoice = $lockedInvoice->customer()
+                ->whereHas('invoices', function ($query) use ($lockedInvoice): void {
+                    $query
+                        ->whereKeyNot($lockedInvoice->getKey())
+                        ->where('status', '!=', Invoice::STATUS_CANCELLED)
+                        ->where('payment_status', Invoice::PAYMENT_PAID);
+                })
+                ->exists();
 
             if (
                 $requiresPayment
-                && ($paidAmount <= 0 || ($requiredDpAmount > 0 && $paidAmount < $requiredDpAmount))
+                && (
+                    $paidAmount <= 0
+                    || ($requiredDpAmount > 0 && $paidAmount < $requiredDpAmount && ! $hasPreviousPaidInvoice)
+                )
             ) {
                 throw ValidationException::withMessages([
-                    'production_status' => $requiredDpAmount > 0
-                        ? 'Minimal DP harus diterima sebelum produksi atau pengiriman dapat dilanjutkan.'
-                        : 'Minimal satu pembayaran terverifikasi harus dicatat sebelum produksi atau pengiriman dapat dilanjutkan.',
+                    'production_status' => 'Minimal DP 50% harus diterima sebelum produksi atau pengiriman dapat dilanjutkan.',
                 ]);
             }
 

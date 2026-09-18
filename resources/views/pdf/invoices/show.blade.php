@@ -398,13 +398,11 @@
 
         <table class="payment-summary">
             <tr>
-                @if ($invoice->requiredDpAmount() > 0)
-                    <td>
-                        <div class="label">Minimal DP produksi</div>
-                        <div class="amount">{{ $invoice->currency }} {{ number_format($invoice->requiredDpAmount(), 0, ',', '.') }}</div>
-                        <div class="muted">{{ rtrim(rtrim(number_format((float) $invoice->dp_required_percent, 2, ',', '.'), '0'), ',') }}% dari total invoice</div>
-                    </td>
-                @endif
+                <td>
+                    <div class="label">Minimal DP produksi</div>
+                    <div class="amount">{{ $invoice->currency }} {{ number_format($invoice->requiredDpAmount(), 0, ',', '.') }}</div>
+                    <div class="muted">{{ rtrim(rtrim(number_format((float) $invoice->dp_required_percent, 2, ',', '.'), '0'), ',') }}% dari total invoice</div>
+                </td>
                 <td>
                     <div class="label">DP / pembayaran masuk</div>
                     <div class="amount">{{ $invoice->currency }} {{ number_format($invoice->verifiedPaidAmount(), 0, ',', '.') }}</div>
@@ -442,11 +440,7 @@
         <div class="terms-box">
             <strong>Syarat & Ketentuan Percetakan</strong>
             <ol>
-                @if ($invoice->requiredDpAmount() > 0)
-                    <li>Produksi berjalan setelah DP minimal {{ rtrim(rtrim(number_format((float) $invoice->dp_required_percent, 2, ',', '.'), '0'), ',') }}% diterima dan mockup/desain sudah di-ACC.</li>
-                @else
-                    <li>Produksi berjalan setelah ada pembayaran terverifikasi dan mockup/desain sudah di-ACC.</li>
-                @endif
+                <li>Produksi berjalan setelah DP minimal {{ rtrim(rtrim(number_format((float) $invoice->dp_required_percent, 2, ',', '.'), '0'), ',') }}% diterima dan mockup/desain sudah di-ACC.</li>
                 <li>Perubahan desain setelah ACC dapat mengubah estimasi waktu produksi dan biaya.</li>
                 <li>Selisih warna minor akibat material cup, tinta, dan proses sablon masih dalam toleransi produksi.</li>
                 <li>Barang yang sudah sesuai ACC desain tidak dapat diretur kecuali cacat produksi yang terverifikasi.</li>

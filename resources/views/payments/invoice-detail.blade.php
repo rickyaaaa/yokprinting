@@ -59,7 +59,6 @@
         'production_status' => $invoiceModel->productionStatusLabel(),
         'production_status_key' => $invoiceModel->production_status,
         'dp_required' => $formatRupiah($invoiceModel->requiredDpAmount()),
-        'has_dp_requirement' => $invoiceModel->requiredDpAmount() > 0,
         'design_notes' => $invoiceModel->design_notes ?: 'Belum ada catatan desain.',
         'mockup_url' => $invoiceModel->mockup_url,
         'is_cancelled' => $invoiceModel->status === \App\Models\Invoice::STATUS_CANCELLED,
@@ -672,14 +671,9 @@
                                         </div>
                                     @endif
                                     <div class="mt-3 rounded-lg border border-brand-200 bg-brand-50 p-4">
-                                        @if ($invoice['has_dp_requirement'])
-                                            <p class="text-xs font-semibold text-brand-800">Minimal DP sebelum produksi</p>
-                                            <p class="mt-1 text-xl font-bold tracking-[-0.025em] text-brand-900">{{ $invoice['dp_required'] }}</p>
-                                            <p class="mt-2 text-xs leading-5 text-brand-800">Jika DP sudah aman dan mockup ACC, status bisa naik ke proses sablon/cetak.</p>
-                                        @else
-                                            <p class="text-xs font-semibold text-brand-800">DP produksi opsional</p>
-                                            <p class="mt-2 text-xs leading-5 text-brand-800">Status produksi dapat dilanjutkan setelah ada minimal satu pembayaran terverifikasi dan mockup/desain sudah di-ACC.</p>
-                                        @endif
+                                        <p class="text-xs font-semibold text-brand-800">Minimal DP sebelum produksi</p>
+                                        <p class="mt-1 text-xl font-bold tracking-[-0.025em] text-brand-900">{{ $invoice['dp_required'] }}</p>
+                                        <p class="mt-2 text-xs leading-5 text-brand-800">Jika DP sudah aman dan mockup ACC, status bisa naik ke proses sablon/cetak.</p>
                                     </div>
                                 </div>
 
