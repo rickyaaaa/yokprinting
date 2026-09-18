@@ -3495,6 +3495,7 @@ Alpine.data('companyProfileSettings', (initialForm = {}) => ({
 
     async loadCompanyProfile() {
         const response = await fetch('/api/company-profile', {
+            cache: 'no-store',
             headers: {
                 Accept: 'application/json',
             },

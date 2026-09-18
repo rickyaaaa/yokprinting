@@ -23,6 +23,7 @@ class CompanyProfileApiTest extends TestCase
     {
         $this->getJson(route('api.company-profile.show'))
             ->assertOk()
+            ->assertHeader('Cache-Control', 'no-store, private')
             ->assertJsonPath('status', 'success')
             ->assertJsonPath('data.id', null)
             ->assertJsonPath('data.business_name', 'Ruang Karya Digital')

@@ -21,7 +21,7 @@ class CompanyProfileController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => $this->serializeProfile($profile),
-        ]);
+        ])->header('Cache-Control', 'private, no-store');
     }
 
     /**
