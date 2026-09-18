@@ -104,7 +104,7 @@ class InvoiceProductionStatusApiTest extends TestCase
         $this->assertDatabaseMissing('activity_logs', ['action' => 'production_status_updated']);
     }
 
-    public function test_minimum_dp_is_required_before_production_or_delivery_can_progress(): void
+    public function test_one_verified_payment_is_required_before_production_or_delivery_can_progress(): void
     {
         $invoice = $this->createInvoice(paymentStatus: Invoice::PAYMENT_UNPAID);
 
@@ -119,7 +119,7 @@ class InvoiceProductionStatusApiTest extends TestCase
             'payment_number' => 'PAY-DP-0001',
             'payment_date' => now()->toDateString(),
             'method' => Payment::METHOD_TRANSFER_BCA,
-            'amount' => 500000,
+            'amount' => 200000,
             'status' => Payment::STATUS_VERIFIED,
             'currency' => 'IDR',
             'verified_at' => now(),
@@ -130,6 +130,30 @@ class InvoiceProductionStatusApiTest extends TestCase
         ])
             ->assertOk()
             ->assertJsonPath('data.production_status', Invoice::PRODUCTION_READY_FOR_PICKUP);
+    }
+
+    public function test_configured_minimum_dp_still_blocks_a_payment_below_that_threshold(): void
+    {
+        $invoice = $this->createInvoice(paymentStatus: Invoice::PAYMENT_UNPAID);
+        $invoice->forceFill(['dp_required_percent' => 50])->save();
+        $invoice->payments()->create([
+            'payment_number' => 'PAY-DP-THRESHOLD-0001',
+            'payment_date' => now()->toDateString(),
+            'method' => Payment::METHOD_TRANSFER_BCA,
+            'amount' => 200000,
+            'status' => Payment::STATUS_VERIFIED,
+            'currency' => 'IDR',
+            'verified_at' => now(),
+        ]);
+
+        $this->actingAs(User::factory()->create())
+            ->patchJson($this->updateUrl($invoice), [
+                'production_status' => Invoice::PRODUCTION_IN_PRODUCTION,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('production_status');
+
+        $this->assertSame(Invoice::PRODUCTION_DRAFT, $invoice->refresh()->production_status);
     }
 
     public function test_paid_invoice_can_be_marked_completed(): void
@@ -206,7 +230,7 @@ class InvoiceProductionStatusApiTest extends TestCase
             'currency' => 'IDR',
             'subtotal' => 1000000,
             'total_amount' => 1000000,
-            'dp_required_percent' => 50,
+            'dp_required_percent' => 0,
         ]);
     }
 

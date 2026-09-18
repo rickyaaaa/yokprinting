@@ -77,7 +77,7 @@ class InvoiceModelTest extends TestCase
         $this->assertSame(Invoice::SHIPPING_NONE, $invoice->shipping_type);
         $this->assertSame(Invoice::ORDER_PROCESS_DRAFT, $invoice->order_process_status);
         $this->assertSame('Drafting', $invoice->productionStatusLabel());
-        $this->assertSame(11204062.5, $invoice->requiredDpAmount());
+        $this->assertSame(0.0, $invoice->requiredDpAmount());
         $this->assertSame('21250000.00', $invoice->subtotal);
         $this->assertSame(['source' => 'invoice-form'], $invoice->metadata);
         $this->assertTrue($invoice->issue_date->isSameDay('2026-07-23'));

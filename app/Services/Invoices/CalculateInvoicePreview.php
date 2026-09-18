@@ -62,7 +62,7 @@ class CalculateInvoicePreview
                 ];
             })
             ->all();
-        $dpRequiredPercent = round((float) ($preview['dp_required_percent'] ?? 50), 2);
+        $dpRequiredPercent = round((float) ($preview['dp_required_percent'] ?? 0), 2);
         $dpAmount = round($totals['total_amount'] * $dpRequiredPercent / 100, 2, PHP_ROUND_HALF_UP);
         $remainingAmount = round(max(0, $totals['total_amount'] - $dpAmount), 2, PHP_ROUND_HALF_UP);
 

@@ -78,7 +78,7 @@ class Invoice extends Model
         'order_process_status' => self::ORDER_PROCESS_DRAFT,
         'total_hpp' => 0,
         'gross_profit' => 0,
-        'dp_required_percent' => 50,
+        'dp_required_percent' => 0,
         'template' => 'default',
     ];
 
@@ -352,7 +352,7 @@ class Invoice extends Model
     }
 
     /**
-     * Calculate the minimum DP required for print production.
+     * Calculate the optional minimum DP configured for print production.
      */
     public function requiredDpAmount(): float
     {

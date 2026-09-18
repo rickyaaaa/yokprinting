@@ -236,7 +236,7 @@
                                     <dt class="font-semibold text-ink">Total tagihan</dt>
                                     <dd class="text-xl font-bold tracking-[-0.025em] text-brand-800" x-text="formatCurrency(preview.total_amount)">Rp0</dd>
                                 </div>
-                                <div class="flex justify-between gap-6 rounded-lg bg-brand-50 px-3 py-2">
+                                <div x-show="preview.dp_amount > 0" class="flex justify-between gap-6 rounded-lg bg-brand-50 px-3 py-2">
                                     <dt class="font-semibold text-brand-900">Minimal DP <span x-text="`${preview.dp_required_percent}%`">0%</span></dt>
                                     <dd class="font-bold text-brand-900" x-text="formatCurrency(preview.dp_amount)">Rp0</dd>
                                 </div>
@@ -290,7 +290,7 @@
                             <div class="mt-3">
                                 <p class="text-xs font-semibold text-ink">Catatan untuk pelanggan</p>
                                 <p class="mt-1 whitespace-pre-line text-sm leading-6 text-muted" x-text="preview.notes">
-                                    Produksi berjalan setelah DP minimal 50% diterima dan mockup/desain sudah di-ACC. Pelunasan dilakukan sebelum barang dikirim atau diambil.
+                                    Produksi berjalan setelah pembayaran awal diterima dan mockup/desain sudah di-ACC. Pelunasan dilakukan sebelum barang dikirim atau diambil.
                                 </p>
                             </div>
 

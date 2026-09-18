@@ -149,7 +149,9 @@
                         <tr><td>{{ ($order['is_free_shipping'] ?? false) ? 'Free ongkir' : 'Ongkir' }}</td><td>{{ $money($order['shipping_cost']) }}</td></tr>
                     @endif
                     <tr class="grand"><td>Total</td><td>{{ $money($order['total_amount']) }}</td></tr>
-                    <tr class="dp"><td>Minimal DP {{ $percent($order['dp_required_percent'] ?? 0) }}%</td><td>{{ $money($order['dp_amount'] ?? 0) }}</td></tr>
+                    @if ((float) ($order['dp_amount'] ?? 0) > 0)
+                        <tr class="dp"><td>Minimal DP {{ $percent($order['dp_required_percent'] ?? 0) }}%</td><td>{{ $money($order['dp_amount'] ?? 0) }}</td></tr>
+                    @endif
                     <tr><td>Uang muka tercatat</td><td>{{ $money($order['paid_amount']) }}</td></tr>
                     <tr><td>Total piutang</td><td>{{ $money($order['remaining_amount']) }}</td></tr>
                 </table>

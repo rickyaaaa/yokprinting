@@ -154,6 +154,8 @@ const buildInvoiceDraftPayload = (form) => {
     const productFields = explicitProductFields.length > 0
         ? explicitProductFields
         : [...form.querySelectorAll('select[name^="items"][name$="[product_id]"]')];
+    const dpField = form.querySelector('[name="dp_required_percent"]');
+    const dpValue = dpField?.value?.trim() ?? '';
 
     return {
         customer_id: Number(form.querySelector('[name="customer_id"]')?.value) || null,
@@ -195,7 +197,7 @@ const buildInvoiceDraftPayload = (form) => {
         is_free_shipping: form.querySelector('[name="is_free_shipping"]')?.checked ?? false,
         order_process_status: form.querySelector('[name="order_process_status"]')?.value ?? 'draft',
         design_notes: form.querySelector('[name="design_notes"]')?.value ?? '',
-        dp_required_percent: Number(form.querySelector('[name="dp_required_percent"]')?.value) || 50,
+        dp_required_percent: dpValue === '' ? null : Number(dpValue),
     };
 };
 
@@ -286,8 +288,8 @@ const buildInvoicePreviewSnapshot = (payload) => {
         // note all the way to the document. Without it in the snapshot the
         // draft PDF printed no design note while the saved invoice printed one.
         design_notes: payload.design_notes || '',
-        notes: payload.notes || 'Produksi berjalan setelah DP minimal diterima dan mockup/desain sudah di-ACC. Pelunasan dilakukan sebelum barang dikirim atau diambil.',
-        terms: payload.terms || 'Minimal DP sebelum produksi. Pelunasan dilakukan sebelum barang dikirim atau diambil.',
+        notes: payload.notes || 'Produksi berjalan setelah pembayaran awal diterima dan mockup/desain sudah di-ACC. Pelunasan dilakukan sebelum barang dikirim atau diambil.',
+        terms: payload.terms || 'Pembayaran awal sebelum produksi. Pelunasan dilakukan sebelum barang dikirim atau diambil.',
     };
 };
 

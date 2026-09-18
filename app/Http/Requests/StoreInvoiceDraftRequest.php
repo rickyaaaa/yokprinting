@@ -87,7 +87,7 @@ class StoreInvoiceDraftRequest extends FormRequest
             ])],
             'design_notes' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'mockup_url' => ['sometimes', 'nullable', 'url', 'max:255'],
-            'dp_required_percent' => ['sometimes', 'numeric', 'between:0,100'],
+            'dp_required_percent' => ['sometimes', 'nullable', 'numeric', 'between:0,100'],
             'template' => ['sometimes', 'string', 'max:50'],
             'theme_color' => ['sometimes', 'nullable', 'string', 'max:20'],
         ];

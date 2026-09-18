@@ -30,17 +30,23 @@ class UpdateInvoiceProductionStatus
                 ]);
             }
 
+            $requiresPayment = in_array($productionStatus, [
+                Invoice::PRODUCTION_DESIGN_ACC,
+                Invoice::PRODUCTION_IN_PRODUCTION,
+                Invoice::PRODUCTION_READY_FOR_PICKUP,
+                Invoice::PRODUCTION_COMPLETED,
+            ], true);
+            $paidAmount = $lockedInvoice->verifiedPaidAmount();
+            $requiredDpAmount = $lockedInvoice->requiredDpAmount();
+
             if (
-                in_array($productionStatus, [
-                    Invoice::PRODUCTION_DESIGN_ACC,
-                    Invoice::PRODUCTION_IN_PRODUCTION,
-                    Invoice::PRODUCTION_READY_FOR_PICKUP,
-                    Invoice::PRODUCTION_COMPLETED,
-                ], true)
-                && $lockedInvoice->verifiedPaidAmount() < $lockedInvoice->requiredDpAmount()
+                $requiresPayment
+                && ($paidAmount <= 0 || ($requiredDpAmount > 0 && $paidAmount < $requiredDpAmount))
             ) {
                 throw ValidationException::withMessages([
-                    'production_status' => 'Minimal DP harus diterima sebelum produksi atau pengiriman dapat dilanjutkan.',
+                    'production_status' => $requiredDpAmount > 0
+                        ? 'Minimal DP harus diterima sebelum produksi atau pengiriman dapat dilanjutkan.'
+                        : 'Minimal satu pembayaran terverifikasi harus dicatat sebelum produksi atau pengiriman dapat dilanjutkan.',
                 ]);
             }
 

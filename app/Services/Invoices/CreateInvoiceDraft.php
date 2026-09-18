@@ -63,7 +63,9 @@ class CreateInvoiceDraft
                 'total_hpp' => $totals['total_hpp'],
                 'gross_profit' => $totals['gross_profit'],
                 'production_status' => $data['production_status'] ?? Invoice::PRODUCTION_DRAFT,
-                'dp_required_percent' => $data['dp_required_percent'] ?? 50,
+                'dp_required_percent' => array_key_exists('dp_required_percent', $data)
+                    ? ($data['dp_required_percent'] ?? 0)
+                    : 0,
                 'notes' => $data['notes'] ?? null,
                 'terms' => $data['terms'] ?? null,
                 'design_notes' => $data['design_notes'] ?? null,
