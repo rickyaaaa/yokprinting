@@ -30,5 +30,6 @@ class CompanyProfileSettingsIntegrationTest extends TestCase
         $this->assertStringContainsString('companyProfilePayload', $script);
         $this->assertStringContainsString('themeDefaultPayload', $script);
         $this->assertStringContainsString('normalizeServerErrors', $script);
+        $this->assertStringContainsString("'X-CSRF-TOKEN'", $script);
     }
 }

@@ -3710,11 +3710,13 @@ Alpine.data('companyProfileSettings', (initialForm = {}) => ({
     async uploadCompanyLogo() {
         const formData = new FormData();
         formData.append('logo', this.logoFile);
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
 
         const response = await fetch('/api/company-profile/logo', {
             method: 'POST',
             headers: {
                 Accept: 'application/json',
+                ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
             },
             body: formData,
             credentials: 'same-origin',
@@ -3733,11 +3735,14 @@ Alpine.data('companyProfileSettings', (initialForm = {}) => ({
     },
 
     async requestJson(url, options = {}) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+
         const response = await fetch(url, {
             ...options,
             headers: {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
+                ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
                 ...(options.headers ?? {}),
             },
             credentials: 'same-origin',
