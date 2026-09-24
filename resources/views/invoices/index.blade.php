@@ -16,6 +16,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="csrf-token" content="{{ csrf_token() }}">
         <meta name="description" content="Daftar invoice YokPrinting.ID">
 
         <title>Daftar Invoice - YokPrinting.ID</title>
@@ -181,6 +182,25 @@
                                                 <a :href="`/payments/invoices/${invoice.number}`" class="font-semibold text-brand-700 hover:text-brand-900">Detail</a>
                                                 <template x-if="invoice.is_editable && {{ $can('invoice.update') ? 'true' : 'false' }}">
                                                     <a :href="`/invoices/${invoice.number}/edit`" class="ml-3 font-semibold text-ink hover:text-brand-900">Edit</a>
+                                                </template>
+                                                <template x-if="invoice.can_be_cancelled && {{ $can('invoice.update') ? 'true' : 'false' }}">
+                                                    <span
+                                                        class="relative ml-3 inline-block"
+                                                        x-data="cancelOrderAction"
+                                                        :data-endpoint="`/api/invoices/${invoice.number}/cancel`"
+                                                        data-action-label="hapus invoice"
+                                                    >
+                                                        <button
+                                                            type="button"
+                                                            class="font-semibold text-red-700 hover:text-red-900 disabled:cursor-wait disabled:opacity-60"
+                                                            :disabled="cancelling"
+                                                            :aria-busy="cancelling"
+                                                            @click="cancel()"
+                                                        >
+                                                            <span x-text="cancelling ? 'Menghapus...' : 'Hapus'"></span>
+                                                        </button>
+                                                        <p x-cloak x-show="message" x-text="message" class="absolute right-0 top-full z-10 mt-2 w-64 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-left text-xs text-red-900 shadow-sm" role="alert"></p>
+                                                    </span>
                                                 </template>
                                             </td>
                                         </tr>

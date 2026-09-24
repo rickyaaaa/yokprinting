@@ -189,18 +189,16 @@ class Invoice extends Model
     /**
      * Determine whether the invoice's items/header can still be edited.
      *
-     * Deliberately NOT limited to draft: the owner needs to correct a real
-     * order (wrong item/qty/price) at any point in its lifecycle - sent,
-     * awaiting DP, in production, ready for pickup, even completed. Only
-     * `cancelled` is a hard block (a closed order has nothing left to
-     * correct). UpdateInvoiceDraft still refuses an edit that would make
-     * the invoice financially invalid (new total below what's already been
-     * verified as paid) - that's a data-integrity guard on the write path,
-     * not an eligibility rule, so it's not encoded here.
+     * An invoice remains editable through its unpaid workflow, including
+     * after issuance and while production is running. Once a verified DP
+     * exists (`partial`) or the invoice is fully settled (`paid`), the
+     * financial record is locked so its history cannot be rewritten.
      */
     public function isEditable(): bool
     {
-        return $this->status !== self::STATUS_CANCELLED;
+        return $this->status !== self::STATUS_CANCELLED
+            && ! $this->hasRecordedPayment()
+            && ! $this->hasAnyPayment();
     }
 
     /**
@@ -210,7 +208,33 @@ class Invoice extends Model
     {
         return $this->status !== self::STATUS_CANCELLED
             && $this->production_status !== self::PRODUCTION_COMPLETED
-            && ! $this->payments()->exists();
+            && ! $this->hasRecordedPayment()
+            && ! $this->hasAnyPayment();
+    }
+
+    /**
+     * Whether payment progress makes this invoice financially immutable.
+     */
+    public function hasRecordedPayment(): bool
+    {
+        return in_array($this->payment_status, [self::PAYMENT_PARTIAL, self::PAYMENT_PAID], true);
+    }
+
+    /**
+     * Whether any payment row exists, using eager-loaded/count data when it
+     * is already available so invoice lists do not issue one query per row.
+     */
+    public function hasAnyPayment(): bool
+    {
+        if ($this->relationLoaded('payments')) {
+            return $this->payments->isNotEmpty();
+        }
+
+        if (array_key_exists('payments_count', $this->getAttributes())) {
+            return (int) $this->payments_count > 0;
+        }
+
+        return $this->payments()->exists();
     }
 
     /**
