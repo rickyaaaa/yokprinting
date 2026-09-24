@@ -60,6 +60,7 @@ class InvoiceIndexPageController extends Controller
                 'order_tone' => $orderTone,
                 'is_editable' => $invoice->isEditable(),
                 'can_be_cancelled' => $invoice->canBeCancelled(),
+                'has_payment' => $invoice->hasAnyPayment(),
                 // Drives the muted/struck-through row styling, so a cancelled
                 // invoice is obvious at a glance and not only from reading its
                 // two status badges.

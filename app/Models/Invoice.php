@@ -207,9 +207,7 @@ class Invoice extends Model
     public function canBeCancelled(): bool
     {
         return $this->status !== self::STATUS_CANCELLED
-            && $this->production_status !== self::PRODUCTION_COMPLETED
-            && ! $this->hasRecordedPayment()
-            && ! $this->hasAnyPayment();
+            && $this->production_status !== self::PRODUCTION_COMPLETED;
     }
 
     /**

@@ -13,7 +13,7 @@ class InvoiceListActionLockTest extends TestCase
     use ActsAsOwner;
     use RefreshDatabase;
 
-    public function test_invoice_list_only_exposes_edit_and_delete_for_unpaid_invoices(): void
+    public function test_invoice_list_locks_edit_but_keeps_cancellation_available_after_payment(): void
     {
         $customer = Customer::query()->create(['name' => 'PT Invoice Action Lock']);
 
@@ -27,11 +27,11 @@ class InvoiceListActionLockTest extends TestCase
         $this->assertTrue($rows[$unpaid->invoice_number]['is_editable']);
         $this->assertTrue($rows[$unpaid->invoice_number]['can_be_cancelled']);
         $this->assertFalse($rows[$partial->invoice_number]['is_editable']);
-        $this->assertFalse($rows[$partial->invoice_number]['can_be_cancelled']);
+        $this->assertTrue($rows[$partial->invoice_number]['can_be_cancelled']);
         $this->assertFalse($rows[$paid->invoice_number]['is_editable']);
-        $this->assertFalse($rows[$paid->invoice_number]['can_be_cancelled']);
+        $this->assertTrue($rows[$paid->invoice_number]['can_be_cancelled']);
         $response->assertSee('name="csrf-token"', false);
-        $response->assertSee('data-action-label="hapus invoice"', false);
+        $response->assertSee('data-action-label="batalkan invoice"', false);
     }
 
     private function invoice(Customer $customer, string $number, string $paymentStatus): Invoice

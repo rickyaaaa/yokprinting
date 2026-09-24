@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\CashBank\CashBankService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -73,7 +74,7 @@ class CancelInvoiceApiTest extends TestCase
             ->assertJsonValidationErrors('status');
     }
 
-    public function test_invoice_with_a_payment_cannot_be_cancelled(): void
+    public function test_invoice_with_a_payment_can_be_cancelled(): void
     {
         $invoice = $this->createInvoice();
         Payment::query()->create([
@@ -87,36 +88,60 @@ class CancelInvoiceApiTest extends TestCase
         $this->actingAs(User::factory()->create(['role' => User::ROLE_OWNER]));
 
         $this->postJson(route('api.invoices.cancel.store', ['invoice' => $invoice->invoice_number]))
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('status');
+            ->assertOk()
+            ->assertJsonPath('data.status', Invoice::STATUS_CANCELLED);
 
-        $this->assertSame(Invoice::STATUS_SENT, $invoice->refresh()->status);
+        $this->assertSame(Invoice::STATUS_CANCELLED, $invoice->refresh()->status);
     }
 
-    public function test_partial_invoice_cannot_be_deleted_even_if_payment_rows_are_missing(): void
+    public function test_cancelling_invoice_reverses_its_cash_bank_payment(): void
+    {
+        $invoice = $this->createInvoice();
+        $payment = Payment::query()->create([
+            'invoice_id' => $invoice->id,
+            'payment_number' => 'PAY-20260725-0002',
+            'payment_date' => '2026-07-25',
+            'method' => Payment::METHOD_CASH,
+            'amount' => 1000000,
+            'status' => Payment::STATUS_VERIFIED,
+        ]);
+        app(CashBankService::class)->recordPayment($payment);
+        $this->actingAs(User::factory()->create(['role' => User::ROLE_OWNER]));
+
+        $this->postJson(route('api.invoices.cancel.store', ['invoice' => $invoice->invoice_number]))
+            ->assertOk();
+
+        $this->assertDatabaseHas('cash_bank_transactions', [
+            'source_type' => 'payment',
+            'source_id' => $payment->id,
+            'status' => 'cancelled',
+        ]);
+    }
+
+    public function test_partial_invoice_can_be_cancelled_even_if_payment_rows_are_missing(): void
     {
         $invoice = $this->createInvoice();
         $invoice->forceFill(['payment_status' => Invoice::PAYMENT_PARTIAL])->save();
         $this->actingAs(User::factory()->create(['role' => User::ROLE_OWNER]));
 
         $this->postJson(route('api.invoices.cancel.store', ['invoice' => $invoice->invoice_number]))
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('status');
+            ->assertOk()
+            ->assertJsonPath('data.status', Invoice::STATUS_CANCELLED);
 
-        $this->assertSame(Invoice::STATUS_SENT, $invoice->refresh()->status);
+        $this->assertSame(Invoice::STATUS_CANCELLED, $invoice->refresh()->status);
     }
 
-    public function test_paid_invoice_cannot_be_deleted(): void
+    public function test_paid_invoice_can_be_cancelled(): void
     {
         $invoice = $this->createInvoice();
         $invoice->forceFill(['payment_status' => Invoice::PAYMENT_PAID])->save();
         $this->actingAs(User::factory()->create(['role' => User::ROLE_OWNER]));
 
         $this->postJson(route('api.invoices.cancel.store', ['invoice' => $invoice->invoice_number]))
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('status');
+            ->assertOk()
+            ->assertJsonPath('data.status', Invoice::STATUS_CANCELLED);
 
-        $this->assertSame(Invoice::STATUS_SENT, $invoice->refresh()->status);
+        $this->assertSame(Invoice::STATUS_CANCELLED, $invoice->refresh()->status);
     }
 
     public function test_invoice_with_completed_production_cannot_be_cancelled(): void
