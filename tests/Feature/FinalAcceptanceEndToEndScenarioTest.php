@@ -17,7 +17,7 @@ use Tests\TestCase;
 /**
  * PHASE 6 - final acceptance scenario from the client brief, end to end
  * through the real HTTP API (purchase order -> goods receipt -> invoice ->
- * production -> DP -> edit -> reports), covering all 5 phases together.
+ * unpaid edit -> DP -> production -> reports), covering all 5 phases together.
  *
  * DP-before-production is an existing, deliberately-preserved business rule
  * (UpdateInvoiceProductionStatus: advancing past awaiting_dp requires
@@ -64,32 +64,8 @@ class FinalAcceptanceEndToEndScenarioTest extends TestCase
 
         $invoice->forceFill(['status' => Invoice::STATUS_SENT, 'sent_at' => now()])->save();
 
-        // 3. Catat DP Rp150.000 dan verify (exactly the 50% default DP
-        // requirement for a 300k invoice, so production can advance next).
-        $this->postJson(route('api.invoices.payments.store', $invoice->invoice_number), [
-            'payment_date' => now()->toDateString(),
-            'method' => 'transfer_bca',
-            'amount' => 150000,
-        ])->assertCreated()->assertJsonPath('data.invoice_payment_status', Invoice::PAYMENT_PARTIAL);
-
-        // 2. Invoice masuk produksi.
-        $this->patchJson(route('api.invoices.production-status.update', $invoice->invoice_number), [
-            'production_status' => Invoice::PRODUCTION_IN_PRODUCTION,
-        ])->assertOk();
-
-        $invoice->refresh();
-
-        // 4. Status pembayaran menjadi PARSIAL.
-        $this->assertSame(Invoice::PAYMENT_PARTIAL, $invoice->payment_status);
-        // 5. Outstanding = Rp150.000.
-        $this->assertSame(150000.0, $invoice->remainingAmount());
-        // 6. Invoice masuk Total Piutang.
-        $this->assertTrue(Invoice::query()->receivable()->whereKey($invoice->getKey())->exists());
-
-        // 7-8. Edit invoice saat in-production, total berubah ke Rp350.000
-        // (harga per unit naik, qty tetap 10 pcs supaya FIFO tetap
-        // mengonsumsi batch yang sama - membuktikan restore+reconsume tidak
-        // merusak apa pun, bukan mengubah skenario FIFO-nya).
+        // 2. While still unpaid, edit the invoice to Rp350.000. This remains
+        // allowed and keeps its issuance/FIFO state intact.
         $this->patchJson(route('api.invoices.update', $invoice), [
             'customer_id' => $customer->id,
             'issue_date' => $invoice->issue_date->toDateString(),
@@ -104,12 +80,50 @@ class FinalAcceptanceEndToEndScenarioTest extends TestCase
 
         $invoice->refresh();
 
-        // 9. Verified paid tetap Rp150.000.
-        $this->assertSame(150000.0, $invoice->verifiedPaidAmount());
-        // 10. Payment status tetap PARSIAL (bukan reset ke unpaid/draft).
+        // 3. Catat DP Rp175.000 dan verify (exactly the 50% default DP
+        // requirement for a 350k invoice, so production can advance next).
+        $this->postJson(route('api.invoices.payments.store', $invoice->invoice_number), [
+            'payment_date' => now()->toDateString(),
+            'method' => 'transfer_bca',
+            'amount' => 175000,
+        ])->assertCreated()->assertJsonPath('data.invoice_payment_status', Invoice::PAYMENT_PARTIAL);
+
+        // 4. Invoice masuk produksi.
+        $this->patchJson(route('api.invoices.production-status.update', $invoice->invoice_number), [
+            'production_status' => Invoice::PRODUCTION_IN_PRODUCTION,
+        ])->assertOk();
+
+        $invoice->refresh();
+
+        // 5. Status pembayaran menjadi PARSIAL.
         $this->assertSame(Invoice::PAYMENT_PARTIAL, $invoice->payment_status);
-        // 11. Outstanding berubah menjadi Rp200.000.
-        $this->assertSame(200000.0, $invoice->remainingAmount());
+        // 6. Outstanding = Rp175.000.
+        $this->assertSame(175000.0, $invoice->remainingAmount());
+        // 7. Invoice masuk Total Piutang.
+        $this->assertTrue(Invoice::query()->receivable()->whereKey($invoice->getKey())->exists());
+
+        // 8. Once partial, a second edit is rejected even while production is
+        // running. The financial and inventory values must remain unchanged.
+        $this->patchJson(route('api.invoices.update', $invoice), [
+            'customer_id' => $customer->id,
+            'issue_date' => $invoice->issue_date->toDateString(),
+            'due_date' => $invoice->due_date->toDateString(),
+            'items' => [['product_id' => $product->id, 'quantity' => 10, 'price' => 40000]],
+            'discount' => ['type' => 'percentage', 'value' => 0],
+            'tax' => ['enabled' => false, 'rate' => 0],
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
+
+        $invoice->refresh();
+
+        // 9. Verified paid tetap Rp175.000.
+        $this->assertSame(175000.0, $invoice->verifiedPaidAmount());
+        // 10. Payment status tetap PARSIAL.
+        $this->assertSame(Invoice::PAYMENT_PARTIAL, $invoice->payment_status);
+        // 11. Outstanding dan total tidak berubah akibat edit yang ditolak.
+        $this->assertSame(175000.0, $invoice->remainingAmount());
+        $this->assertSame('350000.00', (string) $invoice->total_amount);
         // status tetap sent, tidak pernah kembali draft.
         $this->assertSame(Invoice::STATUS_SENT, $invoice->status);
 
@@ -123,7 +137,7 @@ class FinalAcceptanceEndToEndScenarioTest extends TestCase
             'FIFO batch harus tetap rekonsiliasi dengan stok produk',
         );
 
-        // 13. Production status tidak reset oleh edit.
+        // 13. Production status tidak reset oleh edit yang ditolak.
         $this->assertSame(Invoice::PRODUCTION_IN_PRODUCTION, $invoice->production_status);
 
         // 14. Detail invoice menampilkan ongkir jika ada - di skenario ini
@@ -138,7 +152,7 @@ class FinalAcceptanceEndToEndScenarioTest extends TestCase
         // 15. Semua laporan terkait membaca nilai terbaru dengan benar.
         $this->assertTrue(Invoice::query()->finalized()->whereKey($invoice->getKey())->exists());
         $this->get(route('invoices.index'))->assertOk()->assertSee('Rp350.000');
-        $this->get(route('payments.receivables.index'))->assertOk()->assertSee('Rp200.000');
+        $this->get(route('payments.receivables.index'))->assertOk()->assertSee('Rp175.000');
         $this->get(route('customers.show', $customer))->assertOk()->assertSee('Rp350.000');
     }
 

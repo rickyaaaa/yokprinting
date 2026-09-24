@@ -41,9 +41,15 @@ class CancelInvoice
                 ]);
             }
 
+            if ($lockedInvoice->hasRecordedPayment()) {
+                throw ValidationException::withMessages([
+                    'status' => 'Invoice yang sudah dibayar sebagian atau lunas tidak bisa dihapus.',
+                ]);
+            }
+
             if ($lockedInvoice->payments()->exists()) {
                 throw ValidationException::withMessages([
-                    'status' => 'Invoice ini sudah punya pembayaran tercatat. Hapus atau batalkan pembayarannya terlebih dahulu sebelum membatalkan order.',
+                    'status' => 'Invoice ini memiliki pembayaran tercatat dan tidak bisa dihapus.',
                 ]);
             }
 

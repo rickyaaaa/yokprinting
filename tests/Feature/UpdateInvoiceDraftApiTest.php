@@ -77,9 +77,8 @@ class UpdateInvoiceDraftApiTest extends TestCase
 
     public function test_sent_invoice_can_be_updated_and_stays_sent(): void
     {
-        // Client requirement: an invoice stays editable after being sent -
-        // only `cancelled` blocks it. See Invoice::isEditable() and the
-        // dedicated coverage in EditInvoiceAfterIssuanceTest.
+        // An unpaid invoice stays editable after being sent. Partial and paid
+        // invoices are covered by EditInvoiceAfterIssuanceTest.
         $customer = $this->createCustomer();
         $product = $this->createProduct('Paket A', 'PKG-A');
         $invoice = $this->createInvoiceDraft($customer, $product, quantity: 1, price: 1000000);

@@ -869,11 +869,13 @@ Alpine.data('productionStatusForm', () => ({
 
 Alpine.data('cancelOrderAction', () => ({
     endpoint: '',
+    actionLabel: 'batalkan order',
     cancelling: false,
     message: '',
 
     init() {
         this.endpoint = this.$el.dataset.endpoint;
+        this.actionLabel = this.$el.dataset.actionLabel ?? this.actionLabel;
     },
 
     async cancel() {
@@ -881,7 +883,7 @@ Alpine.data('cancelOrderAction', () => ({
             return;
         }
 
-        if (!window.confirm('Yakin batalkan order ini? Order yang sudah dibatalkan tidak bisa dikembalikan lagi.')) {
+        if (!window.confirm(`Yakin ${this.actionLabel} ini? Order yang sudah dibatalkan tidak bisa dikembalikan lagi.`)) {
             return;
         }
 

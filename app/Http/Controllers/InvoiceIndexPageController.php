@@ -12,6 +12,7 @@ class InvoiceIndexPageController extends Controller
     {
         $invoices = Invoice::query()
             ->with('customer')
+            ->withCount('payments')
             ->withSum(['payments as verified_paid_amount' => fn ($query) => $query->verified()], 'amount')
             ->when($request->filled('date_from'), fn ($query) => $query->whereDate('issue_date', '>=', $request->date_from))
             ->when($request->filled('date_to'), fn ($query) => $query->whereDate('issue_date', '<=', $request->date_to))
@@ -58,6 +59,7 @@ class InvoiceIndexPageController extends Controller
                 'order_status' => $orderStatus,
                 'order_tone' => $orderTone,
                 'is_editable' => $invoice->isEditable(),
+                'can_be_cancelled' => $invoice->canBeCancelled(),
                 // Drives the muted/struck-through row styling, so a cancelled
                 // invoice is obvious at a glance and not only from reading its
                 // two status badges.

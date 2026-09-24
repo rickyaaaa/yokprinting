@@ -93,6 +93,32 @@ class CancelInvoiceApiTest extends TestCase
         $this->assertSame(Invoice::STATUS_SENT, $invoice->refresh()->status);
     }
 
+    public function test_partial_invoice_cannot_be_deleted_even_if_payment_rows_are_missing(): void
+    {
+        $invoice = $this->createInvoice();
+        $invoice->forceFill(['payment_status' => Invoice::PAYMENT_PARTIAL])->save();
+        $this->actingAs(User::factory()->create(['role' => User::ROLE_OWNER]));
+
+        $this->postJson(route('api.invoices.cancel.store', ['invoice' => $invoice->invoice_number]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
+
+        $this->assertSame(Invoice::STATUS_SENT, $invoice->refresh()->status);
+    }
+
+    public function test_paid_invoice_cannot_be_deleted(): void
+    {
+        $invoice = $this->createInvoice();
+        $invoice->forceFill(['payment_status' => Invoice::PAYMENT_PAID])->save();
+        $this->actingAs(User::factory()->create(['role' => User::ROLE_OWNER]));
+
+        $this->postJson(route('api.invoices.cancel.store', ['invoice' => $invoice->invoice_number]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
+
+        $this->assertSame(Invoice::STATUS_SENT, $invoice->refresh()->status);
+    }
+
     public function test_invoice_with_completed_production_cannot_be_cancelled(): void
     {
         $invoice = $this->createInvoice();

@@ -20,9 +20,8 @@ use Tests\TestCase;
 
 /**
  * Client requirement: an invoice must stay editable through its whole
- * lifecycle (sent, awaiting DP, design ACC, in production, ready for
- * pickup) - only `cancelled`, or an edit that would make the invoice owe
- * less than what's already verified as paid, may block it. See
+ * lifecycle while unpaid (sent, awaiting DP, design ACC, in production,
+ * ready for pickup) - cancelled, partial, and paid invoices are locked. See
  * Invoice::isEditable() and UpdateInvoiceDraft.
  */
 class EditInvoiceAfterIssuanceTest extends TestCase
@@ -97,7 +96,7 @@ class EditInvoiceAfterIssuanceTest extends TestCase
         $this->assertSame(Invoice::PRODUCTION_READY_FOR_PICKUP, $invoice->production_status);
     }
 
-    public function test_completed_production_invoice_is_editable_when_financially_safe(): void
+    public function test_completed_production_paid_invoice_cannot_be_edited(): void
     {
         $customer = Customer::query()->create(['name' => 'PT Completed Edit']);
         $product = $this->product('DONE-EDIT-01');
@@ -109,11 +108,10 @@ class EditInvoiceAfterIssuanceTest extends TestCase
             'payment_status' => Invoice::PAYMENT_PAID,
         ])->save();
 
-        // Raising the total keeps it financially valid (0 verified paid here).
         $this->patchJson(
             route('api.invoices.update', $invoice),
             $this->payload($customer, $product, quantity: 10, price: 120000),
-        )->assertOk();
+        )->assertUnprocessable()->assertJsonValidationErrors('status');
 
         $this->assertSame(Invoice::PRODUCTION_COMPLETED, $invoice->refresh()->production_status);
     }
@@ -254,7 +252,7 @@ class EditInvoiceAfterIssuanceTest extends TestCase
         $this->assertDatabaseHas('invoice_items', ['invoice_id' => $invoice->id, 'product_id' => $productA->id]);
     }
 
-    public function test_invoice_with_verified_payment_can_be_edited_when_new_total_covers_the_paid_amount(): void
+    public function test_invoice_with_verified_partial_payment_cannot_be_edited(): void
     {
         $customer = Customer::query()->create(['name' => 'PT Sudah Bayar']);
         $product = $this->product('PAID-EDIT-01');
@@ -266,12 +264,12 @@ class EditInvoiceAfterIssuanceTest extends TestCase
             route('api.invoices.update', $invoice),
             $this->payload($customer, $product, quantity: 12, price: 100000), // new total 1.200.000
         )
-            ->assertOk()
-            ->assertJsonPath('data.subtotal', '1200000.00');
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
 
         $invoice->refresh();
         $this->assertSame(500000.0, $invoice->verifiedPaidAmount());
-        $this->assertSame(700000.0, $invoice->remainingAmount());
+        $this->assertSame(500000.0, $invoice->remainingAmount());
         $this->assertSame(Invoice::PAYMENT_PARTIAL, $invoice->payment_status);
     }
 
@@ -288,18 +286,14 @@ class EditInvoiceAfterIssuanceTest extends TestCase
             $this->payload($customer, $product, quantity: 4, price: 100000), // new total 400.000 < paid 500.000
         )
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('total_amount')
-            ->assertJsonPath(
-                'errors.total_amount.0',
-                'Total invoice baru tidak boleh lebih kecil dari pembayaran yang sudah diterima.',
-            );
+            ->assertJsonValidationErrors('status');
 
         $invoice->refresh();
         $this->assertSame('1000000.00', $invoice->subtotal, 'a rejected edit must not partially apply');
         $this->assertDatabaseCount('payments', 1);
     }
 
-    public function test_payment_status_becomes_paid_when_new_total_equals_verified_payment(): void
+    public function test_fully_paid_invoice_cannot_be_edited(): void
     {
         $customer = Customer::query()->create(['name' => 'PT Lunas Edit']);
         $product = $this->product('LUNAS-EDIT-01');
@@ -308,11 +302,10 @@ class EditInvoiceAfterIssuanceTest extends TestCase
         $this->verifiedPayment($invoice, 1000000);
         $this->assertSame(Invoice::PAYMENT_PAID, $invoice->refresh()->payment_status);
 
-        // Editing without changing the total must keep it paid, not regress to unpaid.
         $this->patchJson(
             route('api.invoices.update', $invoice),
             $this->payload($customer, $product, quantity: 10, price: 100000),
-        )->assertOk();
+        )->assertUnprocessable()->assertJsonValidationErrors('status');
 
         $invoice->refresh();
         $this->assertSame(Invoice::PAYMENT_PAID, $invoice->payment_status);
