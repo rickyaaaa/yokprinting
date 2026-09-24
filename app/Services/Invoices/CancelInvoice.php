@@ -4,7 +4,9 @@ namespace App\Services\Invoices;
 
 use App\Models\ActivityLog;
 use App\Models\Invoice;
+use App\Models\Payment;
 use App\Models\User;
+use App\Services\CashBank\CashBankService;
 use App\Services\Inventory\FifoInventoryService;
 use App\Services\Security\ActivityLogger;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +17,7 @@ class CancelInvoice
     public function __construct(
         private readonly ActivityLogger $activityLogger,
         private readonly FifoInventoryService $fifoInventory,
+        private readonly CashBankService $cashBank,
     ) {}
 
     /**
@@ -41,17 +44,12 @@ class CancelInvoice
                 ]);
             }
 
-            if ($lockedInvoice->hasRecordedPayment()) {
-                throw ValidationException::withMessages([
-                    'status' => 'Invoice yang sudah dibayar sebagian atau lunas tidak bisa dihapus.',
-                ]);
-            }
+            $payments = $lockedInvoice->payments()->get();
 
-            if ($lockedInvoice->payments()->exists()) {
-                throw ValidationException::withMessages([
-                    'status' => 'Invoice ini memiliki pembayaran tercatat dan tidak bisa dihapus.',
-                ]);
-            }
+            // Keep the payment/audit rows, but reverse their automatic Kas &
+            // Bank entries. This makes cancellation consistent across sales,
+            // receivables, customer statements, and cash reports.
+            $payments->each(fn (Payment $payment) => $this->cashBank->cancelPaymentTransaction($payment, $actor->getKey()));
 
             $this->fifoInventory->restoreInvoice($lockedInvoice, $actor->getKey());
 
@@ -73,6 +71,10 @@ class CancelInvoice
                 metadata: array_filter([
                     'before' => $previousStatus,
                     'reason' => $reason,
+                    'payment_count' => $payments->count(),
+                    'verified_payment_amount' => $payments
+                        ->where('status', Payment::STATUS_VERIFIED)
+                        ->sum(fn (Payment $payment): float => (float) $payment->amount),
                 ]),
                 riskLevel: ActivityLog::RISK_HIGH,
                 actor: $actor,

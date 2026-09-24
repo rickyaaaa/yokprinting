@@ -867,15 +867,17 @@ Alpine.data('productionStatusForm', () => ({
     },
 }));
 
-Alpine.data('cancelOrderAction', () => ({
-    endpoint: '',
+Alpine.data('cancelOrderAction', (options = {}) => ({
+    endpoint: options.endpoint ?? '',
     actionLabel: 'batalkan order',
+    hasPayment: options.hasPayment ?? false,
     cancelling: false,
     message: '',
 
     init() {
-        this.endpoint = this.$el.dataset.endpoint;
+        this.endpoint = this.endpoint || this.$el.dataset.endpoint;
         this.actionLabel = this.$el.dataset.actionLabel ?? this.actionLabel;
+        this.hasPayment = this.hasPayment || this.$el.dataset.hasPayment === 'true';
     },
 
     async cancel() {
@@ -883,7 +885,11 @@ Alpine.data('cancelOrderAction', () => ({
             return;
         }
 
-        if (!window.confirm(`Yakin ${this.actionLabel} ini? Order yang sudah dibatalkan tidak bisa dikembalikan lagi.`)) {
+        const paymentWarning = this.hasPayment
+            ? ' Pembayaran yang tercatat akan dibatalkan dari Kas & Bank.'
+            : '';
+
+        if (!window.confirm(`Yakin ${this.actionLabel} ini?${paymentWarning} Order yang sudah dibatalkan tidak bisa dikembalikan lagi.`)) {
             return;
         }
 

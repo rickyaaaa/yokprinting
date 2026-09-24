@@ -242,7 +242,13 @@
                                 </a>
                             @endunless
                             @if ($invoice['can_be_cancelled'])
-                                <div class="relative" x-data="cancelOrderAction" data-endpoint="{{ route('api.invoices.cancel.store', ['invoice' => $invoiceModel]) }}">
+                                <div
+                                    class="relative"
+                                    x-data="cancelOrderAction"
+                                    data-endpoint="{{ route('api.invoices.cancel.store', ['invoice' => $invoiceModel]) }}"
+                                    data-action-label="batalkan invoice"
+                                    data-has-payment="{{ $invoiceModel->hasAnyPayment() ? 'true' : 'false' }}"
+                                >
                                     <button
                                         type="button"
                                         class="btn btn-danger-outline disabled:cursor-wait"

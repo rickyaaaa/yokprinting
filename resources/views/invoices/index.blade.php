@@ -186,9 +186,8 @@
                                                 <template x-if="invoice.can_be_cancelled && {{ $can('invoice.update') ? 'true' : 'false' }}">
                                                     <span
                                                         class="relative ml-3 inline-block"
-                                                        x-data="cancelOrderAction"
-                                                        :data-endpoint="`/api/invoices/${invoice.number}/cancel`"
-                                                        data-action-label="hapus invoice"
+                                                        x-data="cancelOrderAction({ endpoint: '/api/invoices/' + invoice.number + '/cancel', hasPayment: invoice.has_payment })"
+                                                        data-action-label="batalkan invoice"
                                                     >
                                                         <button
                                                             type="button"
@@ -197,7 +196,7 @@
                                                             :aria-busy="cancelling"
                                                             @click="cancel()"
                                                         >
-                                                            <span x-text="cancelling ? 'Menghapus...' : 'Hapus'"></span>
+                                                            <span x-text="cancelling ? 'Membatalkan...' : 'Batalkan'"></span>
                                                         </button>
                                                         <p x-cloak x-show="message" x-text="message" class="absolute right-0 top-full z-10 mt-2 w-64 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-left text-xs text-red-900 shadow-sm" role="alert"></p>
                                                     </span>

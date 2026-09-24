@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\CashBankTransaction;
 use App\Models\Customer;
 use App\Models\GoodsReceipt;
 use App\Models\Invoice;
@@ -225,6 +226,19 @@ class DraftInvoiceReportVisibilityAcceptanceTest extends TestCase
         $invoice = Invoice::query()->findOrFail($created->json('data.id'));
         $period = ['date_from' => now()->startOfMonth()->toDateString(), 'date_to' => now()->endOfMonth()->toDateString()];
 
+        $this->postJson(route('api.invoices.payments.store', $invoice->invoice_number), [
+            'payment_date' => now()->toDateString(),
+            'method' => 'transfer_bca',
+            'amount' => 300000,
+        ])->assertCreated()->assertJsonPath('data.invoice_payment_status', Invoice::PAYMENT_PAID);
+
+        $payment = $invoice->payments()->firstOrFail();
+        $this->assertDatabaseHas('cash_bank_transactions', [
+            'source_type' => CashBankTransaction::SOURCE_PAYMENT,
+            'source_id' => $payment->id,
+            'status' => CashBankTransaction::STATUS_POSTED,
+        ]);
+
         $this->getJson(route('api.reports.sales.invoices.index', $period))
             ->assertOk()
             ->assertJsonPath('meta.total', 1);
@@ -235,6 +249,11 @@ class DraftInvoiceReportVisibilityAcceptanceTest extends TestCase
 
         $invoice->refresh();
         $this->assertSame(Invoice::STATUS_CANCELLED, $invoice->status);
+        $this->assertDatabaseHas('cash_bank_transactions', [
+            'source_type' => CashBankTransaction::SOURCE_PAYMENT,
+            'source_id' => $payment->id,
+            'status' => CashBankTransaction::STATUS_CANCELLED,
+        ]);
         // Cancelling restores the FIFO stock, so it must stop counting as a
         // sale everywhere too.
         $this->assertSame('20.0000', $product->refresh()->stock);
