@@ -114,8 +114,8 @@ class SalesReportInvoiceController extends Controller
             'due_date' => $invoice->due_date->toDateString(),
             'total_amount' => (float) $invoice->total_amount,
             'total_amount_formatted' => $this->formatRupiah((float) $invoice->total_amount),
-            'margin_percentage' => null,
-            'margin_label' => 'Belum tersedia',
+            'margin_percentage' => $invoice->grossMarginPercentage(),
+            'margin_label' => $invoice->grossMarginLabel(),
             'status' => $status,
             'status_label' => $this->statusLabel($status),
         ];

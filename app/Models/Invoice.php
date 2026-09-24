@@ -288,6 +288,67 @@ class Invoice extends Model
     }
 
     /**
+     * Scope invoices whose revenue and profit are recognized after full payment.
+     */
+    public function scopeRevenueRecognized(Builder $query): Builder
+    {
+        return $query
+            ->businessTransaction()
+            ->where($query->qualifyColumn('payment_status'), self::PAYMENT_PAID);
+    }
+
+    /**
+     * Scope recognized invoices by the date revenue was settled.
+     *
+     * Legacy paid invoices without paid_at fall back to issue_date so they
+     * remain visible in reports after the recognition rule is introduced.
+     */
+    public function scopeRecognizedBetween(Builder $query, string $dateFrom, string $dateToExclusive): Builder
+    {
+        $paidAt = $query->qualifyColumn('paid_at');
+        $issueDate = $query->qualifyColumn('issue_date');
+
+        return $query
+            ->revenueRecognized()
+            ->whereRaw("COALESCE({$paidAt}, {$issueDate}) >= ?", [$dateFrom])
+            ->whereRaw("COALESCE({$paidAt}, {$issueDate}) < ?", [$dateToExclusive]);
+    }
+
+    /**
+     * Revenue from products after the invoice discount, excluding tax and
+     * customer-billed shipping.
+     */
+    public function productRevenue(): float
+    {
+        return round((float) $this->subtotal - (float) $this->discount_amount, 2);
+    }
+
+    /**
+     * Gross margin is available once the invoice is fully paid.
+     */
+    public function grossMarginPercentage(): ?float
+    {
+        if ($this->payment_status !== self::PAYMENT_PAID) {
+            return null;
+        }
+
+        $revenue = $this->productRevenue();
+
+        return $revenue > 0
+            ? round(((float) $this->gross_profit / $revenue) * 100, 2)
+            : 0.0;
+    }
+
+    public function grossMarginLabel(): string
+    {
+        $margin = $this->grossMarginPercentage();
+
+        return $margin === null
+            ? 'Belum tersedia'
+            : number_format($margin, 2, ',', '.').'%';
+    }
+
+    /**
      * Scope invoices that have been formally delivered to the customer
      * (status=sent, set only by MarkInvoiceDelivered).
      *

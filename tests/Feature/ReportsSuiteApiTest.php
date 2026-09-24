@@ -90,6 +90,45 @@ class ReportsSuiteApiTest extends TestCase
             ->assertJsonPath('data.summary.gross_profit', 700000);
     }
 
+    public function test_gross_profit_report_waits_for_full_payment(): void
+    {
+        $customer = Customer::query()->create(['code' => 'CUS-010', 'name' => 'PT Tunggu Lunas']);
+        Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-GP-PAID',
+            'issue_date' => '2026-07-10',
+            'due_date' => '2026-07-24',
+            'paid_at' => '2026-07-15 10:00:00',
+            'status' => Invoice::STATUS_SENT,
+            'payment_status' => Invoice::PAYMENT_PAID,
+            'subtotal' => 1000000,
+            'total_hpp' => 600000,
+            'gross_profit' => 400000,
+            'total_amount' => 1000000,
+        ]);
+        Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-GP-PARTIAL',
+            'issue_date' => '2026-07-11',
+            'due_date' => '2026-07-25',
+            'status' => Invoice::STATUS_SENT,
+            'payment_status' => Invoice::PAYMENT_PARTIAL,
+            'subtotal' => 500000,
+            'total_hpp' => 200000,
+            'gross_profit' => 300000,
+            'total_amount' => 500000,
+        ]);
+
+        $this->getJson(route('api.reports.gross-profit.index', [
+            'date_from' => '2026-07-01',
+            'date_to' => '2026-07-31',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('data.summary.invoice_count', 1)
+            ->assertJsonPath('data.summary.revenue', 1000000)
+            ->assertJsonPath('data.summary.gross_profit', 400000);
+    }
+
     public function test_report_alias_endpoints_return_outstanding_inactive_low_stock_and_stock_mutation_data(): void
     {
         $customer = Customer::query()->create(['code' => 'CUS-002', 'name' => 'CV Lautan Rasa']);

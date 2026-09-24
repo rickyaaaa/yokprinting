@@ -100,6 +100,56 @@ class ListSalesReportInvoicesApiTest extends TestCase
             ->assertJsonPath('data.2.status_label', 'Overdue');
     }
 
+    public function test_sales_report_shows_margin_after_full_payment(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-07-23 12:00:00'));
+
+        $customer = $this->createCustomer('PT Margin Terbaca');
+        $product = $this->createProduct('MARGIN-01', 'Produk margin', 'Cetak premium');
+        $paid = $this->createInvoice(
+            customer: $customer,
+            invoiceNumber: 'INV-MARGIN-PAID',
+            issueDate: '2026-07-23',
+            dueDate: '2026-07-30',
+            totalAmount: 1000000,
+            paymentStatus: Invoice::PAYMENT_PAID,
+        );
+        $paid->forceFill([
+            'subtotal' => 1000000,
+            'total_hpp' => 600000,
+            'gross_profit' => 400000,
+            'paid_at' => '2026-07-23 10:00:00',
+        ])->save();
+        $this->createItem($paid, $product, 1000000);
+
+        $unpaid = $this->createInvoice(
+            customer: $customer,
+            invoiceNumber: 'INV-MARGIN-UNPAID',
+            issueDate: '2026-07-22',
+            dueDate: '2026-07-30',
+            totalAmount: 1000000,
+            paymentStatus: Invoice::PAYMENT_UNPAID,
+        );
+        $unpaid->forceFill([
+            'subtotal' => 1000000,
+            'total_hpp' => 600000,
+            'gross_profit' => 400000,
+        ])->save();
+        $this->createItem($unpaid, $product, 1000000);
+
+        $this->getJson(route('api.reports.sales.invoices.index', [
+            'date_from' => '2026-07-01',
+            'date_to' => '2026-07-31',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('data.0.invoice_number', 'INV-MARGIN-PAID')
+            ->assertJsonPath('data.0.margin_percentage', 40)
+            ->assertJsonPath('data.0.margin_label', '40,00%')
+            ->assertJsonPath('data.1.invoice_number', 'INV-MARGIN-UNPAID')
+            ->assertJsonPath('data.1.margin_percentage', null)
+            ->assertJsonPath('data.1.margin_label', 'Belum tersedia');
+    }
+
     public function test_active_draft_invoices_appear_in_the_sales_report(): void
     {
         // Client-confirmed rule: an invoice is a real transaction the moment

@@ -84,7 +84,7 @@ class SalesReportExportApiTest extends TestCase
         // (its regional list separator is ";", so without this the whole file
         // lands in column A), then the header row.
         $this->assertStringStartsWith("\u{FEFF}sep=,\r\nPelanggan,Email,Produk,Kategori,Invoice", $content);
-        $this->assertStringContainsString('"PT Sinar Nusantara",finance@sinarnusantara.co.id,"Paket desain brand refresh","Jasa desain",INV-2026-0084,2026-07-23,2026-07-30,18450000,"Belum tersedia",Lunas', $content);
+        $this->assertStringContainsString('"PT Sinar Nusantara",finance@sinarnusantara.co.id,"Paket desain brand refresh","Jasa desain",INV-2026-0084,2026-07-23,2026-07-30,18450000,"100,00%",Lunas', $content);
         $this->assertStringNotContainsString('INV-2026-0082', $content);
         $this->assertStringNotContainsString('INV-2026-0099', $content);
     }
@@ -203,7 +203,11 @@ class SalesReportExportApiTest extends TestCase
             'due_date' => $dueDate,
             'status' => $status,
             'payment_status' => $paymentStatus,
+            'paid_at' => $paymentStatus === Invoice::PAYMENT_PAID ? $issueDate.' 10:00:00' : null,
             'currency' => 'IDR',
+            'subtotal' => $totalAmount,
+            'total_hpp' => 0,
+            'gross_profit' => $totalAmount,
             'total_amount' => $totalAmount,
         ]);
     }

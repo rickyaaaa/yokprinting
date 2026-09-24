@@ -38,8 +38,8 @@ class CustomerSalesProfitReportTest extends TestCase
 
     public function test_active_draft_invoices_are_included_and_cancelled_are_excluded(): void
     {
-        // See Invoice::scopeBusinessTransaction() - an invoice is a real
-        // customer transaction the moment it exists, cancellation aside.
+        // A paid invoice is recognized regardless of workflow status;
+        // cancellation still excludes it.
         $customer = Customer::query()->create(['name' => 'PT Draft Pelanggan']);
         $this->invoice($customer, 'INV-SENT', 1000000, 400000, '2026-08-10');
         $this->invoice($customer, 'INV-DRAFT', 500000, 200000, '2026-08-11', Invoice::STATUS_DRAFT);
@@ -55,6 +55,27 @@ class CustomerSalesProfitReportTest extends TestCase
             ->assertJsonPath('data.summary.sales', 1500000)
             ->assertJsonPath('data.summary.fifo_hpp', 600000)
             ->assertJsonPath('data.summary.gross_profit', 900000);
+    }
+
+    public function test_unpaid_and_partial_invoices_are_excluded_from_profit_report(): void
+    {
+        $customer = Customer::query()->create(['name' => 'PT Menunggu Pembayaran']);
+        $this->invoice($customer, 'INV-PAID', 1000000, 400000, '2026-08-10');
+
+        $unpaid = $this->invoice($customer, 'INV-UNPAID', 2000000, 800000, '2026-08-11');
+        $unpaid->update(['payment_status' => Invoice::PAYMENT_UNPAID, 'paid_at' => null]);
+        $partial = $this->invoice($customer, 'INV-PARTIAL', 3000000, 1200000, '2026-08-12');
+        $partial->update(['payment_status' => Invoice::PAYMENT_PARTIAL, 'paid_at' => null]);
+
+        $this->getJson(route('api.reports.customer-sales.index', [
+            'date_from' => '2026-08-01',
+            'date_to' => '2026-08-31',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('data.summary.invoice_count', 1)
+            ->assertJsonPath('data.summary.sales', 1000000)
+            ->assertJsonPath('data.summary.fifo_hpp', 400000)
+            ->assertJsonPath('data.summary.gross_profit', 600000);
     }
 
     public function test_invoices_within_a_customer_default_to_newest_first_with_a_deterministic_tiebreak(): void
@@ -236,7 +257,8 @@ class CustomerSalesProfitReportTest extends TestCase
             'issue_date' => $date,
             'due_date' => $date,
             'status' => $status,
-            'payment_status' => Invoice::PAYMENT_UNPAID,
+            'payment_status' => Invoice::PAYMENT_PAID,
+            'paid_at' => $date.' 10:00:00',
             'subtotal' => $sales,
             'total_amount' => $sales,
             'total_hpp' => $hpp,

@@ -101,10 +101,8 @@ class ProfitLossReportTest extends TestCase
 
     public function test_active_drafts_enter_revenue_but_cancelled_invoices_do_not(): void
     {
-        // Client-confirmed rule: an invoice is a real transaction the moment
-        // it exists (stock is deducted then too) - "kirim via WhatsApp"
-        // (status=sent) is not the revenue gate. Only cancellation removes it.
-        // See Invoice::scopeBusinessTransaction().
+        // Workflow status does not block recognition after the invoice is
+        // fully paid. Cancellation still excludes the invoice.
         $customer = Customer::query()->create(['code' => 'CUS-PL-STATUS', 'name' => 'Status Test']);
         $this->invoice($customer, 'INV-SENT', '2027-03-15', 1000, 400, 0, Invoice::SHIPPING_NONE, 10);
         $this->invoice($customer, 'INV-DRAFT-ONLY', '2027-03-15', 2000, 800, 0, Invoice::SHIPPING_NONE, 20, Invoice::STATUS_DRAFT);
@@ -117,6 +115,57 @@ class ProfitLossReportTest extends TestCase
         $this->assertSame(1200.0, $summary['total_hpp']);
         $this->assertSame(30.0, $summary['sales_quantity']);
         $this->assertSame(2, $summary['invoice_count']);
+    }
+
+    public function test_unpaid_and_partial_invoices_are_excluded_until_full_payment(): void
+    {
+        $customer = Customer::query()->create(['name' => 'PT Pengakuan Pembayaran']);
+        $this->invoice(
+            $customer,
+            'INV-PAID-PERIOD',
+            '2027-02-28',
+            1000,
+            400,
+            0,
+            Invoice::SHIPPING_NONE,
+            1,
+            paymentStatus: Invoice::PAYMENT_PAID,
+            paidAt: '2027-03-15 10:00:00',
+        );
+        $this->invoice(
+            $customer,
+            'INV-UNPAID-PERIOD',
+            '2027-03-15',
+            2000,
+            800,
+            0,
+            Invoice::SHIPPING_NONE,
+            2,
+            paymentStatus: Invoice::PAYMENT_UNPAID,
+        );
+        $this->invoice(
+            $customer,
+            'INV-PARTIAL-PERIOD',
+            '2027-03-15',
+            3000,
+            1200,
+            0,
+            Invoice::SHIPPING_NONE,
+            3,
+            paymentStatus: Invoice::PAYMENT_PARTIAL,
+        );
+
+        $summary = app(ProfitLossReport::class)->build(
+            'custom',
+            '2027-03-01',
+            '2027-03-31',
+        )['summary'];
+
+        $this->assertSame(1000.0, $summary['sales_revenue']);
+        $this->assertSame(400.0, $summary['total_hpp']);
+        $this->assertSame(600.0, $summary['gross_profit']);
+        $this->assertSame(1.0, $summary['sales_quantity']);
+        $this->assertSame(1, $summary['invoice_count']);
     }
 
     public function test_tax_discount_and_customer_shipping_are_separated_and_reconcile_total_invoice(): void
@@ -422,6 +471,8 @@ class ProfitLossReportTest extends TestCase
         string $status = Invoice::STATUS_SENT,
         float $discount = 0,
         float $tax = 0,
+        string $paymentStatus = Invoice::PAYMENT_PAID,
+        ?string $paidAt = null,
     ): Invoice {
         $customerShipping = $shippingType === Invoice::SHIPPING_PAID_BY_CUSTOMER ? $shipping : 0;
         $totalInvoice = $revenue - $discount + $tax + $customerShipping;
@@ -432,6 +483,8 @@ class ProfitLossReportTest extends TestCase
             'issue_date' => $date,
             'due_date' => CarbonImmutable::parse($date)->addDays(14)->toDateString(),
             'status' => $status,
+            'payment_status' => $paymentStatus,
+            'paid_at' => $paidAt ?? ($paymentStatus === Invoice::PAYMENT_PAID ? $date.' 10:00:00' : null),
             'subtotal' => $revenue,
             'discount_amount' => $discount,
             'tax_amount' => $tax,

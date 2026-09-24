@@ -135,7 +135,7 @@ class SalesReportExportController extends Controller
             'issue_date' => $invoice->issue_date->toDateString(),
             'due_date' => $invoice->due_date->toDateString(),
             'total_amount' => (float) $invoice->total_amount,
-            'margin_label' => 'Belum tersedia',
+            'margin_label' => $invoice->grossMarginLabel(),
             'status' => $status,
             'status_label' => $this->statusLabel($status),
         ];

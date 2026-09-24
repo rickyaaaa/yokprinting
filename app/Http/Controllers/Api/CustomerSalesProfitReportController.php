@@ -69,13 +69,13 @@ class CustomerSalesProfitReportController extends Controller
     {
         $from = CarbonImmutable::parse($filters['date_from'] ?? now()->startOfMonth())->startOfDay();
         $to = CarbonImmutable::parse($filters['date_to'] ?? now())->endOfDay();
+        $toExclusive = $to->addDay()->toDateString();
         $status = $filters['status'] ?? 'all';
         $keyword = trim((string) ($filters['q'] ?? ''));
 
         $invoices = Invoice::query()
             ->with('customer')
-            ->businessTransaction()
-            ->whereBetween('issue_date', [$from->toDateString(), $to->toDateString()])
+            ->recognizedBetween($from->toDateString(), $toExclusive)
             ->when($filters['customer_id'] ?? null, fn ($query, int $customerId) => $query->where('customer_id', $customerId))
             ->when($status !== 'all', fn ($query) => $query->where('payment_status', $status))
             // Client request: find one invoice by number without knowing which
