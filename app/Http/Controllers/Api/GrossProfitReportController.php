@@ -61,12 +61,12 @@ class GrossProfitReportController extends Controller
     {
         $dateFrom = $filters['date_from'] ?? CarbonImmutable::now()->startOfMonth()->toDateString();
         $dateTo = $filters['date_to'] ?? CarbonImmutable::now()->toDateString();
+        $dateToExclusive = CarbonImmutable::parse($dateTo)->addDay()->toDateString();
         $status = $filters['status'] ?? 'all';
 
         return Invoice::query()
             ->with('customer')
-            ->businessTransaction()
-            ->whereBetween('issue_date', [$dateFrom, $dateTo])
+            ->recognizedBetween($dateFrom, $dateToExclusive)
             ->when($status !== 'all', fn ($query) => $query->where('payment_status', $status))
             ->orderBy('issue_date')
             ->orderBy('invoice_number')

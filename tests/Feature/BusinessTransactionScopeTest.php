@@ -80,6 +80,46 @@ class BusinessTransactionScopeTest extends TestCase
         );
     }
 
+    public function test_revenue_recognized_scope_requires_full_payment(): void
+    {
+        $unpaid = $this->invoice('INV-RECOGNIZED-UNPAID', Invoice::STATUS_SENT);
+        $paid = $this->invoice('INV-RECOGNIZED-PAID', Invoice::STATUS_SENT);
+        $paid->update([
+            'payment_status' => Invoice::PAYMENT_PAID,
+            'paid_at' => now(),
+        ]);
+
+        $this->assertFalse(
+            Invoice::query()->revenueRecognized()->whereKey($unpaid->getKey())->exists(),
+        );
+        $this->assertTrue(
+            Invoice::query()->revenueRecognized()->whereKey($paid->getKey())->exists(),
+        );
+    }
+
+    public function test_recognized_between_uses_paid_at_for_the_reporting_period(): void
+    {
+        $invoice = $this->invoice('INV-RECOGNIZED-DATE', Invoice::STATUS_SENT);
+        $invoice->update([
+            'payment_status' => Invoice::PAYMENT_PAID,
+            'issue_date' => '2026-06-30',
+            'paid_at' => '2026-07-01 09:00:00',
+        ]);
+
+        $this->assertTrue(
+            Invoice::query()
+                ->recognizedBetween('2026-07-01', '2026-08-01')
+                ->whereKey($invoice->getKey())
+                ->exists(),
+        );
+        $this->assertFalse(
+            Invoice::query()
+                ->recognizedBetween('2026-06-01', '2026-07-01')
+                ->whereKey($invoice->getKey())
+                ->exists(),
+        );
+    }
+
     private function invoice(string $number, string $status): Invoice
     {
         $customer = Customer::query()->create(['name' => 'PT Business Transaction '.random_int(1000, 9999)]);

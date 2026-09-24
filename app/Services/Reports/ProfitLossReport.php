@@ -14,9 +14,9 @@ class ProfitLossReport
     /**
      * Build the single accounting dataset consumed by the screen, PDF, and XLSX exports.
      *
-     * Every active (non-cancelled) invoice is recognized - draft included -
-     * matching Invoice::scopeBusinessTransaction() and the stock that was
-     * already deducted when the invoice was created. Tax collected and
+     * Every fully paid, non-cancelled invoice is recognized, using paid_at as
+     * the recognition date. Legacy paid invoices without paid_at fall back to
+     * issue_date. Tax collected and
      * customer-billed shipping reconcile the invoice total but are not sales
      * revenue.
      *
@@ -35,9 +35,7 @@ class ProfitLossReport
         )->addDay()->toDateString();
 
         $finalInvoices = Invoice::query()
-            ->businessTransaction()
-            ->where('issue_date', '>=', $range['date_from'])
-            ->where('issue_date', '<', $dateToExclusive);
+            ->recognizedBetween($range['date_from'], $dateToExclusive);
 
         $invoiceSummary = (clone $finalInvoices)
             ->selectRaw('COUNT(*) as invoice_count')
@@ -58,9 +56,7 @@ class ProfitLossReport
 
         $salesQuantity = InvoiceItem::query()
             ->whereHas('invoice', fn ($query) => $query
-                ->businessTransaction()
-                ->where('issue_date', '>=', $range['date_from'])
-                ->where('issue_date', '<', $dateToExclusive))
+                ->recognizedBetween($range['date_from'], $dateToExclusive))
             ->sum('quantity');
 
         $expenseRows = Expense::query()
@@ -112,7 +108,8 @@ class ProfitLossReport
         return [
             'period' => $range,
             'accounting_policy' => [
-                'final_invoice_statuses' => [Invoice::STATUS_DRAFT, Invoice::STATUS_SENT],
+                'recognized_payment_statuses' => [Invoice::PAYMENT_PAID],
+                'recognition_date' => 'paid_at (fallback issue_date for legacy paid invoices)',
                 'tax_is_revenue' => false,
                 'customer_shipping_is_revenue' => false,
                 'profit_is_provisional' => $unclassifiedExpenses > 0,
