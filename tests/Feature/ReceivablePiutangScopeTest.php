@@ -134,7 +134,7 @@ class ReceivablePiutangScopeTest extends TestCase
             ->assertSee('1 invoice');
     }
 
-    public function test_partial_invoice_edit_is_rejected_and_outstanding_stays_consistent(): void
+    public function test_partial_invoice_can_be_edited_and_outstanding_is_recalculated(): void
     {
         $customer = $this->customer();
         $invoice = $this->invoice($customer, 'INV-EDIT-PIUTANG', 300000, Invoice::STATUS_SENT);
@@ -160,12 +160,12 @@ class ReceivablePiutangScopeTest extends TestCase
             ]],
             'discount' => ['type' => 'percentage', 'value' => 0],
             'tax' => ['enabled' => false, 'rate' => 0],
-        ])->assertUnprocessable()->assertJsonValidationErrors('status');
+        ])->assertOk();
 
-        // Partial invoices are immutable, so the original total and
-        // outstanding remain the source of truth in Piutang.
-        $this->assertSame(150000.0, $invoice->refresh()->remainingAmount());
-        $this->assertSame('300000.00', (string) $invoice->total_amount);
+        // Verified payment remains intact while the new invoice total drives
+        // the recalculated outstanding balance in Piutang.
+        $this->assertSame(200000.0, $invoice->refresh()->remainingAmount());
+        $this->assertSame('350000.00', (string) $invoice->total_amount);
         $this->assertTrue(Invoice::query()->receivable()->whereKey($invoice->getKey())->exists());
     }
 

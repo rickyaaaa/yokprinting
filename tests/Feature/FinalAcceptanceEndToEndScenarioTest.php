@@ -102,8 +102,7 @@ class FinalAcceptanceEndToEndScenarioTest extends TestCase
         // 7. Invoice masuk Total Piutang.
         $this->assertTrue(Invoice::query()->receivable()->whereKey($invoice->getKey())->exists());
 
-        // 8. Once partial, a second edit is rejected even while production is
-        // running. The financial and inventory values must remain unchanged.
+        // 8. A partial invoice remains editable while production is running.
         $this->patchJson(route('api.invoices.update', $invoice), [
             'customer_id' => $customer->id,
             'issue_date' => $invoice->issue_date->toDateString(),
@@ -112,8 +111,8 @@ class FinalAcceptanceEndToEndScenarioTest extends TestCase
             'discount' => ['type' => 'percentage', 'value' => 0],
             'tax' => ['enabled' => false, 'rate' => 0],
         ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('status');
+            ->assertOk()
+            ->assertJsonPath('data.total_amount', '400000.00');
 
         $invoice->refresh();
 
@@ -121,9 +120,9 @@ class FinalAcceptanceEndToEndScenarioTest extends TestCase
         $this->assertSame(175000.0, $invoice->verifiedPaidAmount());
         // 10. Payment status tetap PARSIAL.
         $this->assertSame(Invoice::PAYMENT_PARTIAL, $invoice->payment_status);
-        // 11. Outstanding dan total tidak berubah akibat edit yang ditolak.
-        $this->assertSame(175000.0, $invoice->remainingAmount());
-        $this->assertSame('350000.00', (string) $invoice->total_amount);
+        // 11. Outstanding dan total mengikuti edit terbaru.
+        $this->assertSame(225000.0, $invoice->remainingAmount());
+        $this->assertSame('400000.00', (string) $invoice->total_amount);
         // status tetap sent, tidak pernah kembali draft.
         $this->assertSame(Invoice::STATUS_SENT, $invoice->status);
 
@@ -137,7 +136,7 @@ class FinalAcceptanceEndToEndScenarioTest extends TestCase
             'FIFO batch harus tetap rekonsiliasi dengan stok produk',
         );
 
-        // 13. Production status tidak reset oleh edit yang ditolak.
+        // 13. Production status tidak reset oleh edit.
         $this->assertSame(Invoice::PRODUCTION_IN_PRODUCTION, $invoice->production_status);
 
         // 14. Detail invoice menampilkan ongkir jika ada - di skenario ini
@@ -147,13 +146,13 @@ class FinalAcceptanceEndToEndScenarioTest extends TestCase
         $this->get(route('payments.invoices.show', $invoice->invoice_number))
             ->assertOk()
             ->assertDontSee('Ongkir')
-            ->assertSeeInOrder(['Subtotal', 'Rp350.000', 'Total invoice', 'Rp350.000']);
+            ->assertSeeInOrder(['Subtotal', 'Rp400.000', 'Total invoice', 'Rp400.000']);
 
         // 15. Semua laporan terkait membaca nilai terbaru dengan benar.
         $this->assertTrue(Invoice::query()->finalized()->whereKey($invoice->getKey())->exists());
-        $this->get(route('invoices.index'))->assertOk()->assertSee('Rp350.000');
-        $this->get(route('payments.receivables.index'))->assertOk()->assertSee('Rp175.000');
-        $this->get(route('customers.show', $customer))->assertOk()->assertSee('Rp350.000');
+        $this->get(route('invoices.index'))->assertOk()->assertSee('Rp400.000');
+        $this->get(route('payments.receivables.index'))->assertOk()->assertSee('Rp225.000');
+        $this->get(route('customers.show', $customer))->assertOk()->assertSee('Rp400.000');
     }
 
     private function receiveGoods(Product $product, float $quantity, float $unitCost): GoodsReceipt

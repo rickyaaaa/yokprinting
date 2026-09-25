@@ -13,7 +13,7 @@ class InvoiceListActionLockTest extends TestCase
     use ActsAsOwner;
     use RefreshDatabase;
 
-    public function test_invoice_list_locks_edit_but_keeps_cancellation_available_after_payment(): void
+    public function test_invoice_list_keeps_edit_and_cancellation_available_for_every_active_status(): void
     {
         $customer = Customer::query()->create(['name' => 'PT Invoice Action Lock']);
 
@@ -26,9 +26,9 @@ class InvoiceListActionLockTest extends TestCase
 
         $this->assertTrue($rows[$unpaid->invoice_number]['is_editable']);
         $this->assertTrue($rows[$unpaid->invoice_number]['can_be_cancelled']);
-        $this->assertFalse($rows[$partial->invoice_number]['is_editable']);
+        $this->assertTrue($rows[$partial->invoice_number]['is_editable']);
         $this->assertTrue($rows[$partial->invoice_number]['can_be_cancelled']);
-        $this->assertFalse($rows[$paid->invoice_number]['is_editable']);
+        $this->assertTrue($rows[$paid->invoice_number]['is_editable']);
         $this->assertTrue($rows[$paid->invoice_number]['can_be_cancelled']);
         $response->assertSee('name="csrf-token"', false);
         $response->assertSee('data-action-label="batalkan invoice"', false);
