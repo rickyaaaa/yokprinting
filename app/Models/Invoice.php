@@ -189,16 +189,14 @@ class Invoice extends Model
     /**
      * Determine whether the invoice's items/header can still be edited.
      *
-     * An invoice remains editable through its unpaid workflow, including
-     * after issuance and while production is running. Once a verified DP
-     * exists (`partial`) or the invoice is fully settled (`paid`), the
-     * financial record is locked so its history cannot be rewritten.
+     * Every active invoice remains editable from the invoice list regardless
+     * of payment or production progress. Cancelled invoices are the only
+     * immutable archive state because their stock and cash movements have
+     * already been reversed.
      */
     public function isEditable(): bool
     {
-        return $this->status !== self::STATUS_CANCELLED
-            && ! $this->hasRecordedPayment()
-            && ! $this->hasAnyPayment();
+        return $this->status !== self::STATUS_CANCELLED;
     }
 
     /**
@@ -206,8 +204,7 @@ class Invoice extends Model
      */
     public function canBeCancelled(): bool
     {
-        return $this->status !== self::STATUS_CANCELLED
-            && $this->production_status !== self::PRODUCTION_COMPLETED;
+        return $this->status !== self::STATUS_CANCELLED;
     }
 
     /**

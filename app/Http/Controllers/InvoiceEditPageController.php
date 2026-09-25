@@ -18,7 +18,7 @@ class InvoiceEditPageController extends Controller
         abort_unless(
             $invoice->isEditable(),
             403,
-            'Invoice yang sudah dibayar sebagian atau lunas tidak bisa diedit.',
+            'Invoice yang sudah dibatalkan tidak bisa diedit.',
         );
 
         $invoice->load([

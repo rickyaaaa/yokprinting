@@ -144,15 +144,15 @@ class CancelInvoiceApiTest extends TestCase
         $this->assertSame(Invoice::STATUS_CANCELLED, $invoice->refresh()->status);
     }
 
-    public function test_invoice_with_completed_production_cannot_be_cancelled(): void
+    public function test_invoice_with_completed_production_can_be_cancelled(): void
     {
         $invoice = $this->createInvoice();
         $invoice->forceFill(['production_status' => Invoice::PRODUCTION_COMPLETED])->save();
         $this->actingAs(User::factory()->create(['role' => User::ROLE_OWNER]));
 
         $this->postJson(route('api.invoices.cancel.store', ['invoice' => $invoice->invoice_number]))
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('status');
+            ->assertOk()
+            ->assertJsonPath('data.status', Invoice::STATUS_CANCELLED);
     }
 
     private function createInvoice(): Invoice

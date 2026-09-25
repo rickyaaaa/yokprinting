@@ -21,9 +21,8 @@ class UpdateInvoiceDraft
 
     /**
      * Replace an invoice's header and line items - allowed at any point in
-     * its unpaid lifecycle (draft, sent, and any production_status) as long
-     * as it isn't cancelled or partially/fully paid; see
-     * Invoice::isEditable(). Editing never touches
+     * its active lifecycle (draft, sent, paid, and any production_status) as
+     * long as it isn't cancelled; see Invoice::isEditable(). Editing never touches
      * `status`/`sent_at` (an already-sent invoice stays sent) or
      * `production_status`/`order_process_status`/mockup/template/theme
      * unless the caller explicitly sent a new value for them.
@@ -46,7 +45,7 @@ class UpdateInvoiceDraft
 
             if (! $locked->isEditable()) {
                 throw ValidationException::withMessages([
-                    'status' => 'Invoice yang sudah dibayar sebagian atau lunas tidak bisa diedit.',
+                    'status' => 'Invoice yang sudah dibatalkan tidak bisa diedit.',
                 ]);
             }
 

@@ -38,12 +38,6 @@ class CancelInvoice
                 ]);
             }
 
-            if ($lockedInvoice->production_status === Invoice::PRODUCTION_COMPLETED) {
-                throw ValidationException::withMessages([
-                    'status' => 'Invoice yang produksinya sudah selesai tidak bisa dibatalkan.',
-                ]);
-            }
-
             $payments = $lockedInvoice->payments()->get();
 
             // Keep the payment/audit rows, but reverse their automatic Kas &
