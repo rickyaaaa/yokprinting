@@ -19,6 +19,7 @@ use App\Http\Controllers\ProductIndexPageController;
 use App\Http\Controllers\ProfitLossReportPageController;
 use App\Http\Controllers\PurchaseOrderShowPageController;
 use App\Http\Controllers\ReceivablePageController;
+use App\Http\Controllers\StockMutationReportPageController;
 use App\Models\Expense;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
@@ -206,6 +207,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/reports/customer-sales', CustomerSalesReportPageController::class)
         ->middleware('permission:report.view')
         ->name('reports.customer-sales.index');
+    Route::get('/reports/stock-mutations', StockMutationReportPageController::class)
+        ->middleware('permission:report.view')
+        ->name('reports.stock-mutations.index');
     Route::get('/reports/profit-loss', ProfitLossReportPageController::class)
         ->middleware('permission:report.view')
         ->name('reports.profit-loss.index');
