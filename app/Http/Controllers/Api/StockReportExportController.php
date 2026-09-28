@@ -5,8 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Exports\ReportCsvExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ListStockMovementReportRequest;
-use App\Models\Product;
-use App\Models\StockMovement;
+use App\Services\Reports\BuildStockMutationReport;
 use Carbon\CarbonImmutable;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -14,9 +13,46 @@ use Illuminate\Http\Response;
 
 class StockReportExportController extends Controller
 {
-    public function csv(ListStockMovementReportRequest $request, ReportCsvExport $export): Response
-    {
-        [$rows, $start, $end] = $this->rows($request->validated());
+    public function csv(
+        ListStockMovementReportRequest $request,
+        ReportCsvExport $export,
+        BuildStockMutationReport $report,
+    ): Response {
+        $filters = $request->validated();
+        $data = $report->handle($filters);
+        $start = CarbonImmutable::parse($data['period']['start_date']);
+        $end = CarbonImmutable::parse($data['period']['end_date']);
+
+        if ($data['product'] !== null) {
+            $rows = collect($data['mutations'])->map(fn (array $row): array => [
+                $row['document_number'] ?? '-',
+                $row['date'] ?? '-',
+                $row['description'],
+                $row['party'] ?? '-',
+                $row['incoming'],
+                $row['outgoing'],
+                $row['balance'],
+            ])->all();
+
+            return $export->download(
+                "mutasi-{$data['product']['sku']}-{$start->toDateString()}-sampai-{$end->toDateString()}.csv",
+                ['Nomor Dokumen', 'Tanggal', 'Deskripsi', 'Customer/Supplier', 'Masuk', 'Keluar', 'Saldo'],
+                $rows,
+            );
+        }
+
+        $rows = collect($data['products'])->map(fn (array $row): array => [
+            $row['sku'],
+            $row['name'],
+            $row['category'] ?: '-',
+            $row['unit'],
+            $row['opening_balance'],
+            $row['incoming_quantity'],
+            $row['outgoing_quantity'],
+            $row['adjustments'],
+            $row['closing_balance'],
+            $row['fifo_inventory_value'],
+        ])->all();
 
         return $export->download(
             "laporan-stok-{$start->toDateString()}-sampai-{$end->toDateString()}.csv",
@@ -25,72 +61,45 @@ class StockReportExportController extends Controller
         );
     }
 
-    public function pdf(ListStockMovementReportRequest $request): Response
+    public function pdf(ListStockMovementReportRequest $request, BuildStockMutationReport $report): Response
     {
-        [$rows, $start, $end] = $this->rows($request->validated());
+        $data = $report->handle($request->validated());
+        $start = CarbonImmutable::parse($data['period']['start_date']);
+        $end = CarbonImmutable::parse($data['period']['end_date']);
         $options = new Options;
         $options->set('defaultFont', 'DejaVu Sans');
         $options->set('isRemoteEnabled', false);
         $options->set('isPhpEnabled', false);
         $dompdf = new Dompdf($options);
         $dompdf->setPaper('a4', 'landscape');
-        $dompdf->loadHtml(view('pdf.reports.stock', [
-            'rows' => $rows,
+        $view = $data['product'] !== null ? 'pdf.reports.stock-mutation-detail' : 'pdf.reports.stock';
+        $dompdf->loadHtml(view($view, [
+            'data' => $data,
+            'rows' => $data['product'] === null ? collect($data['products'])->map(fn (array $row): array => [
+                $row['sku'],
+                $row['name'],
+                $row['category'] ?: '-',
+                $row['unit'],
+                $row['opening_balance'],
+                $row['incoming_quantity'],
+                $row['outgoing_quantity'],
+                $row['adjustments'],
+                $row['closing_balance'],
+                $row['fifo_inventory_value'],
+            ])->all() : [],
             'start' => $start,
             'end' => $end,
         ])->render(), 'UTF-8');
         $dompdf->render();
 
+        $filename = $data['product'] !== null
+            ? "mutasi-{$data['product']['sku']}-{$start->toDateString()}-sampai-{$end->toDateString()}.pdf"
+            : "laporan-stok-{$start->toDateString()}-sampai-{$end->toDateString()}.pdf";
+
         return response($dompdf->output(), 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => "attachment; filename=\"laporan-stok-{$start->toDateString()}-sampai-{$end->toDateString()}.pdf\"",
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
             'Cache-Control' => 'private, no-store',
         ]);
-    }
-
-    /** @return array{0: array<int, array<int, mixed>>, 1: CarbonImmutable, 2: CarbonImmutable} */
-    private function rows(array $filters): array
-    {
-        $start = CarbonImmutable::parse($filters['start_date'] ?? now()->startOfMonth())->startOfDay();
-        $end = CarbonImmutable::parse($filters['end_date'] ?? now())->endOfDay();
-        $adjustmentTypes = [StockMovement::TYPE_ADJUSTMENT, StockMovement::TYPE_STOCK_OPNAME];
-
-        $rows = Product::query()
-            ->when($filters['product_id'] ?? null, fn ($query, int $productId) => $query->whereKey($productId))
-            ->whereHas('stockMovements', fn ($query) => $query->where('created_at', '<=', $end))
-            ->with([
-                'stockMovements' => fn ($query) => $query->where('created_at', '<=', $end)->orderBy('created_at')->orderBy('id'),
-                'inventoryBatches' => fn ($query) => $query->where('qty_remaining', '>', 0),
-            ])
-            ->orderBy('name')
-            ->get()
-            ->map(function (Product $product) use ($start, $end, $adjustmentTypes): array {
-                $movements = $product->stockMovements;
-                $opening = (float) $movements->where('created_at', '<', $start)->sum('quantity');
-                $period = $movements->where('created_at', '>=', $start)->where('created_at', '<=', $end);
-                $regular = $period->whereNotIn('type', $adjustmentTypes);
-                $incoming = (float) $regular->where('quantity', '>', 0)->sum('quantity');
-                $outgoing = abs((float) $regular->where('quantity', '<', 0)->sum('quantity'));
-                $adjustments = (float) $period->whereIn('type', $adjustmentTypes)->sum('quantity');
-                $ending = round($opening + (float) $period->sum('quantity'), 4);
-                $fifoValue = round((float) $product->inventoryBatches->sum(
-                    fn ($batch): float => (float) $batch->qty_remaining * (float) $batch->unit_cost,
-                ), 2);
-
-                return [
-                    $product->sku,
-                    $product->name,
-                    $product->category ?: '-',
-                    $product->unit,
-                    round($opening, 4),
-                    round($incoming, 4),
-                    round($outgoing, 4),
-                    round($adjustments, 4),
-                    $ending,
-                    $fifoValue,
-                ];
-            })->all();
-
-        return [$rows, $start, $end];
     }
 }
