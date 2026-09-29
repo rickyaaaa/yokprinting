@@ -122,4 +122,24 @@ class ProductFifoHppApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.fifo_hpp', 950);
     }
+
+    public function test_zero_average_cost_does_not_hide_a_valid_last_purchase_price(): void
+    {
+        $product = Product::query()->create([
+            'name' => 'Produk dengan biaya terakhir',
+            'sku' => 'CUP-LAST-COST',
+            'track_stock' => true,
+            'stock' => 500,
+            'minimum_order_qty' => 1,
+            'package_conversion' => 1,
+        ]);
+        $product->forceFill([
+            'average_purchase_cost' => 0,
+            'last_purchase_price' => 750,
+        ])->save();
+
+        $this->getJson(route('api.products.show', $product))
+            ->assertOk()
+            ->assertJsonPath('data.fifo_hpp', 750);
+    }
 }

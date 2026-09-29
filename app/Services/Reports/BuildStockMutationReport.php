@@ -23,6 +23,7 @@ class BuildStockMutationReport
         $start = CarbonImmutable::parse($filters['start_date'] ?? now()->startOfMonth())->startOfDay();
         $end = CarbonImmutable::parse($filters['end_date'] ?? now())->endOfDay();
         $productId = isset($filters['product_id']) ? (int) $filters['product_id'] : null;
+        $excludedReferences = $this->cancelledReferences();
 
         $products = Product::query()
             ->when($productId, fn ($query) => $query->whereKey($productId))
@@ -34,10 +35,13 @@ class BuildStockMutationReport
             ->orderBy('name')
             ->get();
 
-        $rows = $products->map(fn (Product $product): array => $this->summaryRow($product, $start, $end))->values();
+        $rows = $products
+            ->filter(fn (Product $product): bool => $productId || $this->activeMovements($product->stockMovements, $excludedReferences)->isNotEmpty())
+            ->map(fn (Product $product): array => $this->summaryRow($product, $start, $end, $excludedReferences))
+            ->values();
         $selectedProduct = $productId ? $products->firstWhere('id', $productId) : null;
         $detail = $selectedProduct
-            ? $this->detail($selectedProduct, $start, $end)
+            ? $this->detail($selectedProduct, $start, $end, $excludedReferences)
             : null;
 
         return [
@@ -61,18 +65,17 @@ class BuildStockMutationReport
     /**
      * @return array<string, mixed>
      */
-    private function summaryRow(Product $product, CarbonImmutable $start, CarbonImmutable $end): array
+    private function summaryRow(Product $product, CarbonImmutable $start, CarbonImmutable $end, Collection $excludedReferences): array
     {
         /** @var Collection<int, StockMovement> $movements */
-        $movements = $product->stockMovements;
-        $before = $movements->where('created_at', '<', $start);
+        $movements = $this->activeMovements($product->stockMovements, $excludedReferences);
         $period = $movements->where('created_at', '>=', $start)->where('created_at', '<=', $end);
         $adjustmentTypes = [StockMovement::TYPE_ADJUSTMENT, StockMovement::TYPE_STOCK_OPNAME];
         $regularMovements = $period->whereNotIn('type', $adjustmentTypes);
         $incoming = (float) $regularMovements->where('quantity', '>', 0)->sum('quantity');
         $outgoing = abs((float) $regularMovements->where('quantity', '<', 0)->sum('quantity'));
         $adjustments = (float) $period->whereIn('type', $adjustmentTypes)->sum('quantity');
-        $opening = $this->openingBalance($product, $start);
+        $opening = $this->openingBalance($product, $start, $excludedReferences);
         $closing = (float) ($opening + $period->sum('quantity'));
 
         return [
@@ -96,13 +99,12 @@ class BuildStockMutationReport
     /**
      * @return array{product: array<string, mixed>, mutations: list<array<string, mixed>>, summary: array<string, mixed>}
      */
-    private function detail(Product $product, CarbonImmutable $start, CarbonImmutable $end): array
+    private function detail(Product $product, CarbonImmutable $start, CarbonImmutable $end, Collection $excludedReferences): array
     {
         /** @var Collection<int, StockMovement> $movements */
-        $movements = $product->stockMovements;
-        $before = $movements->where('created_at', '<', $start);
+        $movements = $this->activeMovements($product->stockMovements, $excludedReferences);
         $period = $movements->where('created_at', '>=', $start)->where('created_at', '<=', $end)->values();
-        $opening = $this->openingBalance($product, $start);
+        $opening = $this->openingBalance($product, $start, $excludedReferences);
         $contexts = $this->referenceContexts($period);
         $balance = $opening;
         $rows = [[
@@ -121,7 +123,11 @@ class BuildStockMutationReport
         foreach ($period as $movement) {
             $quantity = (float) $movement->quantity;
             $balance = round($balance + $quantity, 4);
-            $context = $contexts[$movement->reference_number] ?? null;
+            $context = match ($movement->type) {
+                StockMovement::TYPE_SALE => $contexts['sale'][$movement->reference_number] ?? null,
+                StockMovement::TYPE_PURCHASE => $contexts['purchase'][$movement->reference_number] ?? null,
+                default => null,
+            };
             $party = $context['party'] ?? null;
             $description = $context['description']
                 ?? $movement->notes
@@ -155,7 +161,9 @@ class BuildStockMutationReport
                 'name' => $product->name,
                 'unit' => $product->unit,
             ],
-            'mutations' => $rows,
+            // Keep the balance calculated in chronological order, but show
+            // the newest transaction first as requested for the report.
+            'mutations' => collect($rows)->reverse()->values()->all(),
             'summary' => $summary,
         ];
     }
@@ -179,14 +187,18 @@ class BuildStockMutationReport
             ->unique()
             ->values();
 
-        $contexts = [];
+        $contexts = [
+            'sale' => [],
+            'purchase' => [],
+        ];
         Invoice::query()
             ->with('customer:id,name')
             ->whereIn('invoice_number', $saleReferences)
+            ->where('status', '!=', Invoice::STATUS_CANCELLED)
             ->get()
             ->each(function (Invoice $invoice) use (&$contexts): void {
                 $customer = $invoice->customer?->name;
-                $contexts[$invoice->invoice_number] = [
+                $contexts['sale'][$invoice->invoice_number] = [
                     'party' => $customer,
                     'party_type' => 'customer',
                     'description' => $customer ? "Penjualan ke {$customer}" : 'Penjualan customer',
@@ -196,10 +208,11 @@ class BuildStockMutationReport
         GoodsReceipt::query()
             ->with('purchaseOrder.supplier:id,name')
             ->whereIn('receipt_number', $purchaseReferences)
+            ->where('status', '!=', GoodsReceipt::STATUS_CANCELLED)
             ->get()
             ->each(function (GoodsReceipt $receipt) use (&$contexts): void {
                 $supplier = $receipt->purchaseOrder?->supplier?->name;
-                $contexts[$receipt->receipt_number] = [
+                $contexts['purchase'][$receipt->receipt_number] = [
                     'party' => $supplier,
                     'party_type' => 'supplier',
                     'description' => $supplier ? "Pembelian dari {$supplier}" : 'Penerimaan pembelian',
@@ -221,11 +234,40 @@ class BuildStockMutationReport
         };
     }
 
-    private function openingBalance(Product $product, CarbonImmutable $start): float
+    private function openingBalance(Product $product, CarbonImmutable $start, Collection $excludedReferences): float
     {
-        $first = $product->stockMovements()->orderBy('created_at')->orderBy('id')->first();
+        $movements = $this->activeMovements($product->stockMovements, $excludedReferences);
+        $first = $movements->sortBy([['created_at', 'asc'], ['id', 'asc']])->first();
         $baseline = $first ? (float) $first->stock_before : (float) ($product->stock ?? 0);
 
-        return round($baseline + (float) $product->stockMovements->where('created_at', '<', $start)->sum('quantity'), 4);
+        return round($baseline + (float) $movements->where('created_at', '<', $start)->sum('quantity'), 4);
+    }
+
+    /**
+     * @return Collection<string, true>
+     */
+    private function cancelledReferences(): Collection
+    {
+        return Invoice::query()
+            ->where('status', Invoice::STATUS_CANCELLED)
+            ->pluck('invoice_number')
+            ->merge(GoodsReceipt::query()->where('status', GoodsReceipt::STATUS_CANCELLED)->pluck('receipt_number'))
+            ->filter()
+            ->unique()
+            ->flip()
+            ->map(fn (): bool => true);
+    }
+
+    /**
+     * @param  Collection<int, StockMovement>  $movements
+     * @param  Collection<string, true>  $excludedReferences
+     * @return Collection<int, StockMovement>
+     */
+    private function activeMovements(Collection $movements, Collection $excludedReferences): Collection
+    {
+        return $movements
+            ->reject(fn (StockMovement $movement): bool => $movement->reference_number
+                && $excludedReferences->has($movement->reference_number))
+            ->values();
     }
 }

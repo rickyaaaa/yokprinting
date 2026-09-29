@@ -158,12 +158,12 @@ class Product extends Model
     }
 
     /**
-     * The "HPP FIFO" value: unit cost of the oldest available FIFO batch -
-     * i.e. what the *next* sale will actually be costed at. Falls back to
-     * the legacy average-cost chain only when no batch is currently
-     * available (out of stock / never received). Never a weighted average
-     * across remaining batches - that's a different number (see
-     * fifoInventoryValue()) and must never be shown under a "HPP FIFO" label.
+     * The "HPP FIFO" value: unit cost of the oldest available priced FIFO
+     * batch. Legacy opening layers may have a zero cost because no purchase
+     * price was known when they were migrated; those layers are skipped for
+     * the catalogue display once a real priced receipt exists. Falls back to
+     * the legacy cost chain only when no priced batch is available. Never a
+     * weighted average across remaining batches.
      *
      * Uses the `inventoryBatches` relation when already eager-loaded to
      * avoid N+1 queries on list pages; otherwise queries directly.
@@ -174,10 +174,17 @@ class Product extends Model
             ? $this->inventoryBatches
             : $this->inventoryBatches()->get();
 
-        $oldest = $batches
+        $available = $batches
             ->filter(fn (InventoryBatch $batch): bool => (float) $batch->qty_remaining > 0)
-            ->sort(fn (InventoryBatch $a, InventoryBatch $b): int => [$a->purchase_date, $a->getKey()] <=> [$b->purchase_date, $b->getKey()])
-            ->first();
+            ->sort(fn (InventoryBatch $a, InventoryBatch $b): int => [$a->purchase_date, $a->getKey()] <=> [$b->purchase_date, $b->getKey()]);
+
+        // Opening/legacy layers can legitimately have no known cost. They
+        // must not keep the product catalogue at Rp0 forever after a real
+        // purchase has been received. Prefer the oldest priced layer for the
+        // displayed HPP, while FIFO sale costing still consumes every layer
+        // in its actual chronological order.
+        $oldest = $available->first(fn (InventoryBatch $batch): bool => (float) $batch->unit_cost > 0)
+            ?? $available->first();
 
         return $oldest ? (float) $oldest->unit_cost : $this->lastPurchaseCostFallback();
     }
@@ -268,10 +275,13 @@ class Product extends Model
      */
     public function purchaseCostFallback(): float
     {
-        return (float) ($this->average_purchase_cost
-            ?? $this->last_purchase_price
-            ?? $this->purchase_price
-            ?? 0);
+        foreach ([$this->average_purchase_cost, $this->last_purchase_price, $this->purchase_price] as $candidate) {
+            if ($candidate !== null && (float) $candidate > 0) {
+                return (float) $candidate;
+            }
+        }
+
+        return 0.0;
     }
 
     /**

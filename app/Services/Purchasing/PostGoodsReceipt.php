@@ -99,7 +99,15 @@ class PostGoodsReceipt
         }
 
         $oldStock = (float) ($product->stock ?? 0);
-        $oldAverageCost = (float) ($product->average_purchase_cost ?? $unitPrice);
+        // A legacy product can have an explicit zero average while its last
+        // real purchase is known. Treat zero like "unknown" here; otherwise
+        // the next receipt dilutes the moving average from a false Rp0 base
+        // and downstream valuation appears wrong even though the PO/batch
+        // price is valid.
+        $oldAverageCost = $product->purchaseCostFallback();
+        if ($oldAverageCost <= 0) {
+            $oldAverageCost = $unitPrice;
+        }
         $oldValue = $oldStock * $oldAverageCost;
         $receivedValue = $receivedQuantity * $unitPrice;
         $newStock = round($oldStock + $receivedQuantity, 4);

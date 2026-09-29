@@ -97,10 +97,7 @@ class FifoInventoryService
         // adjustment closes it before creating fresh available FIFO stock -
         // this HPP snapshot never changes retroactively either way.
         if ($remaining > 0) {
-            $fallbackCost = (float) ($product->average_purchase_cost
-                ?? $product->last_purchase_price
-                ?? $product->purchase_price
-                ?? 0);
+            $fallbackCost = $this->bestKnownUnitCost($product);
 
             $deficitCost = round($remaining * $fallbackCost, 2);
             $hpp += $deficitCost;
@@ -239,10 +236,7 @@ class FifoInventoryService
         $batches = $query->get();
 
         if ($batches->isEmpty() && (float) ($product->stock ?? 0) > 0) {
-            $unitCost = (float) ($product->average_purchase_cost
-                ?? $product->last_purchase_price
-                ?? $product->purchase_price
-                ?? 0);
+            $unitCost = $this->bestKnownUnitCost($product);
 
             $opening = InventoryBatch::query()->create([
                 'product_id' => $product->getKey(),
@@ -273,5 +267,16 @@ class FifoInventoryService
     private function formatQuantity(float $quantity): string
     {
         return rtrim(rtrim(number_format($quantity, 4, ',', '.'), '0'), ',');
+    }
+
+    private function bestKnownUnitCost(Product $product): float
+    {
+        foreach ([$product->average_purchase_cost, $product->last_purchase_price, $product->purchase_price] as $candidate) {
+            if ($candidate !== null && (float) $candidate > 0) {
+                return (float) $candidate;
+            }
+        }
+
+        return 0.0;
     }
 }
