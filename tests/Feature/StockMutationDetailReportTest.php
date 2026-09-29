@@ -55,13 +55,63 @@ class StockMutationDetailReportTest extends TestCase
             ->assertJsonPath('data.detail_summary.incoming', 0)
             ->assertJsonPath('data.detail_summary.outgoing', 2000)
             ->assertJsonPath('data.detail_summary.closing_balance', 32000)
-            ->assertJsonPath('data.mutations.0.description', 'Saldo awal per 31/08/2026')
-            ->assertJsonPath('data.mutations.0.balance', 34000)
-            ->assertJsonPath('data.mutations.1.document_number', $invoice->invoice_number)
-            ->assertJsonPath('data.mutations.1.description', 'Penjualan ke Toko Plastik Berkah')
-            ->assertJsonPath('data.mutations.1.party', 'Toko Plastik Berkah')
-            ->assertJsonPath('data.mutations.1.outgoing', 2000)
-            ->assertJsonPath('data.mutations.1.balance', 32000);
+            ->assertJsonPath('data.mutations.0.document_number', $invoice->invoice_number)
+            ->assertJsonPath('data.mutations.0.description', 'Penjualan ke Toko Plastik Berkah')
+            ->assertJsonPath('data.mutations.0.party', 'Toko Plastik Berkah')
+            ->assertJsonPath('data.mutations.0.outgoing', 2000)
+            ->assertJsonPath('data.mutations.0.balance', 32000)
+            ->assertJsonPath('data.mutations.1.description', 'Saldo awal per 31/08/2026')
+            ->assertJsonPath('data.mutations.1.balance', 34000);
+    }
+
+    public function test_cancelled_invoice_mutations_are_hidden_and_restore_rows_have_no_customer(): void
+    {
+        $customer = Customer::query()->create(['name' => 'Warkop Elbareen']);
+        $product = Product::query()->create([
+            'sku' => 'MUTASI-CANCEL',
+            'name' => 'Produk Mutasi Cancel',
+            'track_stock' => true,
+            'stock' => 500,
+        ]);
+        $this->movement($product, StockMovement::TYPE_OPENING_BALANCE, 500, 'SALDO-CANCEL', '2026-08-31 09:00:00');
+
+        $active = Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-ACTIVE-MUTASI',
+            'issue_date' => '2026-09-20',
+            'due_date' => '2026-10-01',
+            'status' => Invoice::STATUS_SENT,
+            'total_amount' => 100000,
+        ]);
+        $this->movement($product, StockMovement::TYPE_SALE, -100, $active->invoice_number, '2026-09-20 10:00:00');
+        $this->movement($product, StockMovement::TYPE_ADJUSTMENT, 100, $active->invoice_number, '2026-09-21 10:00:00');
+
+        $cancelled = Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-CANCELLED-MUTASI',
+            'issue_date' => '2026-09-22',
+            'due_date' => '2026-10-01',
+            'status' => Invoice::STATUS_CANCELLED,
+            'total_amount' => 100000,
+        ]);
+        $this->movement($product, StockMovement::TYPE_SALE, -50, $cancelled->invoice_number, '2026-09-22 10:00:00');
+        $this->movement($product, StockMovement::TYPE_ADJUSTMENT, 50, $cancelled->invoice_number, '2026-09-23 10:00:00');
+
+        $response = $this->getJson(route('api.reports.stock-mutations.index', [
+            'start_date' => '2026-09-01',
+            'end_date' => '2026-09-30',
+            'product_id' => $product->id,
+        ]))->assertOk();
+
+        $mutations = $response->json('data.mutations');
+        $activeRows = collect($mutations)->where('document_number', $active->invoice_number)->values();
+
+        $this->assertCount(2, $activeRows);
+        $this->assertSame('Penjualan ke Warkop Elbareen', $activeRows[1]['description']);
+        $this->assertSame('Warkop Elbareen', $activeRows[1]['party']);
+        $this->assertSame('Penyesuaian stok', $activeRows[0]['description']);
+        $this->assertNull($activeRows[0]['party']);
+        $this->assertCount(0, collect($mutations)->where('document_number', $cancelled->invoice_number));
     }
 
     public function test_mutation_page_and_selected_product_exports_are_available(): void
