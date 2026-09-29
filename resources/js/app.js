@@ -35,6 +35,7 @@ import {
 } from './support/minimum-stock';
 import { printedItemNoun as printedNounForCategory } from './support/invoice-item-label';
 import { defaultReceivableSort, initialDirectionFor, sortReceivables, withinInvoiceDateRange } from './support/receivable-table';
+import { resolveProductMetrics } from './support/product-catalog';
 import { registerExpenseComponents } from './expenses';
 import { registerProfitLossComponents } from './profit-loss';
 import { registerCashBankComponents } from './cash-bank';
@@ -2792,7 +2793,16 @@ Alpine.data('productIndexTable', (initialProducts = [], exportEndpoints = {}) =>
         try {
             const response = await listProductCatalog();
 
-            this.products = response.data.map((product) => this.normalizeProduct(product));
+            // Keep server-rendered metrics as a compatibility fallback while
+            // an older API bundle is being rolled out. The API is authoritative
+            // whenever it sends a field (including a legitimate zero), but a
+            // missing field must not turn a previously visible HPP or sales
+            // value into Rp0/0 during hydration.
+            const initialById = new Map(this.products.map((product) => [Number(product.id), product]));
+            this.products = response.data.map((product) => this.normalizeProduct(
+                product,
+                initialById.get(Number(product.id)),
+            ));
             this.categoryOptions = [
                 { key: 'all', label: 'Semua Kategori' },
                 ...[...new Set(this.products.map((product) => product.category).filter(Boolean))]
@@ -2806,10 +2816,11 @@ Alpine.data('productIndexTable', (initialProducts = [], exportEndpoints = {}) =>
         }
     },
 
-    normalizeProduct(product) {
+    normalizeProduct(product, initialProduct = null) {
         const stockValue = product.stock === null ? 0 : Number(product.stock) || 0;
         const minimumStock = normalizeMinimumStock(product.minimum_stock);
         const trackStock = product.track_stock ?? true;
+        const { fifoHpp, inventoryValue, sales } = resolveProductMetrics(product, initialProduct);
         const status = product.status === 'inactive'
             ? 'Nonaktif'
             : isProductLowStock({
@@ -2832,17 +2843,17 @@ Alpine.data('productIndexTable', (initialProducts = [], exportEndpoints = {}) =>
             // next sale will draw from), NOT a weighted average across
             // remaining batches or across purchases - see
             // Product::fifoUnitCost() on the backend.
-            purchasePrice: formatRupiah(Number(product.fifo_hpp) || 0),
-            purchasePriceValue: Number(product.fifo_hpp) || 0,
+            purchasePrice: formatRupiah(fifoHpp),
+            purchasePriceValue: fifoHpp,
             // True remaining-stock valuation (SUM(qty_remaining x unit_cost)
             // across available batches) - distinct from the per-unit value
             // above, used for the "Nilai persediaan" total.
-            inventoryValue: Number(product.fifo_inventory_value) || 0,
+            inventoryValue,
             stock: product.track_stock === false ? 'Tidak dilacak' : `${stockValue} ${product.unit ?? 'Pcs'}`,
             stockValue: product.track_stock === false ? 999999 : stockValue,
             currentStock: stockValue,
             minimumStock,
-            sales: product.sales ?? 0,
+            sales,
             status,
             rawStatus: product.status,
             trackStock,

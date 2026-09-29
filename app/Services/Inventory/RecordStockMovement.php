@@ -103,10 +103,7 @@ class RecordStockMovement
                     'purchase_date' => now()->toDateString(),
                     'qty_received' => $leftover,
                     'qty_remaining' => $leftover,
-                    'unit_cost' => (float) ($product->average_purchase_cost
-                        ?? $product->last_purchase_price
-                        ?? $product->purchase_price
-                        ?? 0),
+                    'unit_cost' => $product->purchaseCostFallback(),
                     'source_type' => 'stock_adjustment',
                     'source_reference' => $referenceNumber,
                 ]);

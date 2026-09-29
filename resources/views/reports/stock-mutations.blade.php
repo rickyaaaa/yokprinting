@@ -3,6 +3,7 @@
         'endpoint' => route('api.reports.stock-movements.index'),
         'dateFrom' => $dateFrom,
         'dateTo' => $dateTo,
+        'canExport' => $canExport,
         'products' => $products->map(fn ($product) => [
             'id' => $product->id,
             'sku' => $product->sku,
@@ -49,6 +50,7 @@
                     <h1 class="mt-2 text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Mutasi per Barang</h1>
                     <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Telusuri saldo berjalan setiap barang, termasuk dokumen, tanggal, dan customer atau supplier yang terkait.</p>
                 </div>
+                @if ($canExport)
                 <div class="flex flex-wrap gap-2" x-show="report.product" x-cloak>
                     <button type="button" class="btn btn-outline" @click="exportFile('pdf')" :disabled="exporting" aria-label="Export PDF mutasi barang">
                         <i class="iconify tabler--file-type-pdf text-base"></i>
@@ -59,6 +61,7 @@
                         <span x-text="exporting === 'csv' ? 'Menyiapkan...' : 'Export Excel'"></span>
                     </button>
                 </div>
+                @endif
             </div>
 
             <form class="card mb-6 p-4 sm:p-5" @submit.prevent="load()" aria-label="Filter mutasi per barang">

@@ -49,6 +49,58 @@ class ProductIndexSalesCountTest extends TestCase
         $this->assertSame('2 transaksi', $bestSeller['caption']);
     }
 
+    public function test_product_catalog_api_keeps_the_sales_count_used_by_the_table(): void
+    {
+        $customer = Customer::query()->create(['name' => 'PT API Terjual']);
+        $product = $this->product('PRD-API-SALES', 'Produk API Terjual');
+
+        $this->item($this->invoice($customer, 'INV-API-SALES', Invoice::STATUS_DRAFT), $product);
+
+        $this->getJson(route('api.products.index', ['status' => 'all']))
+            ->assertOk()
+            ->assertJsonPath('data.0.sales', 1);
+    }
+
+    public function test_paid_and_shipped_invoices_are_counted_and_cancelled_is_not(): void
+    {
+        $customer = Customer::query()->create(['name' => 'PT Status Terjual']);
+        $product = $this->product('PRD-STATUS-SALES', 'Produk Status Terjual');
+
+        $paid = $this->invoice($customer, 'INV-STATUS-PAID', Invoice::STATUS_DRAFT);
+        $paid->forceFill([
+            'payment_status' => Invoice::PAYMENT_PAID,
+            'paid_at' => now(),
+            'order_process_status' => Invoice::ORDER_PROCESS_COMPLETED,
+        ])->save();
+        $this->item($paid, $product);
+
+        $shipped = $this->invoice($customer, 'INV-STATUS-SHIPPED', Invoice::STATUS_SENT);
+        $shipped->forceFill([
+            'payment_status' => Invoice::PAYMENT_PAID,
+            'paid_at' => now(),
+            'order_process_status' => Invoice::ORDER_PROCESS_COMPLETED,
+        ])->save();
+        $this->item($shipped, $product);
+
+        $cancelled = $this->invoice($customer, 'INV-STATUS-CANCELLED', Invoice::STATUS_CANCELLED);
+        $cancelled->forceFill(['payment_status' => Invoice::PAYMENT_PAID])->save();
+        $this->item($cancelled, $product);
+
+        $this->getJson(route('api.products.index', [
+            'status' => 'all',
+            'ids' => [$product->id],
+        ]))
+            ->assertOk()
+            ->assertJsonPath('data.0.sales', 2);
+
+        // Detail/update consumers must receive the same metric as the list
+        // endpoint; otherwise a later hydration can silently replace it with
+        // zero.
+        $this->getJson(route('api.products.show', $product))
+            ->assertOk()
+            ->assertJsonPath('data.sales', 2);
+    }
+
     private function product(string $sku, string $name): Product
     {
         return Product::query()->create([

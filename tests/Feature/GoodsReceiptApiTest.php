@@ -100,6 +100,70 @@ class GoodsReceiptApiTest extends TestCase
         $this->assertSame('8000.0000', $poItem->refresh()->received_quantity);
     }
 
+    public function test_zero_average_cost_does_not_override_a_valid_last_purchase_cost_when_receiving(): void
+    {
+        $product = $this->createProduct(purchasePrice: 0);
+        $product->forceFill([
+            'track_stock' => true,
+            'stock' => 500,
+            'average_purchase_cost' => 0,
+            'last_purchase_price' => 750,
+        ])->save();
+        $supplier = $this->createSupplier();
+        $po = $this->createApprovedPoForProduct($supplier, $product, quantity: 1000, unitPrice: 600);
+        $receipt = $this->createGoodsReceipt($po, $po->items->first(), 1000);
+
+        $this->postJson(route('api.goods-receipts.post', $receipt))->assertOk();
+
+        $this->assertSame('1500.0000', $product->refresh()->stock);
+        // (500 x 750 + 1000 x 600) / 1500 = 650.
+        $this->assertSame('650.00', $product->average_purchase_cost);
+        $this->assertSame('600.00', $product->last_purchase_price);
+    }
+
+    public function test_posted_receipt_syncs_fifo_hpp_and_inventory_value_to_product_api(): void
+    {
+        $po = $this->createApprovedPo(quantity: 1000, unitPrice: 600);
+        $poItem = $po->items->first();
+        $product = $poItem->product;
+        $receipt = $this->createGoodsReceipt($po, $poItem, 1000);
+
+        $this->postJson(route('api.goods-receipts.post', $receipt))->assertOk();
+
+        $this->getJson(route('api.products.show', $product))
+            ->assertOk()
+            ->assertJsonPath('data.stock', 1000)
+            ->assertJsonPath('data.last_purchase_price', 600)
+            ->assertJsonPath('data.fifo_hpp', 600)
+            ->assertJsonPath('data.fifo_inventory_value', 600000);
+    }
+
+    public function test_a_real_purchase_is_visible_when_legacy_zero_cost_stock_exists(): void
+    {
+        $product = $this->createProduct(purchasePrice: 0);
+        $product->forceFill(['stock' => 500])->save();
+        InventoryBatch::query()->create([
+            'product_id' => $product->id,
+            'purchase_date' => '2026-08-01',
+            'qty_received' => 500,
+            'qty_remaining' => 500,
+            'unit_cost' => 0,
+            'source_type' => 'opening_balance',
+            'source_reference' => 'LEGACY-OPENING',
+        ]);
+        $supplier = $this->createSupplier();
+        $po = $this->createApprovedPoForProduct($supplier, $product, quantity: 1000, unitPrice: 600);
+        $receipt = $this->createGoodsReceipt($po, $po->items->first(), 1000);
+
+        $this->postJson(route('api.goods-receipts.post', $receipt))->assertOk();
+
+        $this->getJson(route('api.products.show', $product))
+            ->assertOk()
+            ->assertJsonPath('data.stock', 1500)
+            ->assertJsonPath('data.fifo_hpp', 600)
+            ->assertJsonPath('data.fifo_inventory_value', 600000);
+    }
+
     public function test_weighted_average_cost_across_two_receipts_at_different_prices(): void
     {
         $product = $this->createProduct(purchasePrice: 0);

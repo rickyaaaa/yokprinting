@@ -4,8 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\Permission;
 use App\Models\Product;
+use App\Models\Role;
 use App\Models\StockMovement;
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\ActsAsOwner;
@@ -142,6 +145,19 @@ class StockMutationDetailReportTest extends TestCase
         $this->assertStringStartsWith('%PDF', $this->get(route('api.reports.stock-mutations.pdf', $query))->assertOk()->getContent());
     }
 
+    public function test_export_controls_are_hidden_without_report_export_permission(): void
+    {
+        $this->actingAs($this->userWithPermissions(['report.view']));
+
+        $this->get(route('reports.stock-mutations.index'))
+            ->assertOk()
+            ->assertSee('Mutasi per Barang')
+            ->assertDontSee('Export PDF mutasi barang');
+
+        $this->getJson(route('api.reports.stock-mutations.pdf'))
+            ->assertForbidden();
+    }
+
     private function movement(Product $product, string $type, int|float $quantity, string $reference, string $createdAt): void
     {
         $movement = StockMovement::query()->create([
@@ -155,5 +171,23 @@ class StockMutationDetailReportTest extends TestCase
 
         $date = CarbonImmutable::parse($createdAt);
         $movement->forceFill(['created_at' => $date, 'updated_at' => $date])->save();
+    }
+
+    /** @param list<string> $permissionCodes */
+    private function userWithPermissions(array $permissionCodes): User
+    {
+        $role = Role::factory()->create();
+
+        foreach ($permissionCodes as $permissionCode) {
+            [$module, $action] = explode('.', $permissionCode, 2);
+            $permission = Permission::factory()->create([
+                'code' => $permissionCode,
+                'module' => $module,
+                'action' => $action,
+            ]);
+            $role->permissions()->attach($permission);
+        }
+
+        return User::factory()->create(['role' => $role->code]);
     }
 }

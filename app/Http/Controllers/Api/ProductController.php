@@ -29,6 +29,7 @@ class ProductController extends Controller
 
         $products = Product::query()
             ->with(['categoryModel', 'inventoryBatches'])
+            ->withCount($this->salesCountRelation())
             ->when(
                 filled($validated['ids'] ?? null),
                 fn (Builder $query): Builder => $query->whereIn('id', $validated['ids']),
@@ -91,6 +92,7 @@ class ProductController extends Controller
     public function store(StoreProductRequest $request): JsonResponse
     {
         $product = Product::query()->create($this->normalizeCategory($request->validated()));
+        $product->loadCount($this->salesCountRelation());
 
         return response()->json([
             'data' => $this->serializeProduct($product->load(['categoryModel', 'inventoryBatches'])),
@@ -103,6 +105,8 @@ class ProductController extends Controller
      */
     public function show(Product $product): JsonResponse
     {
+        $product->loadCount($this->salesCountRelation());
+
         return response()->json([
             'data' => $this->serializeProduct($product->load(['categoryModel', 'inventoryBatches'])),
         ]);
@@ -114,6 +118,7 @@ class ProductController extends Controller
     public function update(UpdateProductRequest $request, Product $product): JsonResponse
     {
         $product->update($this->normalizeCategory($request->validated()));
+        $product->loadCount($this->salesCountRelation());
 
         return response()->json([
             'data' => $this->serializeProduct($product->refresh()->load(['categoryModel', 'inventoryBatches'])),
@@ -157,6 +162,28 @@ class ProductController extends Controller
     }
 
     /**
+     * Keep the sales metric identical for the catalogue list and single
+     * product endpoints. The product page hydrates from the list endpoint,
+     * while edit/detail flows use show/update; returning zero simply because
+     * a caller forgot to eager-load the count is what made those flows drift.
+     *
+     * The existing business rule counts active invoice line items (one line
+     * equals one transaction for the current "Terjual" label) and excludes
+     * cancelled invoices. Payment and delivery state are intentionally not
+     * filters: an invoice is a business transaction from creation until it is
+     * explicitly cancelled.
+     *
+     * @return array<string, callable(Builder): Builder>
+     */
+    private function salesCountRelation(): array
+    {
+        return [
+            'invoiceItems as active_invoice_items_count' => fn (Builder $query): Builder => $query
+                ->whereHas('invoice', fn (Builder $invoiceQuery): Builder => $invoiceQuery->businessTransaction()),
+        ];
+    }
+
+    /**
      * Transform a product model for API responses.
      *
      * @return array<string, mixed>
@@ -196,6 +223,12 @@ class ProductController extends Controller
             // See Product::fifoUnitCost()/fifoInventoryValue().
             'fifo_hpp' => (float) $product->fifoUnitCost(),
             'fifo_inventory_value' => (float) $product->fifoInventoryValue(),
+            // The product page hydrates itself from this API after the
+            // initial server render. Keep the sales count in that payload so
+            // the client does not replace the visible value with zero.
+            'sales' => array_key_exists('active_invoice_items_count', $product->getAttributes())
+                ? (int) $product->active_invoice_items_count
+                : 0,
             // From Supplier Price List, not from actual purchase transactions -
             // deliberately kept separate from last_purchase_price above (see
             // requirement 14/15: supplier's asking price vs what was actually paid).
