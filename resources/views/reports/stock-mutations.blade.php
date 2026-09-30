@@ -51,7 +51,7 @@
                 </div>
                 @if ($canExport)
                 <div class="flex flex-wrap gap-2" x-show="report.product" x-cloak>
-                    <button type="button" class="btn btn-primary" @click="exportFile('excel')" :disabled="exporting" aria-label="Export Excel mutasi barang">
+                    <button type="button" class="btn btn-primary" @click="exportFile('excel')" :aria-busy="exporting === 'excel'" aria-label="Export Excel mutasi barang">
                         <i class="iconify tabler--download text-base"></i>
                         <span x-text="exporting === 'excel' ? 'Menyiapkan...' : 'Export Excel'"></span>
                     </button>

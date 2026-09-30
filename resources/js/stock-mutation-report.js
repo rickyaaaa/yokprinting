@@ -1,5 +1,13 @@
 const quantity = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 });
 
+export const buildStockMutationExportUrl = (endpoint, filters = {}) => {
+    if (!endpoint) {
+        return '#';
+    }
+
+    return `${endpoint}?${new URLSearchParams(filters)}`;
+};
+
 export const registerStockMutationReportComponents = (Alpine) => {
     Alpine.data('stockMutationReportPage', (config = {}) => ({
         config,
@@ -98,14 +106,28 @@ export const registerStockMutationReportComponents = (Alpine) => {
             }
         },
 
+        exportUrl(format) {
+            return buildStockMutationExportUrl(this.config.exportEndpoints?.[format], this.filters);
+        },
+
         exportFile(format) {
-            if (!this.filters.product_id || this.exporting) {
+            if (!this.filters.product_id) {
                 return;
             }
 
             this.exporting = format;
-            const params = new URLSearchParams(this.filters);
-            window.location.assign(`${this.config.exportEndpoints[format]}?${params}`);
+
+            // Use a real download link instead of navigating the report page.
+            // This keeps the selected product and date range intact when the
+            // server responds with Content-Disposition: attachment.
+            const link = document.createElement('a');
+            link.href = this.exportUrl(format);
+            link.download = '';
+            link.rel = 'noopener';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+
             window.setTimeout(() => { this.exporting = ''; }, 1200);
         },
 
