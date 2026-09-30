@@ -2,6 +2,7 @@
 
 namespace App\Services\Reports;
 
+use App\Models\CompanyProfile;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -94,22 +95,23 @@ class GenerateStockMutationSpreadsheet
         $lastColumn = $product !== null ? 'H' : 'J';
 
         $rows[] = $this->row(1, [$this->textCell('A1', 'LAPORAN MUTASI STOK', 1)]);
-        $rows[] = $this->row(2, [$this->textCell('A2', 'Periode', 3), $this->textCell('B2', $period['start_date'].' s.d. '.$period['end_date'], 3)]);
+        $rows[] = $this->row(2, [$this->textCell('A2', $this->companyName(), 2)]);
+        $rows[] = $this->row(3, [$this->textCell('A3', 'PERIODE '.$period['start_date'].' s.d. '.$period['end_date'], 2)]);
 
         if ($product !== null) {
-            $rows[] = $this->row(3, [$this->textCell('A3', 'Produk', 3), $this->textCell('B3', (string) $product['name'], 3)]);
-            $rows[] = $this->row(4, [$this->textCell('A4', 'SKU', 3), $this->textCell('B4', (string) $product['sku'], 3)]);
-            $rows[] = $this->row(5, [$this->textCell('A5', 'Unit', 3), $this->textCell('B5', (string) $product['unit'], 3)]);
+            $rows[] = $this->row(4, [$this->textCell('A4', 'Produk', 3), $this->textCell('B4', (string) $product['name'], 3)]);
+            $rows[] = $this->row(5, [$this->textCell('A5', 'SKU', 3), $this->textCell('B5', (string) $product['sku'], 3)]);
+            $rows[] = $this->row(6, [$this->textCell('A6', 'Unit', 3), $this->textCell('B6', (string) $product['unit'], 3)]);
 
             $summary = $summary ?: [];
-            $rows[] = $this->row(7, [$this->textCell('A7', 'Ringkasan', 2), $this->textCell('B7', 'Jumlah', 2)]);
-            $rows[] = $this->row(8, [$this->textCell('A8', 'Saldo awal'), $this->numberCell('B8', $summary['opening_balance'] ?? 0, 6)]);
-            $rows[] = $this->row(9, [$this->textCell('A9', 'Barang masuk / penerimaan'), $this->numberCell('B9', $summary['incoming'] ?? 0, 6)]);
-            $rows[] = $this->row(10, [$this->textCell('A10', 'Barang keluar / penjualan'), $this->numberCell('B10', $summary['outgoing'] ?? 0, 6)]);
-            $rows[] = $this->row(11, [$this->textCell('A11', 'Penyesuaian'), $this->numberCell('B11', $summary['adjustments'] ?? 0, 6)]);
-            $rows[] = $this->row(12, [$this->textCell('A12', 'Saldo akhir'), $this->numberCell('B12', $summary['closing_balance'] ?? 0, 6)]);
+            $rows[] = $this->row(8, [$this->textCell('A8', 'Ringkasan', 2), $this->textCell('B8', 'Jumlah', 2)]);
+            $rows[] = $this->row(9, [$this->textCell('A9', 'Saldo awal'), $this->numberCell('B9', $summary['opening_balance'] ?? 0, 6)]);
+            $rows[] = $this->row(10, [$this->textCell('A10', 'Barang masuk / penerimaan'), $this->numberCell('B10', $summary['incoming'] ?? 0, 6)]);
+            $rows[] = $this->row(11, [$this->textCell('A11', 'Barang keluar / penjualan'), $this->numberCell('B11', $summary['outgoing'] ?? 0, 6)]);
+            $rows[] = $this->row(12, [$this->textCell('A12', 'Penyesuaian'), $this->numberCell('B12', $summary['adjustments'] ?? 0, 6)]);
+            $rows[] = $this->row(13, [$this->textCell('A13', 'Saldo akhir'), $this->numberCell('B13', $summary['closing_balance'] ?? 0, 6)]);
 
-            $headerRow = 14;
+            $headerRow = 15;
             $headers = ['Nomor Dokumen', 'Tanggal', 'Tipe Mutasi', 'Deskripsi / Keterangan', 'Customer / Supplier', 'Masuk', 'Keluar', 'Saldo'];
             $rows[] = $this->headerRow($headerRow, $headers);
 
@@ -128,7 +130,7 @@ class GenerateStockMutationSpreadsheet
                 ]);
             }
         } else {
-            $headerRow = 4;
+            $headerRow = 5;
             $headers = ['SKU', 'Nama Produk', 'Kategori', 'Unit', 'Saldo Awal', 'Pembelian / Masuk', 'Penjualan / Keluar', 'Penyesuaian', 'Saldo Akhir', 'Nilai Persediaan FIFO'];
             $rows[] = $this->headerRow($headerRow, $headers);
 
@@ -158,15 +160,15 @@ class GenerateStockMutationSpreadsheet
             $widths[] = '<col min="'.($index + 1).'" max="'.($index + 1).'" width="'.$width.'" customWidth="1"/>';
         }
 
-        $rowCount = count($rows);
+        $rowCount = $rowNumber;
 
         return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             .'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-            .'<sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="'.($product !== null ? 14 : 4).'" topLeftCell="A'.($product !== null ? 15 : 5).'" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+            .'<sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="'.($product !== null ? 15 : 5).'" topLeftCell="A'.($product !== null ? 16 : 6).'" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
             .'<sheetFormatPr defaultRowHeight="18"/><cols>'.implode('', $widths).'</cols>'
             .'<sheetData>'.implode('', $rows).'</sheetData>'
-            .'<autoFilter ref="A'.($product !== null ? 14 : 4).':'.$lastColumn.$rowCount.'"/>'
-            .'<mergeCells count="1"><mergeCell ref="A1:'.$lastColumn.'1"/></mergeCells>'
+            .'<autoFilter ref="A'.($product !== null ? 15 : 5).':'.$lastColumn.$rowCount.'"/>'
+            .'<mergeCells count="3"><mergeCell ref="A1:'.$lastColumn.'1"/><mergeCell ref="A2:'.$lastColumn.'2"/><mergeCell ref="A3:'.$lastColumn.'3"/></mergeCells>'
             .'<pageMargins left="0.4" right="0.4" top="0.6" bottom="0.6" header="0.2" footer="0.2"/>'
             .'<pageSetup orientation="landscape" paperSize="9" fitToWidth="1" fitToHeight="0"/>'
             .'</worksheet>';
@@ -194,6 +196,11 @@ class GenerateStockMutationSpreadsheet
             'return' => 'Retur barang',
             default => 'Mutasi stok',
         };
+    }
+
+    private function companyName(): string
+    {
+        return CompanyProfile::query()->first()?->business_name ?: (string) config('app.name', 'YokPrinting.ID');
     }
 
     private function columnLetter(int $index): string

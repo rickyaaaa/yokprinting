@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\CompanyProfile;
 use App\Models\Customer;
 use App\Models\Invoice;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\ActsAsOwner;
 use Tests\TestCase;
+use ZipArchive;
 
 class CustomerSalesProfitReportTest extends TestCase
 {
@@ -207,14 +209,14 @@ class CustomerSalesProfitReportTest extends TestCase
         $this->invoice($customer, 'INV-CARI-IN', 1000, 400, '2026-08-13');
         $this->invoice($customer, 'INV-LAIN-OUT', 2000, 500, '2026-08-14');
 
-        $csv = $this->get(route('api.reports.customer-sales.export', [
+        $sheet = $this->worksheetXml($this->get(route('api.reports.customer-sales.export', [
             'date_from' => '2026-08-01',
             'date_to' => '2026-08-31',
             'q' => 'CARI',
-        ]))->assertOk()->getContent();
+        ]))->assertOk()->getContent());
 
-        $this->assertStringContainsString('INV-CARI-IN', $csv);
-        $this->assertStringNotContainsString('INV-LAIN-OUT', $csv);
+        $this->assertStringContainsString('INV-CARI-IN', $sheet);
+        $this->assertStringNotContainsString('INV-LAIN-OUT', $sheet);
     }
 
     public function test_customer_sales_report_page_loads_for_report_viewers(): void
@@ -222,7 +224,28 @@ class CustomerSalesProfitReportTest extends TestCase
         $this->get(route('reports.customer-sales.index'))
             ->assertOk()
             ->assertSee('Penjualan per Pelanggan')
-            ->assertSee('customerSalesReportPage');
+            ->assertSee('customerSalesReportPage')
+            ->assertSee('Export Excel')
+            ->assertDontSee('Export Excel/CSV');
+    }
+
+    public function test_customer_excel_uses_the_product_export_workbook_layout(): void
+    {
+        CompanyProfile::query()->create(['business_name' => 'YokPrinting Kelapa Dua']);
+        $customer = Customer::query()->create(['name' => 'Layout Customer']);
+        $this->invoice($customer, 'INV-LAYOUT', 1000000, 400000, '2026-08-13');
+
+        $sheet = $this->worksheetXml($this->get(route('api.reports.customer-sales.excel', [
+            'date_from' => '2026-08-01',
+            'date_to' => '2026-08-31',
+        ]))->assertOk()->getContent());
+
+        $this->assertStringContainsString('LAPORAN PENJUALAN PER PELANGGAN', $sheet);
+        $this->assertStringContainsString('YokPrinting Kelapa Dua', $sheet);
+        $this->assertStringContainsString('<autoFilter ref="A5:', $sheet);
+        $this->assertStringContainsString('ySplit="5"', $sheet);
+        $this->assertStringContainsString('Customer', $sheet);
+        $this->assertStringContainsString('INV-LAYOUT', $sheet);
     }
 
     public function test_customer_report_export_respects_period_and_customer_filter(): void
@@ -237,10 +260,28 @@ class CustomerSalesProfitReportTest extends TestCase
             'customer_id' => $customer->id,
         ]));
 
-        $response->assertOk();
-        $csv = $response->getContent();
-        $this->assertStringContainsString('INV-IN', $csv);
-        $this->assertStringNotContainsString('INV-OUT', $csv);
+        $response->assertOk()->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $sheet = $this->worksheetXml($response->getContent());
+        $this->assertStringContainsString('INV-IN', $sheet);
+        $this->assertStringNotContainsString('INV-OUT', $sheet);
+    }
+
+    private function worksheetXml(string $contents): string
+    {
+        $this->assertStringStartsWith('PK', $contents);
+        $path = tempnam(sys_get_temp_dir(), 'customer-sales-');
+        file_put_contents($path, $contents);
+        $archive = new ZipArchive;
+        $this->assertSame(true, $archive->open($path));
+        $sheet = $archive->getFromName('xl/worksheets/sheet1.xml');
+        $styles = $archive->getFromName('xl/styles.xml');
+        $archive->close();
+        @unlink($path);
+        $this->assertIsString($sheet);
+        $this->assertIsString($styles);
+        $this->assertStringContainsString('</cellStyleXfs><cellStyles', $styles);
+
+        return $sheet;
     }
 
     private function invoice(

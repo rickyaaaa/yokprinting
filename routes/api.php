@@ -395,9 +395,12 @@ Route::middleware(['web', 'auth'])->group(function (): void {
     Route::get('/reports/customer-sales', [CustomerSalesProfitReportController::class, 'index'])
         ->middleware('permission:report.view')
         ->name('api.reports.customer-sales.index');
-    Route::get('/reports/customer-sales/export', [CustomerSalesProfitReportController::class, 'export'])
+    Route::get('/reports/customer-sales/export', [CustomerSalesProfitReportController::class, 'excel'])
         ->middleware(['permission:report.export', 'throttle:report-export'])
         ->name('api.reports.customer-sales.export');
+    Route::get('/reports/customer-sales/excel', [CustomerSalesProfitReportController::class, 'excel'])
+        ->middleware(['permission:report.export', 'throttle:report-export'])
+        ->name('api.reports.customer-sales.excel');
     Route::get('/reports/customer-sales/pdf', [CustomerSalesProfitReportController::class, 'pdf'])
         ->middleware(['permission:report.export', 'throttle:report-export'])
         ->name('api.reports.customer-sales.pdf');

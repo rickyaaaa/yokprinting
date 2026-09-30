@@ -4,7 +4,7 @@
         'dateFrom' => now()->startOfMonth()->toDateString(),
         'dateTo' => now()->toDateString(),
         'exportEndpoints' => [
-            'csv' => route('api.reports.customer-sales.export'),
+            'excel' => route('api.reports.customer-sales.excel'),
             'pdf' => route('api.reports.customer-sales.pdf'),
         ],
     ];
@@ -33,7 +33,7 @@
         <div class="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
             <div class="mb-6 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                 <div><h1 class="text-2xl font-semibold text-ink">Penjualan per Pelanggan</h1><p class="mt-1 text-sm text-muted">Bandingkan penjualan, HPP FIFO, laba kotor, dan margin berdasarkan pelanggan.</p></div>
-                <div class="flex flex-wrap gap-2"><button type="button" class="btn btn-outline" @click="exportFile('pdf')">Export PDF</button><button type="button" class="btn btn-primary" @click="exportFile('csv')">Export Excel/CSV</button></div>
+                <div class="flex flex-wrap gap-2"><button type="button" class="btn btn-outline" @click="exportFile('pdf')">Export PDF</button><button type="button" class="btn btn-primary" @click="exportFile('excel')">Export Excel</button></div>
             </div>
             <form class="mb-6 grid gap-3 card p-4 sm:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto]" @submit.prevent="load()">
                 <label class="text-sm"><span class="mb-1 block font-semibold text-muted">Dari tanggal</span><input class="form-control" type="date" x-model="filters.date_from"></label>
@@ -53,7 +53,7 @@
             <div x-show="loading" class="card px-5 py-12 text-center text-sm text-muted">Memuat laporan...</div>
             <div x-show="!loading && report.customers.length === 0" class="card px-5 py-12 text-center text-sm text-muted">Tidak ada penjualan pada filter ini.</div>
 
-            <!-- One card per customer, invoices nested inside with a subtotal row - matches the PDF/CSV export layout instead of repeating the customer name on every invoice row. -->
+            <!-- One card per customer, invoices nested inside with a subtotal row - matches the PDF/Excel export layout instead of repeating the customer name on every invoice row. -->
             <template x-for="customer in report.customers" :key="customer.customer_id">
                 <section class="mb-4 overflow-hidden card" x-show="!loading">
                     <div class="flex items-center justify-between gap-3 border-b border-line bg-surface-low px-5 py-3">

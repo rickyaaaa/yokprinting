@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Exports\ReportCsvExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ListCustomerSalesProfitReportRequest;
+use App\Models\Customer;
 use App\Models\Invoice;
+use App\Services\Reports\GenerateCustomerSalesSpreadsheet;
 use App\Services\Reports\GeneratedReportFile;
 use Carbon\CarbonImmutable;
 use Dompdf\Dompdf;
@@ -23,26 +24,14 @@ class CustomerSalesProfitReportController extends Controller
         return response()->json(['status' => 'success', 'data' => $report]);
     }
 
-    public function export(ListCustomerSalesProfitReportRequest $request, ReportCsvExport $export): Response
-    {
-        $report = $this->report($request->validated());
-        $rows = collect($report['customers'])
-            ->flatMap(fn (array $customer): Collection => collect($customer['invoices'])->map(fn (array $row): array => [
-                $customer['customer'],
-                $row['issue_date'],
-                $row['invoice_number'],
-                $row['transaction_type'],
-                $row['sales'],
-                $row['fifo_hpp'],
-                $row['gross_profit'],
-                $row['margin_percent'],
-            ]));
+    public function excel(
+        ListCustomerSalesProfitReportRequest $request,
+        GenerateCustomerSalesSpreadsheet $spreadsheet,
+    ): Response {
+        $filters = $request->validated();
+        $report = $this->report($filters);
 
-        return $export->download(
-            "penjualan-per-pelanggan-{$report['period']['date_from']}-sampai-{$report['period']['date_to']}.csv",
-            ['Customer', 'Tanggal', 'Invoice', 'Tipe Transaksi', 'Penjualan', 'HPP FIFO', 'Laba Kotor', 'Margin %'],
-            $rows,
-        );
+        return $this->download($spreadsheet->generate($report, $this->filterSummary($filters)));
     }
 
     public function pdf(ListCustomerSalesProfitReportRequest $request): Response
@@ -171,5 +160,32 @@ class CustomerSalesProfitReportController extends Controller
             'Cache-Control' => 'private, no-store',
             'X-Content-Type-Options' => 'nosniff',
         ]);
+    }
+
+    /** @param array<string, mixed> $filters */
+    private function filterSummary(array $filters): ?string
+    {
+        $parts = [];
+        $status = $filters['status'] ?? 'all';
+
+        if ($status !== 'all') {
+            $parts[] = 'Status: '.match ($status) {
+                Invoice::PAYMENT_PAID => 'Lunas',
+                Invoice::PAYMENT_PARTIAL => 'Parsial',
+                Invoice::PAYMENT_UNPAID => 'Belum bayar',
+                Invoice::PAYMENT_OVERDUE => 'Jatuh tempo',
+                default => $status,
+            };
+        }
+
+        if (($filters['customer_id'] ?? null) !== null) {
+            $parts[] = 'Customer: '.(Customer::query()->find($filters['customer_id'])?->name ?: 'ID '.$filters['customer_id']);
+        }
+
+        if (($filters['q'] ?? null) !== null && trim((string) $filters['q']) !== '') {
+            $parts[] = 'Pencarian: "'.trim((string) $filters['q']).'"';
+        }
+
+        return $parts === [] ? null : 'Filter - '.implode(' | ', $parts);
     }
 }
