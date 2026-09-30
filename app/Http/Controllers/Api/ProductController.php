@@ -29,7 +29,7 @@ class ProductController extends Controller
 
         $products = Product::query()
             ->with(['categoryModel', 'inventoryBatches'])
-            ->withCount($this->salesCountRelation())
+            ->withSum($this->salesQuantityRelation(), 'quantity')
             ->when(
                 filled($validated['ids'] ?? null),
                 fn (Builder $query): Builder => $query->whereIn('id', $validated['ids']),
@@ -92,7 +92,7 @@ class ProductController extends Controller
     public function store(StoreProductRequest $request): JsonResponse
     {
         $product = Product::query()->create($this->normalizeCategory($request->validated()));
-        $product->loadCount($this->salesCountRelation());
+        $product->loadSum($this->salesQuantityRelation(), 'quantity');
 
         return response()->json([
             'data' => $this->serializeProduct($product->load(['categoryModel', 'inventoryBatches'])),
@@ -105,7 +105,7 @@ class ProductController extends Controller
      */
     public function show(Product $product): JsonResponse
     {
-        $product->loadCount($this->salesCountRelation());
+        $product->loadSum($this->salesQuantityRelation(), 'quantity');
 
         return response()->json([
             'data' => $this->serializeProduct($product->load(['categoryModel', 'inventoryBatches'])),
@@ -118,10 +118,11 @@ class ProductController extends Controller
     public function update(UpdateProductRequest $request, Product $product): JsonResponse
     {
         $product->update($this->normalizeCategory($request->validated()));
-        $product->loadCount($this->salesCountRelation());
+        $product->refresh()->load(['categoryModel', 'inventoryBatches']);
+        $product->loadSum($this->salesQuantityRelation(), 'quantity');
 
         return response()->json([
-            'data' => $this->serializeProduct($product->refresh()->load(['categoryModel', 'inventoryBatches'])),
+            'data' => $this->serializeProduct($product),
             'message' => 'Product updated successfully.',
         ]);
     }
@@ -167,18 +168,18 @@ class ProductController extends Controller
      * while edit/detail flows use show/update; returning zero simply because
      * a caller forgot to eager-load the count is what made those flows drift.
      *
-     * The existing business rule counts active invoice line items (one line
-     * equals one transaction for the current "Terjual" label) and excludes
-     * cancelled invoices. Payment and delivery state are intentionally not
-     * filters: an invoice is a business transaction from creation until it is
-     * explicitly cancelled.
+     * The product catalogue reports the quantity on active invoice lines,
+     * not the number of invoice rows. Cancelled invoices are excluded while
+     * payment and delivery state remain intentionally irrelevant: an invoice
+     * is a business transaction from creation until it is explicitly
+     * cancelled.
      *
      * @return array<string, callable(Builder): Builder>
      */
-    private function salesCountRelation(): array
+    private function salesQuantityRelation(): array
     {
         return [
-            'invoiceItems as active_invoice_items_count' => fn (Builder $query): Builder => $query
+            'invoiceItems as active_sales_quantity' => fn (Builder $query): Builder => $query
                 ->whereHas('invoice', fn (Builder $invoiceQuery): Builder => $invoiceQuery->businessTransaction()),
         ];
     }
@@ -224,10 +225,10 @@ class ProductController extends Controller
             'fifo_hpp' => (float) $product->fifoUnitCost(),
             'fifo_inventory_value' => (float) $product->fifoInventoryValue(),
             // The product page hydrates itself from this API after the
-            // initial server render. Keep the sales count in that payload so
+            // initial server render. Keep the sales quantity in that payload so
             // the client does not replace the visible value with zero.
-            'sales' => array_key_exists('active_invoice_items_count', $product->getAttributes())
-                ? (int) $product->active_invoice_items_count
+            'sales' => array_key_exists('active_sales_quantity', $product->getAttributes())
+                ? $this->quantityValue($product->active_sales_quantity)
                 : 0,
             // From Supplier Price List, not from actual purchase transactions -
             // deliberately kept separate from last_purchase_price above (see
@@ -250,6 +251,13 @@ class ProductController extends Controller
             'created_at' => $product->created_at?->toISOString(),
             'updated_at' => $product->updated_at?->toISOString(),
         ];
+    }
+
+    private function quantityValue(mixed $quantity): int|float
+    {
+        $value = round((float) ($quantity ?? 0), 4);
+
+        return fmod($value, 1.0) === 0.0 ? (int) $value : $value;
     }
 
     /**

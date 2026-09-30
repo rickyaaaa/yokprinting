@@ -190,7 +190,7 @@ class DraftInvoiceReportVisibilityAcceptanceTest extends TestCase
 
         // H. Produk terlaris / kolom "Terjual".
         $products = collect($this->get(route('products.index'))->assertOk()->viewData('products'));
-        $this->assertSame(1, $products->firstWhere('sku', 'ACCEPT-DRAFT-01')['sales']);
+        $this->assertSame(10, $products->firstWhere('sku', 'ACCEPT-DRAFT-01')['sales']);
 
         // I. Lunas -> tidak lagi jadi piutang (tidak double count).
         $this->assertFalse(Invoice::query()->receivable()->whereKey($invoice->getKey())->exists());

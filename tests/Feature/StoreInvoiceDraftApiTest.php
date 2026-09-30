@@ -102,8 +102,8 @@ class StoreInvoiceDraftApiTest extends TestCase
             'mockup_url' => 'https://yokprinting.id/mockup/INV-2026-0090',
         ]);
         $this->assertDatabaseHas('invoice_items', [
-            'product_name' => 'Sablon Cup 12 Oz Oval',
-            'sku' => 'H-016',
+            'product_name' => 'Paket Desain Identitas Brand',
+            'sku' => 'JSA-BRAND-01',
             'cup_size' => '12 Oz',
             'cup_model' => 'Oval',
             'grammage' => '8gr',
@@ -117,14 +117,59 @@ class StoreInvoiceDraftApiTest extends TestCase
         ]);
     }
 
-    public function test_invoice_draft_rejects_non_12_oz_cup_size(): void
+    public function test_invoice_draft_accepts_supported_cup_sizes(): void
     {
         $payload = $this->validPayload();
         $payload['items'][0]['cup_size'] = '16 Oz';
 
         $this->postJson(route('api.invoices.drafts.store'), $payload)
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['items.0.cup_size']);
+            ->assertCreated();
+    }
+
+    public function test_product_snapshot_overrides_stale_invoice_identity_and_size(): void
+    {
+        $customer = Customer::query()->create(['name' => 'PT Konsisten Invoice']);
+        $product = Product::query()->create([
+            'name' => 'Cup Injection 14Oz Datar (400Ml) Natural',
+            'sku' => 'H-014',
+            'category' => 'Cup Injection',
+            'cup_size' => '14 Oz',
+            'cup_model' => 'Datar',
+            'grammage' => '8gr',
+            'package_conversion' => 500,
+            'minimum_order_qty' => 500,
+        ]);
+
+        $this->postJson(route('api.invoices.drafts.store'), [
+            'customer_id' => $customer->id,
+            'issue_date' => '2026-09-30',
+            'due_date' => '2026-10-14',
+            'items' => [[
+                'product_id' => $product->id,
+                'product_name' => 'Sablon Cup 12 Oz Datar (8gr)',
+                'sku' => 'STALE-SKU',
+                'cup_size' => '12 Oz',
+                'cup_model' => 'Oval',
+                'grammage' => '7gr',
+                'screen_printing_color' => 'Hitam',
+                'jenis_cetak' => '1 warna',
+                'description' => 'Sablon Cup 12 Oz Datar (8gr) (Tinta Hitam - 1 warna)',
+                'quantity' => 500,
+                'price' => 600,
+            ]],
+            'discount' => ['type' => 'percentage', 'value' => 0],
+            'tax' => ['enabled' => false, 'rate' => 0],
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('invoice_items', [
+            'product_id' => $product->id,
+            'product_name' => $product->name,
+            'sku' => $product->sku,
+            'cup_size' => '14 Oz',
+            'cup_model' => 'Datar',
+            'grammage' => '8gr',
+            'description' => 'Sablon Cup 14 Oz Datar (8gr) - 1 warna (Tinta Hitam)',
+        ]);
     }
 
     public function test_invoice_draft_rejects_quantities_below_moq_or_wrong_increment(): void

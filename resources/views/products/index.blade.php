@@ -169,7 +169,7 @@
                                                     Di bawah minimum
                                                 </span>
                                             </td>
-                                            <td class="px-5 py-4 text-right text-muted" x-text="product.sales"></td>
+                                            <td class="px-5 py-4 text-right text-muted" x-text="formatProductQuantity(product.sales, product.unit)"></td>
                                             <td class="px-5 py-4 text-right">
                                                 <span class="badge" :class="statusClass(product.status)" x-text="product.status"></span>
                                             </td>

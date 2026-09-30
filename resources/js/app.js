@@ -35,7 +35,7 @@ import {
 } from './support/minimum-stock';
 import { printedItemNoun as printedNounForCategory } from './support/invoice-item-label';
 import { defaultReceivableSort, initialDirectionFor, sortReceivables, withinInvoiceDateRange } from './support/receivable-table';
-import { resolveProductMetrics } from './support/product-catalog';
+import { formatProductQuantity, resolveProductMetrics } from './support/product-catalog';
 import { registerExpenseComponents } from './expenses';
 import { registerProfitLossComponents } from './profit-loss';
 import { registerCashBankComponents } from './cash-bank';
@@ -1701,7 +1701,7 @@ Alpine.data('invoiceItems', () => ({
             productSearch: product ? this.productLabel(product) : '',
             pickerOpen: false,
             pickerStyle: '',
-            cupSize: '12 Oz',
+            cupSize: product?.cup_size ?? '12 Oz',
             cupModel: product?.cup_model ?? 'Oval',
             grammage: product?.grammage ?? '8gr',
             screenPrintingColor: product?.screen_printing_color ?? 'Hitam',
@@ -1824,7 +1824,7 @@ Alpine.data('invoiceItems', () => ({
             item.productName = product.name;
             item.sku = product.sku ?? '';
             item.productSearch = this.productLabel(product);
-            item.cupSize = '12 Oz';
+            item.cupSize = product.cup_size ?? item.cupSize ?? '12 Oz';
             item.cupModel = product.cup_model ?? item.cupModel;
             item.grammage = product.grammage ?? item.grammage;
             item.screenPrintingColor = product.screen_printing_color ?? item.screenPrintingColor;
@@ -2859,6 +2859,10 @@ Alpine.data('productIndexTable', (initialProducts = [], exportEndpoints = {}) =>
             trackStock,
             updatedAt: product.updated_at,
         };
+    },
+
+    formatProductQuantity(value, unit = 'Pcs') {
+        return formatProductQuantity(value, unit);
     },
 
     get isFiltered() {

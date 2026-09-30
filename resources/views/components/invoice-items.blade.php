@@ -176,7 +176,9 @@
                                     <div>
                                         <label class="mb-1 block text-[11px] font-semibold text-muted" :for="`cup-size-${item.key}`">Ukuran</label>
                                         <select :id="`cup-size-${item.key}`" x-model="item.cupSize" :name="`items[${index}][cup_size]`" class="form-control spec-select">
-                                            <option>12 Oz</option>
+                                            @foreach (\App\Models\Product::CUP_SIZES as $cupSize)
+                                                <option>{{ $cupSize }}</option>
+                                            @endforeach
                                         </select>
                                     </div>
                                     <div>

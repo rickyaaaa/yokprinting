@@ -65,6 +65,50 @@ class FixInvoiceItemDescriptionsTest extends TestCase
         $this->assertSame('Sablon Cup 12 Oz Datar (8gr)', $item->fresh()->description);
     }
 
+    public function test_it_repairs_a_verified_cup_size_mismatch_only_with_apply(): void
+    {
+        $product = Product::query()->create([
+            'sku' => 'H-014',
+            'name' => 'Cup Injection 14Oz Datar (400Ml) Natural',
+            'category' => 'Cup Injection',
+            'cup_size' => '14 Oz',
+            'cup_model' => 'Datar',
+            'grammage' => '8gr',
+        ]);
+        $customer = Customer::query()->create(['code' => 'CUS-014', 'name' => 'Pelanggan 14 Oz']);
+        $invoice = Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-014',
+            'issue_date' => '2026-09-30',
+            'due_date' => '2026-10-14',
+            'subtotal' => 300000,
+            'total_amount' => 300000,
+        ]);
+        $item = $invoice->items()->create([
+            'product_id' => $product->id,
+            'product_name' => $product->name,
+            'sku' => $product->sku,
+            'cup_size' => '12 Oz',
+            'cup_model' => 'Datar',
+            'grammage' => '8gr',
+            'screen_printing_color' => 'Hitam',
+            'jenis_cetak' => '1 warna',
+            'description' => 'Sablon Cup 12 Oz Datar (8gr) (Tinta Hitam - 1 warna)',
+            'quantity' => 500,
+            'unit_price' => 600,
+            'subtotal' => 300000,
+            'total_amount' => 300000,
+        ]);
+
+        $this->artisan('invoices:items:fix-descriptions')->assertSuccessful();
+        $this->assertSame('Sablon Cup 12 Oz Datar (8gr) (Tinta Hitam - 1 warna)', $item->fresh()->description);
+
+        $this->artisan('invoices:items:fix-descriptions', ['--apply' => true])->assertSuccessful();
+
+        $this->assertSame('Sablon Cup 14 Oz Datar (8gr) - 1 warna (Tinta Hitam)', $item->fresh()->description);
+        $this->assertSame(300000.0, (float) $invoice->fresh()->total_amount);
+    }
+
     private function itemFor(string $category, string $description): InvoiceItem
     {
         static $sequence = 0;

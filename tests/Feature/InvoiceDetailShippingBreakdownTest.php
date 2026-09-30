@@ -141,6 +141,40 @@ class InvoiceDetailShippingBreakdownTest extends TestCase
             ->assertSeeInOrder(['Ongkir', 'Rp50.000', 'Total invoice', 'Rp300.000']);
     }
 
+    public function test_invoice_detail_keeps_product_name_and_full_specification_separate(): void
+    {
+        $product = Product::query()->create([
+            'name' => 'Cup Injection 14Oz Datar (400Ml) Natural',
+            'sku' => 'DETAIL-14OZ',
+            'category' => 'Cup Injection',
+            'cup_size' => '14 Oz',
+            'cup_model' => 'Datar',
+            'grammage' => '8gr',
+        ]);
+        $invoice = $this->invoice([
+            'invoice_number' => 'INV-DETAIL-14OZ',
+            'subtotal' => 300000,
+            'total_amount' => 300000,
+        ]);
+        $invoice->items()->create([
+            'product_id' => $product->id,
+            'product_name' => $product->name,
+            'sku' => $product->sku,
+            'description' => 'Sablon Cup 14 Oz Datar (8gr) - 1 warna (Tinta Hitam) dengan logo depan dan belakang',
+            'quantity' => 500,
+            'unit_price' => 600,
+            'subtotal' => 300000,
+            'total_amount' => 300000,
+        ]);
+
+        $this->get(route('payments.invoices.show', $invoice->invoice_number))
+            ->assertOk()
+            ->assertSee($product->name)
+            ->assertSee('Sablon Cup 14 Oz Datar (8gr) - 1 warna (Tinta Hitam) dengan logo depan dan belakang')
+            ->assertDontSee('Sablon Cup 12 Oz')
+            ->assertSee('whitespace-normal break-words', false);
+    }
+
     /** @param array<string, mixed> $overrides */
     private function invoice(array $overrides): Invoice
     {

@@ -10,15 +10,14 @@ class ProductIndexPageController extends Controller
     public function __invoke(): View
     {
         $models = Product::query()
-            // "Terjual"/"Produk terlaris" count line items from real
-            // transactions only. Previously unfiltered, so items on a
-            // cancelled invoice - whose stock has already been restored by
-            // CancelInvoice - still inflated both figures. See
-            // Invoice::scopeBusinessTransaction().
-            ->withCount([
-                'invoiceItems as active_invoice_items_count' => fn ($query) => $query
+            // "Terjual"/"Produk terlaris" is the quantity from real
+            // transactions, not the number of invoice rows. Previously a
+            // 1,000-piece line counted as one sale. Cancelled invoices are
+            // excluded by the same business-transaction scope used elsewhere.
+            ->withSum([
+                'invoiceItems as active_sales_quantity' => fn ($query) => $query
                     ->whereHas('invoice', fn ($invoiceQuery) => $invoiceQuery->businessTransaction()),
-            ])
+            ], 'quantity')
             ->with('inventoryBatches')
             ->orderBy('sku')
             ->get();
@@ -43,7 +42,7 @@ class ProductIndexPageController extends Controller
                 'stock' => $product->track_stock ? number_format($stock, 0, ',', '.').' '.strtoupper($product->unit) : 'Tidak dilacak',
                 'stockValue' => $product->track_stock ? $stock : PHP_INT_MAX,
                 'minimumStock' => $minimum,
-                'sales' => $product->active_invoice_items_count,
+                'sales' => $this->quantityValue($product->active_sales_quantity),
                 'status' => $product->status === Product::STATUS_INACTIVE ? 'Nonaktif' : ($lowStock ? 'Stok menipis' : 'Aktif'),
             ];
         })->values();
@@ -60,7 +59,7 @@ class ProductIndexPageController extends Controller
         );
         $shortfallCount = $models->filter(fn (Product $product): bool => $product->track_stock && (float) ($product->stock ?? 0) < 0
         )->count();
-        $bestSeller = $models->sortByDesc('active_invoice_items_count')->first();
+        $bestSeller = $models->sortByDesc('active_sales_quantity')->first();
 
         return view('products.index', [
             'products' => $products,
@@ -70,7 +69,7 @@ class ProductIndexPageController extends Controller
                 ['label' => 'Nilai persediaan', 'value' => $this->rupiah($inventoryValue), 'caption' => $shortfallCount > 0
                     ? "Kekurangan stok {$this->rupiah($shortfallValue)} di {$shortfallCount} produk"
                     : 'Berdasarkan layer HPP FIFO aktif', 'tone' => $shortfallCount > 0 ? 'warning' : 'success'],
-                ['label' => 'Produk terlaris', 'value' => $bestSeller?->name ?? '-', 'caption' => ($bestSeller?->active_invoice_items_count ?? 0).' transaksi', 'tone' => 'brand'],
+                ['label' => 'Produk terlaris', 'value' => $bestSeller?->name ?? '-', 'caption' => $this->formatQuantity($bestSeller?->active_sales_quantity).' Pcs terjual', 'tone' => 'brand'],
             ],
         ]);
     }
@@ -78,5 +77,19 @@ class ProductIndexPageController extends Controller
     private function rupiah(float $amount): string
     {
         return 'Rp'.number_format($amount, 0, ',', '.');
+    }
+
+    private function quantityValue(mixed $quantity): int|float
+    {
+        $value = round((float) ($quantity ?? 0), 4);
+
+        return fmod($value, 1.0) === 0.0 ? (int) $value : $value;
+    }
+
+    private function formatQuantity(mixed $quantity): string
+    {
+        $value = $this->quantityValue($quantity);
+
+        return rtrim(rtrim(number_format((float) $value, 4, ',', '.'), '0'), ',');
     }
 }

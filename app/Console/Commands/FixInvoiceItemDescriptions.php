@@ -27,7 +27,7 @@ class FixInvoiceItemDescriptions extends Command
         // Soft-deleted items are superseded history kept for the FIFO cost
         // audit trail, so they are deliberately left untouched.
         $candidates = InvoiceItem::query()
-            ->with(['product:id,category'])
+            ->with(['product:id,name,category,cup_size,cup_model,grammage,screen_printing_color,sides'])
             ->where('description', 'like', 'Sablon Cup %')
             ->orderBy('id')
             ->get();
@@ -55,6 +55,17 @@ class FixInvoiceItemDescriptions extends Command
             $noun = $this->printedItemNoun($category);
 
             if ($noun === 'Cup') {
+                $corrected = $this->correctedCupDescription($item);
+
+                if ($corrected !== null && $corrected !== $item->description) {
+                    $pending[] = [
+                        'item' => $item,
+                        'before' => $item->description,
+                        'after' => $corrected,
+                        'reason' => 'Ukuran/spec invoice berbeda dari produk yang terhubung.',
+                    ];
+                }
+
                 continue;
             }
 
@@ -62,6 +73,7 @@ class FixInvoiceItemDescriptions extends Command
                 'item' => $item,
                 'before' => $item->description,
                 'after' => preg_replace('/^Sablon Cup /', "Sablon {$noun} ", $item->description, 1),
+                'reason' => "Kategori produk membutuhkan label {$noun}.",
             ];
         }
 
@@ -76,10 +88,11 @@ class FixInvoiceItemDescriptions extends Command
         }
 
         $this->table(
-            ['Invoice item', 'Product', 'Before', 'After'],
+            ['Invoice item', 'Product', 'Reason', 'Before', 'After'],
             array_map(static fn (array $row): array => [
                 $row['item']->getKey(),
                 $row['item']->product_name,
+                $row['reason'],
                 $row['before'],
                 $row['after'],
             ], $pending),
@@ -120,5 +133,41 @@ class FixInvoiceItemDescriptions extends Command
             (bool) preg_match('/bowl/i', $category) => 'Bowl',
             default => 'Cup',
         };
+    }
+
+    private function correctedCupDescription(InvoiceItem $item): ?string
+    {
+        $product = $item->product;
+
+        // A historical snapshot is only safe to repair when it still points
+        // at the same current product name. Otherwise the product may have
+        // been renamed after issuance and guessing would rewrite history.
+        if ($product === null || $item->product_name !== $product->name) {
+            return null;
+        }
+
+        $productSize = trim((string) $product->cup_size);
+        $description = trim((string) $item->description);
+
+        if ($productSize === '' || ! str_starts_with(strtolower($description), 'sablon cup ')) {
+            return null;
+        }
+
+        preg_match('/\b\d+(?:\/\d+)?\s*Oz\b/i', $product->name, $productNameSize);
+        preg_match('/\b\d+(?:\/\d+)?\s*Oz\b/i', $description, $descriptionSize);
+
+        if ($productNameSize === [] || $descriptionSize === []
+            || strcasecmp(preg_replace('/\s+/', ' ', $productNameSize[0]), preg_replace('/\s+/', ' ', $descriptionSize[0])) === 0) {
+            return null;
+        }
+
+        $snapshot = $item->replicate();
+        $snapshot->cup_size = $product->cup_size;
+        $snapshot->cup_model = $product->cup_model ?: $item->cup_model;
+        $snapshot->grammage = $product->grammage ?: $item->grammage;
+        $snapshot->screen_printing_color = $item->screen_printing_color ?: $product->screen_printing_color;
+        $snapshot->jenis_cetak = $item->jenis_cetak ?: ($product->sides ? "{$product->sides} warna" : null);
+
+        return $snapshot->cupSpecificationDescription();
     }
 }

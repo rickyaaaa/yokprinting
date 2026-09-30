@@ -313,9 +313,9 @@
                                         <tbody class="divide-y divide-line">
                                             @foreach ($items as $item)
                                                 <tr>
-                                                    <td class="px-5 py-4 sm:px-6">
-                                                        <p class="font-medium text-ink">{{ $item['name'] }}</p>
-                                                        <p class="mt-1 text-xs text-muted">{{ $item['spec'] }}</p>
+                                                    <td class="max-w-[28rem] px-5 py-4 align-top sm:px-6">
+                                                        <p class="break-words font-medium text-ink">{{ $item['name'] }}</p>
+                                                        <p class="mt-1 whitespace-normal break-words text-xs leading-5 text-muted">{{ $item['spec'] }}</p>
                                                     </td>
                                                     <td class="px-5 py-4 text-center text-muted">{{ $item['quantity'] }}</td>
                                                     <td class="px-5 py-4 text-right text-muted">{{ $item['price'] }}</td>
