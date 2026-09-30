@@ -4,9 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\CashBankTransaction;
 use App\Models\Customer;
+use App\Models\InventoryBatch;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\Product;
 use App\Models\Role;
+use App\Models\StockMovement;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -92,6 +95,69 @@ class StoreInvoicePaymentApiTest extends TestCase
             'invoice_id' => $invoice->id,
             'amount' => 3000000,
             'status' => Payment::STATUS_VERIFIED,
+        ]);
+    }
+
+    public function test_first_verified_dp_consumes_inventory_but_invoice_creation_does_not(): void
+    {
+        $customer = Customer::query()->create(['name' => 'PT DP Inventory Regression']);
+        $product = Product::query()->create([
+            'name' => 'Cup DP Inventory Regression',
+            'sku' => 'DP-INVENTORY-01',
+            'track_stock' => true,
+            'stock' => 1000,
+            'purchase_price' => 500,
+            'minimum_order_qty' => 1,
+            'package_conversion' => 1,
+        ]);
+        InventoryBatch::query()->create([
+            'product_id' => $product->id,
+            'purchase_date' => '2026-07-01',
+            'qty_received' => 1000,
+            'qty_remaining' => 1000,
+            'unit_cost' => 500,
+            'source_type' => 'goods_receipt',
+            'source_reference' => 'DP-REGRESSION',
+        ]);
+
+        $draft = $this->postJson(route('api.invoices.drafts.store'), [
+            'customer_id' => $customer->id,
+            'issue_date' => '2026-07-23',
+            'due_date' => '2026-08-06',
+            'items' => [['product_id' => $product->id, 'quantity' => 1000, 'price' => 850]],
+            'discount' => ['type' => 'percentage', 'value' => 0],
+            'tax' => ['enabled' => false, 'rate' => 0],
+        ])->assertCreated();
+
+        $this->assertSame('1000.0000', $product->refresh()->stock);
+        $this->assertDatabaseMissing('stock_movements', [
+            'product_id' => $product->id,
+            'type' => StockMovement::TYPE_SALE,
+        ]);
+
+        $this->postJson(route('api.invoices.payments.store', $draft->json('data.invoice_number')), [
+            'payment_date' => '2026-07-23',
+            'method' => Payment::METHOD_TRANSFER_BCA,
+            'amount' => 100000,
+        ])->assertCreated()->assertJsonPath('data.invoice_payment_status', Invoice::PAYMENT_PARTIAL);
+
+        $invoice = Invoice::query()->with('items')->where('invoice_number', $draft->json('data.invoice_number'))->firstOrFail();
+        $item = $invoice->items->firstOrFail();
+
+        $this->assertSame('0.0000', $product->refresh()->stock);
+        $this->assertSame('500000.00', (string) $invoice->total_hpp);
+        $this->assertDatabaseHas('invoice_item_cost_layers', [
+            'invoice_item_id' => $item->id,
+            'qty_consumed' => 1000,
+            'unit_cost' => 500,
+            'total_cost' => 500000,
+            'reversed_at' => null,
+        ]);
+        $this->assertDatabaseHas('stock_movements', [
+            'product_id' => $product->id,
+            'type' => StockMovement::TYPE_SALE,
+            'quantity' => -1000,
+            'reference_number' => $invoice->invoice_number,
         ]);
     }
 

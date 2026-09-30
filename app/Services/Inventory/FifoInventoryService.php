@@ -216,6 +216,22 @@ class FifoInventoryService
         }
     }
 
+    /**
+     * Whether an invoice has already crossed the first-verified-payment
+     * inventory boundary. New unpaid drafts have neither cost layers nor a
+     * sale movement, so edit/cancel flows must leave their stock untouched.
+     */
+    public function hasConsumedInventory(Invoice $invoice): bool
+    {
+        return $invoice->items()
+            ->whereHas('costLayers', fn ($query) => $query->whereNull('reversed_at'))
+            ->exists()
+            || StockMovement::query()
+                ->where('type', StockMovement::TYPE_SALE)
+                ->where('reference_number', $invoice->invoice_number)
+                ->exists();
+    }
+
     public function availableQuantity(int $productId): float
     {
         return round((float) InventoryBatch::query()

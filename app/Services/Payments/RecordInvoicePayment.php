@@ -5,13 +5,19 @@ namespace App\Services\Payments;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Services\CashBank\CashBankService;
+use App\Services\Inventory\FifoInventoryService;
+use App\Services\Invoices\RecordInvoiceSaleMovements;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class RecordInvoicePayment
 {
-    public function __construct(private readonly CashBankService $cashBank) {}
+    public function __construct(
+        private readonly CashBankService $cashBank,
+        private readonly RecordInvoiceSaleMovements $recordInvoiceSaleMovements,
+        private readonly FifoInventoryService $fifoInventory,
+    ) {}
 
     /**
      * Record a payment against an invoice and update payment status when verified.
@@ -70,6 +76,10 @@ class RecordInvoicePayment
             ]);
 
             if ($status === Payment::STATUS_VERIFIED) {
+                if ($paidBefore <= 0 && $amount > 0 && ! $this->fifoInventory->hasConsumedInventory($lockedInvoice)) {
+                    $this->consumeInvoiceInventory($lockedInvoice, $recordedBy);
+                }
+
                 $this->updateInvoicePaymentStatus($lockedInvoice, $paidBefore + $amount);
                 $this->cashBank->recordPayment($payment);
             }
@@ -93,6 +103,25 @@ class RecordInvoicePayment
         $invoice->forceFill([
             'payment_status' => $isPaid ? Invoice::PAYMENT_PAID : Invoice::PAYMENT_PARTIAL,
             'paid_at' => $isPaid ? ($invoice->paid_at ?? now()) : null,
+        ])->save();
+    }
+
+    private function consumeInvoiceInventory(Invoice $invoice, ?int $actorId): void
+    {
+        $items = $invoice->items()->with('product')->get();
+        $alerts = $this->recordInvoiceSaleMovements->handle($invoice, $items, $actorId);
+        $totalHpp = (float) $invoice->items()->sum('hpp_total');
+        $companyShipping = $invoice->shipping_type === Invoice::SHIPPING_COMPANY_FREE_SHIPPING
+            ? (float) $invoice->shipping_cost
+            : 0;
+
+        $invoice->forceFill([
+            'metadata' => array_merge($invoice->metadata ?? [], [
+                'inventory_alerts' => $alerts,
+                'inventory_reserved_at' => now()->toISOString(),
+            ]),
+            'total_hpp' => round($totalHpp, 2),
+            'gross_profit' => round((float) $invoice->total_amount - $totalHpp - $companyShipping, 2),
         ])->save();
     }
 

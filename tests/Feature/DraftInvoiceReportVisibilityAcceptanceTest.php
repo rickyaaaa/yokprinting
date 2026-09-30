@@ -21,11 +21,9 @@ use Tests\TestCase;
  * payment=paid, production=ready_for_pickup), driven end to end through the
  * real HTTP API and NEVER pressing "kirim via WhatsApp".
  *
- * The rule under test: an invoice is a real business transaction the moment it
- * exists, because that is already when its stock is deducted. Before this
- * change every report gated on status=sent, so such an invoice deducted stock
- * but appeared in no report - stock and reporting permanently out of sync.
- * Only cancellation (which also restores the FIFO stock) removes it.
+ * The rule under test: an invoice becomes an inventory transaction at its first
+ * verified payment (DP/full payment), while reporting still includes the
+ * active invoice even if it remains in draft and is never sent via WhatsApp.
  *
  * See Invoice::scopeBusinessTransaction().
  */
@@ -87,8 +85,8 @@ class DraftInvoiceReportVisibilityAcceptanceTest extends TestCase
 
         $invoice = Invoice::query()->findOrFail($created->json('data.id'));
 
-        // 2. Stok langsung berkurang - inilah alasan invoice ini nyata.
-        $this->assertSame('10.0000', $product->refresh()->stock);
+        // 2. Invoice baru belum dibayar: stok belum berkurang.
+        $this->assertSame('20.0000', $product->refresh()->stock);
 
         // 3. Pembayaran lunas Rp300.000 masuk dan terverifikasi.
         $this->postJson(route('api.invoices.payments.store', $invoice->invoice_number), [
@@ -96,6 +94,9 @@ class DraftInvoiceReportVisibilityAcceptanceTest extends TestCase
             'method' => 'transfer_bca',
             'amount' => 300000,
         ])->assertCreated()->assertJsonPath('data.invoice_payment_status', Invoice::PAYMENT_PAID);
+
+        // Pembayaran terverifikasi pertama menjadi titik konsumsi FIFO.
+        $this->assertSame('10.0000', $product->refresh()->stock);
 
         // 4. Produksi jalan sampai siap diambil/kirim.
         foreach ([Invoice::PRODUCTION_IN_PRODUCTION, Invoice::PRODUCTION_READY_FOR_PICKUP] as $productionStatus) {

@@ -52,6 +52,12 @@ class UpdateInvoiceDraftApiTest extends TestCase
 
         $invoice = $this->createInvoiceDraft($customer, $productA, quantity: 100, price: 1000);
 
+        $this->postJson(route('api.invoices.payments.store', $invoice->invoice_number), [
+            'payment_date' => now()->toDateString(),
+            'method' => 'transfer_bca',
+            'amount' => 10000,
+        ])->assertCreated();
+
         $productA->refresh();
         $this->assertSame('900.0000', $productA->stock);
 

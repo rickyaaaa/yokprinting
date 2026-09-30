@@ -186,6 +186,17 @@ class FifoClientAcceptanceScenarioTest extends TestCase
             'tax' => ['enabled' => false, 'rate' => 0],
         ])->assertCreated();
 
-        return Invoice::query()->with('items')->findOrFail($response->json('data.id'));
+        $invoice = Invoice::query()->with('items')->findOrFail($response->json('data.id'));
+
+        // Inventory is consumed at the first verified payment, not at draft
+        // creation. Pay the scenario invoice in full so FIFO assertions remain
+        // focused on the cost layers and not on document timing.
+        $this->postJson(route('api.invoices.payments.store', $invoice->invoice_number), [
+            'payment_date' => '2026-08-20',
+            'method' => 'transfer_bca',
+            'amount' => 1000 * $quantity,
+        ])->assertCreated();
+
+        return $invoice->refresh()->load('items');
     }
 }

@@ -136,6 +136,9 @@ class EditInvoiceAfterIssuanceTest extends TestCase
         $invoice1 = $this->createInvoiceDraft($customer, $product, quantity: 1000, price: 1000);
         $invoice2 = $this->createInvoiceDraft($customer, $product, quantity: 1000, price: 1000);
 
+        $this->verifiedPayment($invoice1, 500000);
+        $this->verifiedPayment($invoice2, 1000000);
+
         $this->assertSame(540000.0, (float) $invoice1->refresh()->total_hpp);
         $this->assertSame(550000.0, (float) $invoice2->refresh()->total_hpp);
         $this->assertSame('0.0000', $product->refresh()->stock);
@@ -213,6 +216,7 @@ class EditInvoiceAfterIssuanceTest extends TestCase
         $this->receiveGoods($product, quantity: 1000, unitCost: 540);
 
         $invoice = $this->createInvoiceDraft($customer, $product, quantity: 1000, price: 1000);
+        $this->verifiedPayment($invoice, 100000);
         $this->assertSame(540000.0, (float) $invoice->refresh()->total_hpp);
         $this->assertSame('0.0000', $product->refresh()->stock);
 
@@ -238,6 +242,7 @@ class EditInvoiceAfterIssuanceTest extends TestCase
 
         $invoice = $this->createInvoiceDraft($customer, $productA, quantity: 100, price: 1000);
         $invoice->forceFill(['status' => Invoice::STATUS_SENT, 'sent_at' => now()])->save();
+        $this->verifiedPayment($invoice, 10000);
         $this->assertSame('900.0000', $productA->refresh()->stock);
 
         $this->patchJson(
@@ -327,6 +332,7 @@ class EditInvoiceAfterIssuanceTest extends TestCase
         $this->receiveGoods($product, quantity: 1000, unitCost: 540);
 
         $invoice = $this->createInvoiceDraft($customer, $product, quantity: 1000, price: 1000);
+        $this->verifiedPayment($invoice, 100000);
         $this->assertSame(460000.0, (float) $invoice->refresh()->gross_profit, '1.000.000 - 540.000');
         $invoice->forceFill(['status' => Invoice::STATUS_SENT, 'sent_at' => now()])->save();
 
@@ -404,24 +410,13 @@ class EditInvoiceAfterIssuanceTest extends TestCase
 
     private function verifiedPayment(Invoice $invoice, float $amount): Payment
     {
-        $payment = $invoice->payments()->create([
-            'payment_number' => 'PAY-EDIT-'.random_int(1000, 9999),
+        $response = $this->postJson(route('api.invoices.payments.store', $invoice->invoice_number), [
             'payment_date' => now()->toDateString(),
             'method' => Payment::METHOD_TRANSFER_BCA,
-            'currency' => 'IDR',
             'amount' => $amount,
-            'status' => Payment::STATUS_VERIFIED,
-            'verified_at' => now(),
-        ]);
+        ])->assertCreated();
 
-        // Mirror what RecordInvoicePayment does so payment_status reflects
-        // the payment before the edit under test even runs.
-        $invoice->forceFill([
-            'payment_status' => $amount >= (float) $invoice->total_amount ? Invoice::PAYMENT_PAID : Invoice::PAYMENT_PARTIAL,
-            'paid_at' => $amount >= (float) $invoice->total_amount ? now() : null,
-        ])->save();
-
-        return $payment;
+        return Payment::query()->findOrFail($response->json('data.id'));
     }
 
     private function product(string $sku, bool $trackStock = false, float $stock = 0): Product

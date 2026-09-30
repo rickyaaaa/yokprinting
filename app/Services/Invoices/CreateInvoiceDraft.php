@@ -12,7 +12,6 @@ class CreateInvoiceDraft
         private readonly CalculateInvoiceTotals $calculateInvoiceTotals,
         private readonly GenerateInvoiceNumber $generateInvoiceNumber,
         private readonly SnapshotInvoiceItems $snapshotInvoiceItems,
-        private readonly RecordInvoiceSaleMovements $recordInvoiceSaleMovements,
     ) {}
 
     /**
@@ -79,32 +78,8 @@ class CreateInvoiceDraft
             ]);
 
             $createdItems = $invoice->items()->createMany($totals['items']);
-            $stockAlerts = $this->recordInvoiceSaleMovements->handle($invoice, $createdItems, $creatorId);
-
-            $this->refreshFifoTotals($invoice);
-
-            if ($stockAlerts !== []) {
-                $invoice->forceFill([
-                    'metadata' => array_merge($invoice->metadata ?? [], [
-                        'inventory_alerts' => $stockAlerts,
-                    ]),
-                ])->save();
-            }
 
             return $invoice->load('items');
         });
-    }
-
-    private function refreshFifoTotals(Invoice $invoice): void
-    {
-        $totalHpp = (float) $invoice->items()->sum('hpp_total');
-        $companyShipping = $invoice->shipping_type === Invoice::SHIPPING_COMPANY_FREE_SHIPPING
-            ? (float) $invoice->shipping_cost
-            : 0;
-
-        $invoice->forceFill([
-            'total_hpp' => round($totalHpp, 2),
-            'gross_profit' => round((float) $invoice->total_amount - $totalHpp - $companyShipping, 2),
-        ])->save();
     }
 }

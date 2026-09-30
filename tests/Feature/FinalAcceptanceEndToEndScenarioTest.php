@@ -57,10 +57,11 @@ class FinalAcceptanceEndToEndScenarioTest extends TestCase
             'tax' => ['enabled' => false, 'rate' => 0],
         ])->assertCreated()
             ->assertJsonPath('data.total_amount', '300000.00')
-            ->assertJsonPath('data.total_hpp', '100000.00');
+            ->assertJsonPath('data.total_hpp', '0.00');
 
         $invoice = Invoice::query()->with('items')->findOrFail($response->json('data.id'));
-        $this->assertSame('10.0000', $product->refresh()->stock);
+        // Draft invoice does not reserve inventory before DP.
+        $this->assertSame('20.0000', $product->refresh()->stock);
 
         $invoice->forceFill(['status' => Invoice::STATUS_SENT, 'sent_at' => now()])->save();
 
@@ -87,6 +88,9 @@ class FinalAcceptanceEndToEndScenarioTest extends TestCase
             'method' => 'transfer_bca',
             'amount' => 175000,
         ])->assertCreated()->assertJsonPath('data.invoice_payment_status', Invoice::PAYMENT_PARTIAL);
+
+        $this->assertSame('10.0000', $product->refresh()->stock);
+        $this->assertSame('100000.00', (string) $invoice->refresh()->total_hpp);
 
         // 4. Invoice masuk produksi.
         $this->patchJson(route('api.invoices.production-status.update', $invoice->invoice_number), [

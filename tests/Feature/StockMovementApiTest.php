@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\InventoryBatch;
+use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\User;
@@ -202,7 +203,7 @@ class StockMovementApiTest extends TestCase
             'track_stock' => true,
         ]);
 
-        $this->postJson(route('api.invoices.drafts.store'), [
+        $draft = $this->postJson(route('api.invoices.drafts.store'), [
             'customer_id' => $customer->id,
             'issue_date' => '2026-07-27',
             'due_date' => '2026-08-10',
@@ -214,11 +215,20 @@ class StockMovementApiTest extends TestCase
             ]],
             'discount' => ['type' => 'percentage', 'value' => 0],
             'tax' => ['enabled' => false, 'rate' => 0],
-        ])
-            ->assertCreated()
-            ->assertJsonPath('data.stock_alerts.0.product_id', $product->id)
-            ->assertJsonPath('data.stock_alerts.0.stock', 200)
-            ->assertJsonPath('data.stock_alerts.0.minimum_stock', 500);
+        ])->assertCreated();
+
+        $this->assertSame([], $draft->json('data.stock_alerts'));
+        $this->assertDatabaseMissing('stock_movements', [
+            'product_id' => $product->id,
+            'type' => StockMovement::TYPE_SALE,
+        ]);
+        $this->assertSame('1200.0000', $product->refresh()->stock);
+
+        $this->postJson(route('api.invoices.payments.store', $draft->json('data.invoice_number')), [
+            'payment_date' => '2026-07-27',
+            'method' => 'transfer_bca',
+            'amount' => 850000,
+        ])->assertCreated()->assertJsonPath('data.invoice_payment_status', Invoice::PAYMENT_PAID);
 
         $this->assertDatabaseHas('stock_movements', [
             'product_id' => $product->id,
@@ -226,7 +236,7 @@ class StockMovementApiTest extends TestCase
             'quantity' => -1000,
             'stock_before' => 1200,
             'stock_after' => 200,
-            'reference_number' => 'INV-2026-07-0001',
+            'reference_number' => $draft->json('data.invoice_number'),
         ]);
         $this->assertSame('200.0000', $product->refresh()->stock);
     }

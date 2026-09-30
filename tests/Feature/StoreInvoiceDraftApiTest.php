@@ -258,8 +258,8 @@ class StoreInvoiceDraftApiTest extends TestCase
 
     public function test_invoice_can_be_created_even_when_stock_is_insufficient(): void
     {
-        // Owner requirement: never block invoice creation for lack of stock -
-        // the sale still goes through and stock is allowed to go negative.
+        // An unpaid invoice is only a commercial document. It must not reserve
+        // or deduct stock until the first verified payment (DP/full payment).
         $customer = Customer::query()->create([
             'name' => 'PT Pelanggan Stok Kosong',
             'email' => fake()->unique()->safeEmail(),
@@ -287,7 +287,11 @@ class StoreInvoiceDraftApiTest extends TestCase
 
         $response->assertCreated();
 
-        $this->assertSame('-100.0000', $product->refresh()->stock);
+        $this->assertSame('0.0000', $product->refresh()->stock);
+        $this->assertDatabaseMissing('stock_movements', [
+            'product_id' => $product->id,
+            'type' => 'sale',
+        ]);
         $this->assertDatabaseHas('invoices', ['invoice_number' => $response->json('data.invoice_number')]);
     }
 

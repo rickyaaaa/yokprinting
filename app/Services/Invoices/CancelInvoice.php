@@ -45,7 +45,9 @@ class CancelInvoice
             // receivables, customer statements, and cash reports.
             $payments->each(fn (Payment $payment) => $this->cashBank->cancelPaymentTransaction($payment, $actor->getKey()));
 
-            $this->fifoInventory->restoreInvoice($lockedInvoice, $actor->getKey());
+            if ($this->fifoInventory->hasConsumedInventory($lockedInvoice)) {
+                $this->fifoInventory->restoreInvoice($lockedInvoice, $actor->getKey());
+            }
 
             $previousStatus = $lockedInvoice->status;
 

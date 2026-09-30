@@ -27,13 +27,13 @@ class UpdateInvoiceDraft
      * `production_status`/`order_process_status`/mockup/template/theme
      * unless the caller explicitly sent a new value for them.
      *
-     * Sale stock movements are deducted at invoice creation time (not at
-     * "send" time, unlike GoodsReceipt), so editing must reverse the old
-     * items' FIFO/stock impact before recording the new ones - reuses the
+     * Sale stock movements are deducted at the first verified payment. An
+     * unpaid invoice has no inventory impact, while an invoice with a DP must
+     * reverse and re-consume its FIFO layers when edited. This reuses the
      * exact same FifoInventoryService::restoreInvoice()/consume() pair the
-     * cancel flow already relies on, so a partially-closed FIFO deficit (or
-     * any other state restoreInvoice() already refuses to unwind) blocks
-     * the edit with the same clear error instead of corrupting inventory.
+     * cancel flow relies on, so a partially-closed FIFO deficit (or any other
+     * state restoreInvoice() already refuses to unwind) blocks the edit with
+     * the same clear error instead of corrupting inventory.
      *
      * @param  array<string, mixed>  $data
      */
@@ -93,12 +93,17 @@ class UpdateInvoiceDraft
                 'quantity' => (float) $item->quantity,
             ])->values()->all();
 
-            // Restore the old items' FIFO/stock impact only now that every
-            // early-exit validation has passed - restoreInvoice() itself can
-            // still refuse (e.g. a receipt already closed part of a FIFO
-            // deficit this invoice created), which correctly aborts the
-            // whole edit via the transaction rollback.
-            $this->fifoInventory->restoreInvoice($locked, $actorId);
+            // Restore the old items' FIFO/stock impact only when this invoice
+            // actually crossed the DP boundary. An unpaid draft has no sale
+            // movement or cost layer and must remain stock-neutral when it is
+            // edited.
+            $hasConsumedInventory = $this->fifoInventory->hasConsumedInventory($locked);
+            if ($hasConsumedInventory) {
+                // restoreInvoice() itself can still refuse (e.g. a receipt
+                // already closed a FIFO deficit), which correctly aborts the
+                // whole edit via the transaction rollback.
+                $this->fifoInventory->restoreInvoice($locked, $actorId);
+            }
 
             $locked->update([
                 'customer_id' => $data['customer_id'],
@@ -141,7 +146,9 @@ class UpdateInvoiceDraft
             $locked->items()->delete();
             $createdItems = $locked->items()->createMany($totals['items']);
 
-            $stockAlerts = $this->recordInvoiceSaleMovements->handle($locked, $createdItems, $actorId);
+            $stockAlerts = $verifiedPaid > 0
+                ? $this->recordInvoiceSaleMovements->handle($locked, $createdItems, $actorId)
+                : [];
 
             $totalHpp = (float) $locked->items()->sum('hpp_total');
             $companyShipping = $locked->shipping_type === Invoice::SHIPPING_COMPANY_FREE_SHIPPING
