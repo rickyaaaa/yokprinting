@@ -102,10 +102,12 @@ class FifoInventoryTest extends TestCase
 
         $service = app(FifoInventoryService::class);
         $service->consume($invoice, $item);
+        $this->assertTrue($service->hasConsumedInventory($invoice));
         $service->restoreInvoice($invoice);
 
         $this->assertSame('100.0000', $product->refresh()->stock);
         $this->assertSame('100.0000', $batch->refresh()->qty_remaining);
+        $this->assertFalse($service->hasConsumedInventory($invoice->refresh()));
 
         $service->restoreInvoice($invoice->refresh());
 

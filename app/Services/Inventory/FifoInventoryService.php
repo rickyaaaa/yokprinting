@@ -223,13 +223,22 @@ class FifoInventoryService
      */
     public function hasConsumedInventory(Invoice $invoice): bool
     {
-        return $invoice->items()
+        if ($invoice->items()
             ->whereHas('costLayers', fn ($query) => $query->whereNull('reversed_at'))
-            ->exists()
-            || StockMovement::query()
-                ->where('type', StockMovement::TYPE_SALE)
-                ->where('reference_number', $invoice->invoice_number)
-                ->exists();
+            ->exists()) {
+            return true;
+        }
+
+        // Legacy invoices may predate FIFO cost layers, so fall back to their
+        // net inventory ledger impact. A completed restore adds an equal
+        // positive adjustment under the same reference and therefore returns
+        // the net impact to zero, allowing a later first DP to consume again.
+        $netMovement = (float) StockMovement::query()
+            ->where('reference_number', $invoice->invoice_number)
+            ->whereIn('type', [StockMovement::TYPE_SALE, StockMovement::TYPE_ADJUSTMENT])
+            ->sum('quantity');
+
+        return $netMovement < 0;
     }
 
     public function availableQuantity(int $productId): float
