@@ -151,6 +151,10 @@ class BuildStockMutationReport
             'opening_balance' => $opening,
             'incoming' => round((float) $period->where('quantity', '>', 0)->sum('quantity'), 4),
             'outgoing' => round(abs((float) $period->where('quantity', '<', 0)->sum('quantity')), 4),
+            'adjustments' => round((float) $period->whereIn('type', [
+                StockMovement::TYPE_ADJUSTMENT,
+                StockMovement::TYPE_STOCK_OPNAME,
+            ])->sum('quantity'), 4),
             'closing_balance' => $balance,
         ];
 

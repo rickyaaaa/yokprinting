@@ -11,8 +11,7 @@
             'unit' => $product->unit,
         ])->values(),
         'exportEndpoints' => [
-            'csv' => route('api.reports.stock-mutations.csv'),
-            'pdf' => route('api.reports.stock-mutations.pdf'),
+            'excel' => route('api.reports.stock-mutations.excel'),
         ],
     ];
 @endphp
@@ -52,13 +51,9 @@
                 </div>
                 @if ($canExport)
                 <div class="flex flex-wrap gap-2" x-show="report.product" x-cloak>
-                    <button type="button" class="btn btn-outline" @click="exportFile('pdf')" :disabled="exporting" aria-label="Export PDF mutasi barang">
-                        <i class="iconify tabler--file-type-pdf text-base"></i>
-                        <span x-text="exporting === 'pdf' ? 'Menyiapkan...' : 'Export PDF'"></span>
-                    </button>
-                    <button type="button" class="btn btn-primary" @click="exportFile('csv')" :disabled="exporting" aria-label="Export Excel mutasi barang">
+                    <button type="button" class="btn btn-primary" @click="exportFile('excel')" :disabled="exporting" aria-label="Export Excel mutasi barang">
                         <i class="iconify tabler--download text-base"></i>
-                        <span x-text="exporting === 'csv' ? 'Menyiapkan...' : 'Export Excel'"></span>
+                        <span x-text="exporting === 'excel' ? 'Menyiapkan...' : 'Export Excel'"></span>
                     </button>
                 </div>
                 @endif

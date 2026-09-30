@@ -434,13 +434,10 @@ Route::middleware(['web', 'auth'])->group(function (): void {
         ->middleware('permission:report.view')
         ->name('api.reports.stock-mutations.index');
 
-    Route::get('/reports/stock-mutations/export', [StockReportExportController::class, 'csv'])
+    Route::get('/reports/stock-mutations/export', [StockReportExportController::class, 'excel'])
         ->middleware(['permission:report.export', 'throttle:report-export'])
         ->name('api.reports.stock-mutations.export');
-    Route::get('/reports/stock-mutations/csv', [StockReportExportController::class, 'csv'])
+    Route::get('/reports/stock-mutations/excel', [StockReportExportController::class, 'excel'])
         ->middleware(['permission:report.export', 'throttle:report-export'])
-        ->name('api.reports.stock-mutations.csv');
-    Route::get('/reports/stock-mutations/pdf', [StockReportExportController::class, 'pdf'])
-        ->middleware(['permission:report.export', 'throttle:report-export'])
-        ->name('api.reports.stock-mutations.pdf');
+        ->name('api.reports.stock-mutations.excel');
 });

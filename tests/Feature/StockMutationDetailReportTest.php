@@ -117,7 +117,7 @@ class StockMutationDetailReportTest extends TestCase
         $this->assertCount(0, collect($mutations)->where('document_number', $cancelled->invoice_number));
     }
 
-    public function test_mutation_page_and_selected_product_exports_are_available(): void
+    public function test_mutation_page_and_selected_product_excel_export_is_available(): void
     {
         $product = Product::query()->create([
             'sku' => 'EXPORT-MUTASI',
@@ -138,11 +138,19 @@ class StockMutationDetailReportTest extends TestCase
             'product_id' => $product->id,
         ];
 
-        $this->get(route('api.reports.stock-mutations.csv', $query))
+        $response = $this->get(route('api.reports.stock-mutations.excel', $query))
             ->assertOk()
-            ->assertSee('Nomor Dokumen')
-            ->assertSee('Saldo awal per 31/08/2026');
-        $this->assertStringStartsWith('%PDF', $this->get(route('api.reports.stock-mutations.pdf', $query))->assertOk()->getContent());
+            ->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            ->assertHeader('Content-Disposition');
+
+        $this->assertStringStartsWith('PK', $response->getContent());
+        $archive = new \ZipArchive;
+        $this->assertSame(true, $archive->open($this->writeTemporaryExport($response->getContent())));
+        $worksheet = $archive->getFromName('xl/worksheets/sheet1.xml');
+        $archive->close();
+        $this->assertIsString($worksheet);
+        $this->assertStringContainsString('Nomor Dokumen', $worksheet);
+        $this->assertStringContainsString('Saldo awal per 31/08/2026', $worksheet);
     }
 
     public function test_export_controls_are_hidden_without_report_export_permission(): void
@@ -152,10 +160,22 @@ class StockMutationDetailReportTest extends TestCase
         $this->get(route('reports.stock-mutations.index'))
             ->assertOk()
             ->assertSee('Mutasi per Barang')
-            ->assertDontSee('Export PDF mutasi barang');
+            ->assertDontSee('Export PDF mutasi barang')
+            ->assertDontSee('Export Excel mutasi barang');
 
-        $this->getJson(route('api.reports.stock-mutations.pdf'))
+        $this->getJson(route('api.reports.stock-mutations.excel'))
             ->assertForbidden();
+
+        $this->get('/api/reports/stock-mutations/pdf')->assertNotFound();
+    }
+
+    private function writeTemporaryExport(string $contents): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'mutasi-test-');
+        file_put_contents($path, $contents);
+        register_shutdown_function(static fn () => @unlink($path));
+
+        return $path;
     }
 
     private function movement(Product $product, string $type, int|float $quantity, string $reference, string $createdAt): void

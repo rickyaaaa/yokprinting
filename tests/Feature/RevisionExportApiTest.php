@@ -25,7 +25,7 @@ class RevisionExportApiTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_stock_export_contains_fifo_value_and_pdf_is_readable(): void
+    public function test_stock_export_contains_fifo_value_in_a_valid_excel_workbook(): void
     {
         CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-08-20 12:00:00', 'Asia/Jakarta'));
 
@@ -55,10 +55,20 @@ class RevisionExportApiTest extends TestCase
         ]);
 
         $query = ['start_date' => '2026-08-01', 'end_date' => '2026-08-20'];
-        $csv = $this->get(route('api.reports.stock-mutations.export', $query))->assertOk()->getContent();
-        $this->assertStringContainsString('FIFO Inventory Value', $csv);
-        $this->assertStringContainsString('12000', $csv);
-        $this->assertStringStartsWith('%PDF', $this->get(route('api.reports.stock-mutations.pdf', $query))->assertOk()->getContent());
+        $response = $this->get(route('api.reports.stock-mutations.export', $query))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $this->assertStringStartsWith('PK', $response->getContent());
+
+        $path = tempnam(sys_get_temp_dir(), 'mutasi-test-');
+        file_put_contents($path, $response->getContent());
+        $archive = new \ZipArchive;
+        $this->assertSame(true, $archive->open($path));
+        $worksheet = $archive->getFromName('xl/worksheets/sheet1.xml');
+        $archive->close();
+        @unlink($path);
+        $this->assertStringContainsString('Nilai Persediaan FIFO', $worksheet);
+        $this->assertStringContainsString('12000', $worksheet);
     }
 
     public function test_invoice_export_respects_date_filter_for_csv_and_pdf(): void

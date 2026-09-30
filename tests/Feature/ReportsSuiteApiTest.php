@@ -198,7 +198,7 @@ class ReportsSuiteApiTest extends TestCase
             ->assertJsonPath('data.products.0.closing_balance', 4);
     }
 
-    public function test_report_exports_download_excel_compatible_csv_files(): void
+    public function test_report_exports_download_excel_compatible_files(): void
     {
         $this->actingAs(User::factory()->create());
 
@@ -230,7 +230,6 @@ class ReportsSuiteApiTest extends TestCase
             'api.reports.outstanding-payments.export',
             'api.reports.inactive-customers.export',
             'api.reports.low-stock.export',
-            'api.reports.stock-mutations.export',
         ] as $route) {
             $response = $this->get(route($route, [
                 'date_from' => '2026-07-01',
@@ -246,6 +245,17 @@ class ReportsSuiteApiTest extends TestCase
             $this->assertStringContainsString('.csv', (string) $response->headers->get('Content-Disposition'));
             $this->assertNotEmpty($response->getContent());
         }
+
+        $response = $this->get(route('api.reports.stock-mutations.export', [
+            'date_from' => '2026-07-01',
+            'date_to' => '2026-07-31',
+            'start_date' => '2026-07-01',
+            'end_date' => '2026-07-31',
+        ]))->assertOk()
+            ->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+        $this->assertStringStartsWith('PK', $response->getContent());
+        $this->assertStringContainsString('.xlsx', (string) $response->headers->get('Content-Disposition'));
     }
 
     public function test_legacy_report_exports_require_report_export_permission(): void
