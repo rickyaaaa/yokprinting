@@ -80,7 +80,7 @@ class SnapshotInvoiceItems
         preg_match('/\b\d+(?:\/\d+)?\s*Oz\b/i', $description, $descriptionSize);
 
         if ($productNameSize === [] || $descriptionSize === []
-            || strcasecmp(preg_replace('/\s+/', ' ', $productNameSize[0]), preg_replace('/\s+/', ' ', $descriptionSize[0])) === 0) {
+            || $this->normalizedSize($productNameSize[0]) === $this->normalizedSize($descriptionSize[0])) {
             return $item['description'] ?? null;
         }
 
@@ -93,5 +93,10 @@ class SnapshotInvoiceItems
         $snapshot->jenis_cetak = $item['jenis_cetak'] ?? ($product->sides ? "{$product->sides} warna" : null);
 
         return $snapshot->cupSpecificationDescription();
+    }
+
+    private function normalizedSize(string $size): string
+    {
+        return strtolower((string) preg_replace('/\s+/', '', trim($size)));
     }
 }

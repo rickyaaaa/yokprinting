@@ -109,6 +109,40 @@ class FixInvoiceItemDescriptionsTest extends TestCase
         $this->assertSame(300000.0, (float) $invoice->fresh()->total_amount);
     }
 
+    public function test_equivalent_size_spacing_is_not_reported_as_a_mismatch(): void
+    {
+        $product = Product::query()->create([
+            'sku' => 'H-012',
+            'name' => 'Cup Injection 12Oz Datar Natural',
+            'category' => 'Cup Injection',
+            'cup_size' => '12 Oz',
+        ]);
+        $customer = Customer::query()->create(['code' => 'CUS-012', 'name' => 'Pelanggan 12 Oz']);
+        $invoice = Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-012',
+            'issue_date' => '2026-09-30',
+            'due_date' => '2026-10-14',
+            'subtotal' => 300000,
+            'total_amount' => 300000,
+        ]);
+        $item = $invoice->items()->create([
+            'product_id' => $product->id,
+            'product_name' => $product->name,
+            'description' => 'Sablon Cup 12 Oz Datar (8gr) (Tinta Hitam - 1 warna)',
+            'quantity' => 500,
+            'unit_price' => 600,
+            'subtotal' => 300000,
+            'total_amount' => 300000,
+        ]);
+
+        $this->artisan('invoices:items:fix-descriptions', ['--apply' => true])
+            ->expectsOutputToContain('No invoice item descriptions need repairing')
+            ->assertSuccessful();
+
+        $this->assertSame('Sablon Cup 12 Oz Datar (8gr) (Tinta Hitam - 1 warna)', $item->fresh()->description);
+    }
+
     private function itemFor(string $category, string $description): InvoiceItem
     {
         static $sequence = 0;
