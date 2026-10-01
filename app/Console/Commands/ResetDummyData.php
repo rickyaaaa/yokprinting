@@ -13,7 +13,9 @@ class ResetDummyData extends Command
      *
      * @var string
      */
-    protected $signature = 'app:reset-dummy-data {--force : Force execution without confirmation prompt}';
+    protected $signature = 'app:reset-dummy-data
+        {--force : Force execution without confirmation prompt}
+        {--preserve-master-data : Preserve customers, suppliers, and supplier price lists}';
 
     /**
      * The console command description.
@@ -40,7 +42,6 @@ class ResetDummyData extends Command
             'payments',
             'invoices',
             'invoice_number_sequences',
-            'customers',
             'expense_proof_cleanup_tasks',
             'expenses',
             'cash_bank_transactions',
@@ -51,13 +52,20 @@ class ResetDummyData extends Command
             'goods_receipt_items',
             'goods_receipts',
             'goods_receipt_number_sequences',
-            'supplier_price_lists',
-            'product_supplier',
-            'suppliers',
             'stock_movements',
-            'fifo_inventory_layers',
-            'activity_logs',
+            'inventory_batches',
         ];
+
+        if (! $this->option('preserve-master-data')) {
+            array_push(
+                $tablesToWipe,
+                'supplier_price_lists',
+                'product_supplier',
+                'suppliers',
+                'customers',
+                'activity_logs',
+            );
+        }
 
         $this->info('Memulai pembersihan data dummy...');
         $this->line('----------------------------------------------------');
@@ -89,6 +97,19 @@ class ResetDummyData extends Command
             DB::statement('PRAGMA foreign_keys = ON;');
         } else {
             DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        }
+
+        // A clean operational start must not leave the product catalogue
+        // advertising the old dummy stock or purchase cost after its ledger
+        // has been cleared. The catalogue rows themselves are master data and
+        // stay in place.
+        if (Schema::hasTable('products')) {
+            DB::table('products')->update([
+                'stock' => 0,
+                'purchase_price' => 0,
+                'last_purchase_price' => null,
+                'average_purchase_cost' => null,
+            ]);
         }
 
         $this->line('----------------------------------------------------');

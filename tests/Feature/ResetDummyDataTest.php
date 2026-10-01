@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Product;
+use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -44,5 +45,43 @@ class ResetDummyDataTest extends TestCase
         $this->assertDatabaseCount('invoices', 0);
         $this->assertDatabaseHas('products', ['id' => $product->id]);
         $this->assertDatabaseHas('users', ['id' => $user->id]);
+    }
+
+    public function test_preserve_master_data_mode_resets_product_cost_and_stock_without_deleting_masters(): void
+    {
+        $product = Product::query()->create([
+            'sku' => 'PROD-RESET-001',
+            'name' => 'Product Reset',
+            'unit' => 'Pcs',
+            'track_stock' => true,
+            'stock' => 1250,
+            'purchase_price' => 600,
+        ]);
+        $product->forceFill([
+            'last_purchase_price' => 600,
+            'average_purchase_cost' => 575,
+        ])->save();
+
+        $customer = Customer::query()->create(['name' => 'Customer Master']);
+        $supplier = Supplier::query()->create(['code' => 'SUP-RESET-001', 'name' => 'Supplier Master']);
+
+        $this->artisan('app:reset-dummy-data --force --preserve-master-data')
+            ->assertSuccessful();
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'stock' => 0,
+            'purchase_price' => 0,
+        ]);
+        $this->assertDatabaseMissing('products', [
+            'id' => $product->id,
+            'last_purchase_price' => 600,
+        ]);
+        $this->assertDatabaseMissing('products', [
+            'id' => $product->id,
+            'average_purchase_cost' => 575,
+        ]);
+        $this->assertDatabaseHas('customers', ['id' => $customer->id]);
+        $this->assertDatabaseHas('suppliers', ['id' => $supplier->id]);
     }
 }
