@@ -51,10 +51,14 @@ class GenerateInvoicePdf
         ?string $dateTo = null,
     ): GeneratedInvoicePdf {
         $orders = $invoices->map(function (Invoice $invoice): array {
-            $invoice->loadMissing(['customer', 'items', 'payments']);
+            $invoice->loadMissing(['customer', 'items']);
 
             $preview = $this->previewFor($invoice);
-            $paidAmount = (float) $invoice->payments->sum('amount');
+            // Payment status is a financial fact, not the invoice delivery
+            // workflow status (draft/sent/cancelled).  Use only verified
+            // payments so pending/rejected rows cannot make the printed order
+            // look paid.
+            $paidAmount = $invoice->verifiedPaidAmount();
 
             return array_merge($preview, [
                 'due_date_label' => $invoice->due_date?->locale('id')->translatedFormat('j F Y') ?? '-',
@@ -206,10 +210,6 @@ class GenerateInvoicePdf
 
     private function paymentStatusLabel(Invoice $invoice, float $paidAmount): string
     {
-        if ($invoice->status === Invoice::STATUS_DRAFT) {
-            return 'Draft';
-        }
-
         if ($invoice->status === Invoice::STATUS_CANCELLED) {
             return 'Dibatalkan';
         }

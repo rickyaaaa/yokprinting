@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\Payment;
 use App\Services\Invoices\GenerateInvoicePdf;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -119,6 +120,53 @@ class GenerateInvoicePdfTest extends TestCase
         );
         $this->assertNull($items[3]['note']);
         $this->assertSame('Tutup Injection Sambung Natural', $items[3]['name']);
+    }
+
+    public function test_sales_order_batch_uses_verified_payment_not_invoice_workflow_status(): void
+    {
+        $invoice = $this->invoice();
+        $invoice->forceFill([
+            'status' => Invoice::STATUS_DRAFT,
+            'payment_status' => Invoice::PAYMENT_PAID,
+            'production_status' => Invoice::PRODUCTION_COMPLETED,
+            'total_amount' => 1_000_000,
+        ])->save();
+        $invoice->payments()->create([
+            'payment_number' => 'PAY-PDF-PAID-DRAFT',
+            'payment_date' => '2026-08-20',
+            'method' => Payment::METHOD_TRANSFER_BCA,
+            'amount' => 1_000_000,
+            'status' => Payment::STATUS_VERIFIED,
+        ]);
+
+        $service = app(GenerateInvoicePdf::class);
+        $paymentStatusLabel = new \ReflectionMethod($service, 'paymentStatusLabel');
+        $paymentStatusLabel->setAccessible(true);
+
+        $this->assertSame(
+            'Lunas',
+            $paymentStatusLabel->invoke($service, $invoice->fresh(), 1_000_000),
+        );
+    }
+
+    public function test_sales_order_batch_ignores_unverified_payment_rows(): void
+    {
+        $invoice = $this->invoice();
+        $invoice->forceFill([
+            'status' => Invoice::STATUS_DRAFT,
+            'payment_status' => Invoice::PAYMENT_UNPAID,
+            'total_amount' => 1_000_000,
+        ])->save();
+        $invoice->payments()->create([
+            'payment_number' => 'PAY-PDF-PENDING',
+            'payment_date' => '2026-08-20',
+            'method' => Payment::METHOD_TRANSFER_BCA,
+            'amount' => 1_000_000,
+            'status' => Payment::STATUS_PENDING,
+        ]);
+
+        $invoice->load('payments');
+        $this->assertSame(0.0, $invoice->verifiedPaidAmount());
     }
 
     private function invoice(): Invoice
