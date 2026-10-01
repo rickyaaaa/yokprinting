@@ -15,6 +15,7 @@ use App\Services\Reports\ProfitLossReport;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use ZipArchive;
 
 /**
  * PHASE 5 acceptance - the exact client scenario (INV-2026-0042: status=draft,
@@ -134,10 +135,8 @@ class DraftInvoiceReportVisibilityAcceptanceTest extends TestCase
         $this->getJson(route('api.reports.sales.revenue-chart'))
             ->assertOk()
             ->assertJsonPath('data.totals.revenue', 300000);
-        $this->assertStringContainsString(
-            $number,
-            $this->get(route('api.reports.sales.export', $period))->assertOk()->getContent(),
-        );
+        $salesExport = $this->get(route('api.reports.sales.export', $period))->assertOk()->getContent();
+        $this->assertStringContainsString($number, $this->worksheetXml($salesExport));
 
         // C. Penjualan per Pelanggan - HPP FIFO & laba kotor ikut dihitung.
         $this->getJson(route('api.reports.customer-sales.index', $period))
@@ -199,6 +198,21 @@ class DraftInvoiceReportVisibilityAcceptanceTest extends TestCase
 
         // J. Tidak perlu diubah jadi "sent" agar semua di atas berlaku.
         $this->assertSame(Invoice::STATUS_DRAFT, $invoice->refresh()->status);
+    }
+
+    private function worksheetXml(string $contents): string
+    {
+        $this->assertStringStartsWith('PK', $contents);
+        $path = tempnam(sys_get_temp_dir(), 'draft-report-');
+        file_put_contents($path, $contents);
+        $archive = new ZipArchive;
+        $this->assertSame(true, $archive->open($path));
+        $sheet = $archive->getFromName('xl/worksheets/sheet1.xml');
+        $archive->close();
+        @unlink($path);
+        $this->assertIsString($sheet);
+
+        return $sheet;
     }
 
     public function test_cancelling_that_same_invoice_removes_it_from_every_report(): void

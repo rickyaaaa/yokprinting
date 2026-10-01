@@ -29,7 +29,8 @@ class UpdateInvoiceDraft
      *
      * Sale stock movements are deducted at the first verified payment. An
      * unpaid invoice has no inventory impact, while an invoice with a DP must
-     * reverse and re-consume its FIFO layers when edited. This reuses the
+     * reverse and re-consume its FIFO layers only when its item identities or
+     * quantities change. This reuses the
      * exact same FifoInventoryService::restoreInvoice()/consume() pair the
      * cancel flow relies on, so a partially-closed FIFO deficit (or any other
      * state restoreInvoice() already refuses to unwind) blocks the edit with
@@ -90,19 +91,28 @@ class UpdateInvoiceDraft
             $itemsBefore = $locked->items->map(fn ($item): array => [
                 'product_id' => $item->product_id,
                 'product_name' => $item->product_name,
+                'sku' => $item->sku,
                 'quantity' => (float) $item->quantity,
+                'hpp_total' => (float) $item->hpp_total,
             ])->values()->all();
+            $itemsChanged = $this->inventoryIdentity($itemsBefore) !== $this->inventoryIdentity($totals['items']);
 
             // Restore the old items' FIFO/stock impact only when this invoice
             // actually crossed the DP boundary. An unpaid draft has no sale
             // movement or cost layer and must remain stock-neutral when it is
             // edited.
             $hasConsumedInventory = $this->fifoInventory->hasConsumedInventory($locked);
-            if ($hasConsumedInventory) {
+            if ($hasConsumedInventory && $itemsChanged) {
                 // restoreInvoice() itself can still refuse (e.g. a receipt
                 // already closed a FIFO deficit), which correctly aborts the
                 // whole edit via the transaction rollback.
-                $this->fifoInventory->restoreInvoice($locked, $actorId);
+                $before = collect($itemsBefore)->map(fn (array $item): string => ($item['sku'] ?: '#'.$item['product_id']).' ('.$item['quantity'].' pcs)')->implode(', ');
+                $after = collect($totals['items'])->map(fn (array $item): string => ($item['sku'] ?: '#'.$item['product_id']).' ('.$item['quantity'].' pcs)')->implode(', ');
+                $this->fifoInventory->restoreInvoice(
+                    $locked,
+                    $actorId,
+                    "Pengembalian FIFO karena perubahan item invoice {$locked->invoice_number} dari {$before} ke {$after}",
+                );
             }
 
             $locked->update([
@@ -143,12 +153,30 @@ class UpdateInvoiceDraft
                 'design_notes' => $data['design_notes'] ?? null,
             ]);
 
-            $locked->items()->delete();
-            $createdItems = $locked->items()->createMany($totals['items']);
+            if ($itemsChanged) {
+                // Soft deletion preserves reversed FIFO layers for the audit trail.
+                $locked->items()->delete();
+                $currentItems = $locked->items()->createMany($totals['items']);
+            } else {
+                // Preserve the original item IDs and their paid FIFO cost layers.
+                // A price, tax, notes or production-status edit must not take a
+                // fresh cost snapshot from today's product/batch prices.
+                $remaining = $locked->items->groupBy(fn ($item): string => $this->itemIdentity($item->product_id, $item->quantity));
+                $currentItems = collect();
+                foreach ($totals['items'] as $attributes) {
+                    $key = $this->itemIdentity($attributes['product_id'], $attributes['quantity']);
+                    $item = $remaining[$key]->shift();
+                    if ($hasConsumedInventory) {
+                        unset($attributes['purchase_cost_snapshot'], $attributes['unit_hpp'], $attributes['hpp_total']);
+                    }
+                    $item->update($attributes);
+                    $currentItems->push($item);
+                }
+            }
 
-            $stockAlerts = $verifiedPaid > 0
-                ? $this->recordInvoiceSaleMovements->handle($locked, $createdItems, $actorId)
-                : [];
+            $stockAlerts = $verifiedPaid > 0 && ($itemsChanged || ! $hasConsumedInventory)
+                ? $this->recordInvoiceSaleMovements->handle($locked, $currentItems, $actorId)
+                : ($locked->metadata['inventory_alerts'] ?? []);
 
             $totalHpp = (float) $locked->items()->sum('hpp_total');
             $companyShipping = $locked->shipping_type === Invoice::SHIPPING_COMPANY_FREE_SHIPPING
@@ -195,11 +223,14 @@ class UpdateInvoiceDraft
                     'total_after' => (float) $locked->total_amount,
                     'hpp_before' => $hppBefore,
                     'hpp_after' => (float) $locked->total_hpp,
+                    'inventory_items_changed' => $itemsChanged,
                     'items_before' => $itemsBefore,
-                    'items_after' => $createdItems->map(fn ($item): array => [
+                    'items_after' => $currentItems->map(fn ($item): array => [
                         'product_id' => $item->product_id,
                         'product_name' => $item->product_name,
+                        'sku' => $item->sku,
                         'quantity' => (float) $item->quantity,
+                        'hpp_total' => (float) $item->hpp_total,
                     ])->values()->all(),
                 ],
                 riskLevel: $isPostIssuance ? ActivityLog::RISK_MEDIUM : ActivityLog::RISK_LOW,
@@ -207,5 +238,20 @@ class UpdateInvoiceDraft
 
             return $locked->refresh()->load('items');
         });
+    }
+
+    /** @param iterable<array<string, mixed>> $items */
+    private function inventoryIdentity(iterable $items): array
+    {
+        $identity = [];
+        foreach ($items as $item) {
+            $identity[] = $this->itemIdentity($item['product_id'], $item['quantity']);
+        }
+        return $identity;
+    }
+
+    private function itemIdentity(int|string $productId, float|string $quantity): string
+    {
+        return (int) $productId.':'.number_format((float) $quantity, 4, '.', '');
     }
 }

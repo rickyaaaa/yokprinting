@@ -91,7 +91,7 @@
                     <div x-show="exportSuccess" x-cloak class="mb-6 flex flex-col gap-3 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900 sm:flex-row sm:items-center sm:justify-between">
                         <div class="flex items-center gap-2">
                             <i class="iconify tabler--circle-check text-lg text-green-600"></i>
-                            <span>Laporan penjualan berhasil diunduh sebagai file CSV/Excel.</span>
+                            <span>Laporan penjualan berhasil diunduh sebagai file Excel.</span>
                         </div>
                         <button type="button" @click="exportSuccess = false" class="text-green-700 hover:text-green-900 font-semibold">Tutup</button>
                     </div>

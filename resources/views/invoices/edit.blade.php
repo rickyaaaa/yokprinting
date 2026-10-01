@@ -62,7 +62,7 @@
                                 @endunless
                             </div>
                             <h1 class="text-2xl font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]">Edit {{ $invoiceModel->invoice_number }}</h1>
-                            <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Perubahan invoice akan memperbarui stok, HPP, dan nilai tagihan. Status pengiriman dan progres produksi yang sudah berjalan tidak akan ikut berubah.</p>
+                            <p class="mt-1 max-w-2xl text-sm leading-6 text-muted">Perubahan item dapat memperbarui stok dan HPP. Perubahan harga tidak mengulang mutasi FIFO. Status produksi dikelola terpisah.</p>
                         </div>
                         <a href="{{ route('invoices.index') }}" class="btn btn-outline w-fit">
                             <i class="iconify tabler--chevron-left text-base"></i>
@@ -164,15 +164,9 @@
                                 <h2 id="additional-info-heading" class="font-semibold text-ink">Informasi tambahan</h2>
                                 <div class="mt-5 grid gap-5 md:grid-cols-2">
                                     <div>
-                                        <label for="production-status" class="mb-2 block text-sm font-medium text-ink">Status produksi</label>
-                                        <select id="production-status" name="production_status" class="form-control">
-                                            <option value="draft">Drafting</option>
-                                            <option value="awaiting_dp">Menunggu DP</option>
-                                            <option value="design_acc">ACC Mockup/Desain</option>
-                                            <option value="in_production">Proses Sablon/Cetak</option>
-                                            <option value="ready_for_pickup">Siap Diambil/Kirim</option>
-                                            <option value="completed">Lunas & Selesai</option>
-                                        </select>
+                                        <span class="mb-2 block text-sm font-medium text-ink">Status produksi</span>
+                                        <p class="form-control">{{ $invoiceModel->productionStatusLabel() }}</p>
+                                        <a href="{{ route('payments.invoices.show', $invoiceModel) }}" class="mt-2 inline-block text-sm text-brand-700 underline">Ubah status produksi di detail pembayaran</a>
                                     </div>
                                     <div>
                                         <label for="dp-required-percent" class="mb-2 block text-sm font-medium text-ink">Minimal DP produksi</label>

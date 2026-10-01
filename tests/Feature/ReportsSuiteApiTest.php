@@ -238,11 +238,17 @@ class ReportsSuiteApiTest extends TestCase
                 'end_date' => '2026-07-31',
             ]));
 
-            $response
-                ->assertOk()
-                ->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
+            $response->assertOk();
 
-            $this->assertStringContainsString('.csv', (string) $response->headers->get('Content-Disposition'));
+            if ($route === 'api.reports.sales.export') {
+                $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+                $this->assertStringContainsString('.xlsx', (string) $response->headers->get('Content-Disposition'));
+                $this->assertStringStartsWith('PK', $response->getContent());
+            } else {
+                $response->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
+                $this->assertStringContainsString('.csv', (string) $response->headers->get('Content-Disposition'));
+            }
+
             $this->assertNotEmpty($response->getContent());
         }
 

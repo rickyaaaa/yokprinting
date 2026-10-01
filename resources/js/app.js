@@ -195,7 +195,9 @@ const buildInvoiceDraftPayload = (form) => {
         },
         notes: form.querySelector('[name="notes"]')?.value ?? '',
         terms: form.querySelector('[name="terms"]')?.value ?? '',
-        production_status: form.querySelector('[name="production_status"]')?.value ?? 'draft',
+        ...(form.querySelector('[name="production_status"]')
+            ? { production_status: form.querySelector('[name="production_status"]').value }
+            : {}),
         shipping_cost: Number(form.querySelector('[name="shipping_cost"]')?.value) || 0,
         is_free_shipping: form.querySelector('[name="is_free_shipping"]')?.checked ?? false,
         order_process_status: form.querySelector('[name="order_process_status"]')?.value ?? 'draft',
@@ -2398,7 +2400,7 @@ Alpine.data('salesReportTable', (periodPresets = {}) => ({
         try {
             const link = document.createElement('a');
             link.href = `/api/reports/sales/export?${params.toString()}`;
-            link.download = `laporan-penjualan-${this.periodPreset}-${this.endDate}.csv`;
+            link.download = `laporan-penjualan-${this.periodPreset}-${this.endDate}.xlsx`;
             link.rel = 'noopener';
             document.body.appendChild(link);
             link.click();

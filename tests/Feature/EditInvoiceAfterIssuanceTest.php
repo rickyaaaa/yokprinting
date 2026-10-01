@@ -318,6 +318,32 @@ class EditInvoiceAfterIssuanceTest extends TestCase
         $this->assertNotNull($invoice->paid_at);
     }
 
+    public function test_resaving_paid_invoice_with_same_items_does_not_restore_or_consume_fifo_again(): void
+    {
+        $customer = Customer::query()->create(['name' => 'PT Noop FIFO Edit']);
+        $product = $this->product('NOOP-FIFO-01', trackStock: true);
+        $this->receiveGoods($product, quantity: 4000, unitCost: 600);
+        $invoice = $this->createInvoiceDraft($customer, $product, quantity: 4000, price: 1000);
+        $this->verifiedPayment($invoice, 4000000);
+
+        $invoice->refresh()->load('items');
+        $itemId = $invoice->items->firstOrFail()->id;
+        $saleCount = $product->stockMovements()->where('type', 'sale')->count();
+        $adjustmentCount = $product->stockMovements()->where('type', 'adjustment')->count();
+        $stockBefore = (float) $product->refresh()->stock;
+        $hppBefore = (float) $invoice->total_hpp;
+
+        $this->patchJson(route('api.invoices.update', $invoice), $this->payload($customer, $product, 4000, 1000))
+            ->assertOk();
+
+        $this->assertSame($itemId, $invoice->refresh()->items()->firstOrFail()->id);
+        $this->assertSame($saleCount, $product->refresh()->stockMovements()->where('type', 'sale')->count());
+        $this->assertSame($adjustmentCount, $product->stockMovements()->where('type', 'adjustment')->count());
+        $this->assertSame($stockBefore, (float) $product->stock);
+        $this->assertSame($hppBefore, (float) $invoice->total_hpp);
+        $this->assertSame(Invoice::PAYMENT_PAID, $invoice->payment_status);
+    }
+
     public function test_gross_profit_is_recalculated_after_an_edit(): void
     {
         $customer = Customer::query()->create(['name' => 'PT Gross Profit Edit']);

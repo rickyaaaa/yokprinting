@@ -2,41 +2,39 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Exports\ReportCsvExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ListSalesReportInvoicesRequest;
 use App\Models\Invoice;
+use App\Services\Reports\GenerateSalesReportSpreadsheet;
+use App\Services\Reports\GeneratedReportFile;
 use App\Support\SalesReportPeriodPresets;
 use Illuminate\Http\Response;
 
 class SalesReportExportController extends Controller
 {
     /**
-     * Export filtered sales report invoice rows as an Excel-compatible CSV file.
+     * Export filtered sales report invoice rows as a formatted XLSX workbook.
      */
-    public function __invoke(ListSalesReportInvoicesRequest $request, ReportCsvExport $export): Response
+    public function __invoke(
+        ListSalesReportInvoicesRequest $request,
+        GenerateSalesReportSpreadsheet $spreadsheet,
+    ): Response
     {
         $filters = $request->validated();
         $rows = $this->rows($filters);
-        $filename = 'laporan-penjualan-'.SalesReportPeriodPresets::today()->format('Y-m-d').'.csv';
+        $range = SalesReportPeriodPresets::resolve($filters['date_from'] ?? null, $filters['date_to'] ?? null);
 
-        return $export->download($filename, [
-            'Pelanggan',
-            'Email',
-            'Produk',
-            'Kategori',
-            'Invoice',
-            'Tanggal Invoice',
-            'Jatuh Tempo',
-            'Penjualan',
-            'Margin',
-            'Status',
-        ], $rows);
+        return $this->download($spreadsheet->generate(
+            $rows,
+            $range['from'],
+            $range['to'],
+            $this->filterSummary($filters),
+        ));
     }
 
     /**
      * @param  array<string, mixed>  $filters
-     * @return array<int, array<int, string|float|null>>
+     * @return array<int, array<string, mixed>>
      */
     private function rows(array $filters): array
     {
@@ -88,18 +86,6 @@ class SalesReportExportController extends Controller
                 default => 'issue_date',
             }, SORT_REGULAR, $direction === 'desc')
             ->values()
-            ->map(fn (array $row): array => [
-                $row['customer'],
-                $row['customer_email'],
-                $row['product'],
-                $row['category'],
-                $row['invoice_number'],
-                $row['issue_date'],
-                $row['due_date'],
-                $row['total_amount'],
-                $row['margin_label'],
-                $row['status_label'],
-            ])
             ->all();
     }
 
@@ -136,6 +122,7 @@ class SalesReportExportController extends Controller
             'due_date' => $invoice->due_date->toDateString(),
             'total_amount' => (float) $invoice->total_amount,
             'margin_label' => $invoice->grossMarginLabel(),
+            'margin_percent' => $invoice->grossMarginPercentage(),
             'status' => $status,
             'status_label' => $this->statusLabel($status),
         ];
@@ -161,5 +148,43 @@ class SalesReportExportController extends Controller
             Invoice::PAYMENT_OVERDUE => 'Overdue',
             default => 'Menunggu',
         };
+    }
+
+    /** @param array<string, mixed> $filters */
+    private function filterSummary(array $filters): ?string
+    {
+        $parts = [];
+        $status = $filters['status'] ?? 'all';
+
+        if ($status !== 'all') {
+            $parts[] = 'Status: '.match ($status) {
+                Invoice::PAYMENT_PAID => 'Lunas',
+                Invoice::PAYMENT_PARTIAL => 'Parsial',
+                Invoice::PAYMENT_UNPAID => 'Belum bayar',
+                Invoice::PAYMENT_OVERDUE => 'Jatuh tempo',
+                default => $status,
+            };
+        }
+
+        if (($filters['category'] ?? null) !== null && trim((string) $filters['category']) !== '') {
+            $parts[] = 'Kategori: '.trim((string) $filters['category']);
+        }
+
+        if (($filters['q'] ?? null) !== null && trim((string) $filters['q']) !== '') {
+            $parts[] = 'Pencarian: "'.trim((string) $filters['q']).'"';
+        }
+
+        return $parts === [] ? null : 'Filter - '.implode(' | ', $parts);
+    }
+
+    private function download(GeneratedReportFile $file): Response
+    {
+        return response($file->contents, Response::HTTP_OK, [
+            'Content-Type' => $file->contentType,
+            'Content-Disposition' => 'attachment; filename="'.$file->filename.'"',
+            'Content-Length' => (string) strlen($file->contents),
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 }

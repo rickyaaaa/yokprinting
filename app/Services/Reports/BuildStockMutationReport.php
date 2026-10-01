@@ -3,6 +3,7 @@
 namespace App\Services\Reports;
 
 use App\Models\GoodsReceipt;
+use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\StockMovement;
@@ -106,6 +107,17 @@ class BuildStockMutationReport
         $period = $movements->where('created_at', '>=', $start)->where('created_at', '<=', $end)->values();
         $opening = $this->openingBalance($product, $start, $excludedReferences);
         $contexts = $this->referenceContexts($period);
+        $legacyReturns = $period->filter(fn (StockMovement $movement): bool => str_starts_with((string) $movement->notes, 'Pengembalian layer FIFO invoice '));
+        $editLogs = ActivityLog::query()
+            ->where('module', 'invoice')
+            ->whereIn('action', ['draft_updated', 'updated_after_issuance'])
+            ->whereIn('subject_id', Invoice::query()->whereIn('invoice_number', $legacyReturns->pluck('reference_number')->filter()->unique())->pluck('id'))
+            ->orderBy('occurred_at')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('subject_id');
+        $invoiceIds = Invoice::query()->whereIn('invoice_number', $legacyReturns->pluck('reference_number')->filter()->unique())
+            ->pluck('id', 'invoice_number');
         $balance = $opening;
         $rows = [[
             'id' => 'opening-'.$product->getKey(),
@@ -132,6 +144,10 @@ class BuildStockMutationReport
             $description = $context['description']
                 ?? $movement->notes
                 ?? $this->typeLabel($movement->type);
+            if ($legacyReturns->contains('id', $movement->id)) {
+                $invoiceId = $invoiceIds[$movement->reference_number] ?? null;
+                $description = $this->legacyReturnDescription($movement, $editLogs[$invoiceId] ?? collect()) ?? $description;
+            }
 
             $rows[] = [
                 'id' => $movement->getKey(),
@@ -170,6 +186,32 @@ class BuildStockMutationReport
             'mutations' => collect($rows)->reverse()->values()->all(),
             'summary' => $summary,
         ];
+    }
+
+    /** @param Collection<int, ActivityLog> $logs */
+    private function legacyReturnDescription(StockMovement $movement, Collection $logs): ?string
+    {
+        foreach ($logs as $log) {
+            if (! $movement->created_at || ! $log->occurred_at
+                || $log->occurred_at->lt($movement->created_at)
+                || $log->occurred_at->gt($movement->created_at->copy()->addMinute())) {
+                continue;
+            }
+
+            $before = collect($log->metadata['items_before'] ?? []);
+            $after = collect($log->metadata['items_after'] ?? []);
+            if (! $before->contains(fn (array $item): bool => (int) ($item['product_id'] ?? 0) === (int) $movement->product_id)
+                || $before->map(fn (array $item): string => ($item['product_id'] ?? '').':'.($item['quantity'] ?? ''))->sort()->values()->all()
+                    === $after->map(fn (array $item): string => ($item['product_id'] ?? '').':'.($item['quantity'] ?? ''))->sort()->values()->all()) {
+                continue;
+            }
+
+            $format = fn (Collection $items): string => $items->map(fn (array $item): string => (string) ($item['sku'] ?? Product::query()->find($item['product_id'] ?? null)?->sku ?? '#'.($item['product_id'] ?? '?')))->implode(', ');
+
+            return "Pengembalian FIFO karena perubahan item invoice {$movement->reference_number} dari {$format($before)} ke {$format($after)}";
+        }
+
+        return null;
     }
 
     /**

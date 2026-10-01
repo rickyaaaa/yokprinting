@@ -9,6 +9,7 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use ZipArchive;
 
 class SalesReportExportApiTest extends TestCase
 {
@@ -28,7 +29,7 @@ class SalesReportExportApiTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_sales_report_export_downloads_excel_compatible_csv(): void
+    public function test_sales_report_export_downloads_a_formatted_excel_workbook(): void
     {
         CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-07-23 12:00:00'));
 
@@ -75,18 +76,23 @@ class SalesReportExportApiTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertHeader('content-type', 'text/csv; charset=UTF-8')
-            ->assertHeader('content-disposition', 'attachment; filename="laporan-penjualan-2026-07-23.csv"');
+            ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            ->assertHeader('content-disposition', 'attachment; filename="laporan-penjualan-2026-07-31.xlsx"');
 
-        $content = $response->getContent();
+        $sheet = $this->worksheetXml($response->getContent());
 
-        // BOM, then the "sep=," hint Excel needs on an Indonesian machine
-        // (its regional list separator is ";", so without this the whole file
-        // lands in column A), then the header row.
-        $this->assertStringStartsWith("\u{FEFF}sep=,\r\nPelanggan,Email,Produk,Kategori,Invoice", $content);
-        $this->assertStringContainsString('"PT Sinar Nusantara",finance@sinarnusantara.co.id,"Paket desain brand refresh","Jasa desain",INV-2026-0084,2026-07-23,2026-07-30,18450000,"100,00%",Lunas', $content);
-        $this->assertStringNotContainsString('INV-2026-0082', $content);
-        $this->assertStringNotContainsString('INV-2026-0099', $content);
+        $this->assertStringContainsString('LAPORAN PENJUALAN', $sheet);
+        $this->assertStringContainsString('Pelanggan', $sheet);
+        $this->assertStringContainsString('Tanggal Invoice', $sheet);
+        $this->assertStringContainsString('Filter - Kategori: Jasa desain', $sheet);
+        $this->assertStringContainsString('INV-2026-0084', $sheet);
+        $this->assertStringNotContainsString('INV-2026-0082', $sheet);
+        $this->assertStringNotContainsString('INV-2026-0099', $sheet);
+        $this->assertStringContainsString('<autoFilter ref="A5:J6"', $sheet);
+        $this->assertStringContainsString('ySplit="5"', $sheet);
+        $this->assertStringContainsString('r="F6" s="10"', $sheet);
+        $this->assertStringContainsString('r="H6" s="6"', $sheet);
+        $this->assertStringContainsString('r="I6" s="7"', $sheet);
     }
 
     public function test_sales_report_export_includes_active_draft_invoices_and_excludes_cancelled(): void
@@ -123,6 +129,8 @@ class SalesReportExportApiTest extends TestCase
             'date_from' => '2026-07-01',
             'date_to' => '2026-07-31',
         ]))->assertOk()->getContent();
+
+        $content = $this->worksheetXml($content);
 
         $this->assertStringContainsString('INV-2026-0101', $content);
         $this->assertStringNotContainsString('INV-2026-0102', $content);
@@ -161,8 +169,25 @@ class SalesReportExportApiTest extends TestCase
             'date_to' => '2026-07-31',
         ]))->assertOk()->getContent();
 
-        $this->assertStringContainsString("'=HYPERLINK", $content);
-        $this->assertStringContainsString("'+SUM(1,1)", $content);
+        $content = $this->worksheetXml($content);
+
+        $this->assertStringContainsString('&apos;=HYPERLINK', $content);
+        $this->assertStringContainsString('&apos;+SUM(1,1)', $content);
+    }
+
+    private function worksheetXml(string $contents): string
+    {
+        $this->assertStringStartsWith('PK', $contents);
+        $path = tempnam(sys_get_temp_dir(), 'sales-report-');
+        file_put_contents($path, $contents);
+        $archive = new ZipArchive;
+        $this->assertSame(true, $archive->open($path));
+        $sheet = $archive->getFromName('xl/worksheets/sheet1.xml');
+        $archive->close();
+        @unlink($path);
+        $this->assertIsString($sheet);
+
+        return $sheet;
     }
 
     private function createCustomer(string $name): Customer

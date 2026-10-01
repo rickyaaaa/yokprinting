@@ -132,7 +132,7 @@ class FifoInventoryService
         return $hpp;
     }
 
-    public function restoreInvoice(Invoice $invoice, ?int $actorId = null): void
+    public function restoreInvoice(Invoice $invoice, ?int $actorId = null, ?string $reason = null): void
     {
         foreach ($invoice->items()->with('costLayers')->get() as $item) {
             $product = Product::query()->whereKey($item->product_id)->lockForUpdate()->first();
@@ -174,7 +174,7 @@ class FifoInventoryService
                     type: StockMovement::TYPE_ADJUSTMENT,
                     quantity: (float) $item->quantity,
                     referenceNumber: $invoice->invoice_number,
-                    notes: "Pengembalian stok invoice {$invoice->invoice_number}",
+                    notes: $reason ?? "Pengembalian stok invoice {$invoice->invoice_number}",
                     userId: $actorId,
                     syncFifo: false,
                 );
@@ -209,7 +209,7 @@ class FifoInventoryService
                 type: StockMovement::TYPE_ADJUSTMENT,
                 quantity: (float) $item->quantity,
                 referenceNumber: $invoice->invoice_number,
-                notes: "Pengembalian layer FIFO invoice {$invoice->invoice_number}",
+                notes: $reason ?? "Pengembalian layer FIFO invoice {$invoice->invoice_number}",
                 userId: $actorId,
                 syncFifo: false,
             );

@@ -9,6 +9,7 @@ use App\Support\SalesReportPeriodPresets;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use ZipArchive;
 
 class SalesReportPeriodPresetsTest extends TestCase
 {
@@ -129,8 +130,9 @@ class SalesReportPeriodPresetsTest extends TestCase
             ->assertJsonPath('meta.date_to', $period['date_to'])
             ->assertJsonFragment(['invoice_number' => 'INV-MARCH'])
             ->assertJsonMissing(['invoice_number' => 'INV-FEBRUARY']);
-        $this->assertStringContainsString('INV-MARCH', $exportResponse->getContent());
-        $this->assertStringNotContainsString('INV-FEBRUARY', $exportResponse->getContent());
+        $sheet = $this->worksheetXml($exportResponse->getContent());
+        $this->assertStringContainsString('INV-MARCH', $sheet);
+        $this->assertStringNotContainsString('INV-FEBRUARY', $sheet);
     }
 
     private function createInvoice(Customer $customer, string $invoiceNumber, string $issueDate): void
@@ -145,5 +147,20 @@ class SalesReportPeriodPresetsTest extends TestCase
             'currency' => 'IDR',
             'total_amount' => 100000,
         ]);
+    }
+
+    private function worksheetXml(string $contents): string
+    {
+        $this->assertStringStartsWith('PK', $contents);
+        $path = tempnam(sys_get_temp_dir(), 'sales-period-');
+        file_put_contents($path, $contents);
+        $archive = new ZipArchive;
+        $this->assertSame(true, $archive->open($path));
+        $sheet = $archive->getFromName('xl/worksheets/sheet1.xml');
+        $archive->close();
+        @unlink($path);
+        $this->assertIsString($sheet);
+
+        return $sheet;
     }
 }
