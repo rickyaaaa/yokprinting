@@ -135,6 +135,15 @@ export const registerStockMutationReportComponents = (Alpine) => {
             return quantity.format(Number(value ?? 0));
         },
 
+        reconciliationLabel(status) {
+            return {
+                balanced: 'Saldo produk dan ledger seimbang',
+                needs_reconciliation: 'Perlu rekonsiliasi stok',
+                historical_period: 'Periode historis — rekonsiliasi live tidak ditampilkan',
+                not_applicable: 'Rekonsiliasi ledger belum tersedia untuk produk ini',
+            }[status] ?? 'Status rekonsiliasi tidak diketahui';
+        },
+
         formatDate(value) {
             if (!value) return '-';
 

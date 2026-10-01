@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\BulkUpdateProductStockRequest;
 use App\Models\Product;
+use App\Models\StockMovement;
+use App\Services\Inventory\RecordStockMovement;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -16,7 +19,7 @@ class ProductBulkStockController extends Controller
     /**
      * Atomically update one stock field for the selected products.
      */
-    public function __invoke(BulkUpdateProductStockRequest $request): JsonResponse
+    public function __invoke(BulkUpdateProductStockRequest $request, RecordStockMovement $recordStockMovement): JsonResponse
     {
         $validated = $request->validated();
         $items = collect($validated['items'])
@@ -29,7 +32,7 @@ class ProductBulkStockController extends Controller
                 'expected_updated_at' => CarbonImmutable::parse($item['expected_updated_at']),
             ]);
 
-        $products = DB::transaction(function () use ($items) {
+        $products = DB::transaction(function () use ($items, $recordStockMovement, $request) {
             $products = Product::query()
                 ->whereKey($items->pluck('id'))
                 ->lockForUpdate()
@@ -67,7 +70,27 @@ class ProductBulkStockController extends Controller
 
             foreach ($items as $index => $item) {
                 try {
-                    $products->get($item['id'])->update([$item['field'] => $item['value']]);
+                    $product = $products->get($item['id']);
+
+                    if ($item['field'] === 'stock' && $product->track_stock) {
+                        $delta = round($item['value'] - (float) ($product->stock ?? 0), 4);
+
+                        if ($delta !== 0.0) {
+                            $recordStockMovement->record(
+                                product: $product,
+                                type: StockMovement::TYPE_ADJUSTMENT,
+                                quantity: $delta,
+                                referenceNumber: 'BULK-STOCK-'.Str::upper(Str::random(10)),
+                                notes: 'Koreksi stok melalui Bulk edit stok.',
+                                userId: $request->user()?->getAuthIdentifier(),
+                            );
+                        }
+                    } else {
+                        // Minimum stock is a catalogue threshold, not an
+                        // inventory movement. Non-stock-tracked products also
+                        // have no physical ledger to reconcile.
+                        $product->update([$item['field'] => $item['value']]);
+                    }
                 } catch (Throwable) {
                     throw ValidationException::withMessages([
                         "items.{$index}.{$item['field']}" => [

@@ -38,6 +38,8 @@ class ProductIndexPageController extends Controller
                 // Product::fifoUnitCost().
                 'purchasePrice' => $this->rupiah($product->fifoUnitCost()),
                 'purchasePriceValue' => $product->fifoUnitCost(),
+                'lastPurchasePrice' => $product->last_purchase_price === null ? null : (float) $product->last_purchase_price,
+                'averagePurchaseCost' => $product->average_purchase_cost === null ? null : (float) $product->average_purchase_cost,
                 'inventoryValue' => $product->fifoInventoryValue(),
                 'stock' => $product->track_stock ? number_format($stock, 0, ',', '.').' '.strtoupper($product->unit) : 'Tidak dilacak',
                 'stockValue' => $product->track_stock ? $stock : PHP_INT_MAX,

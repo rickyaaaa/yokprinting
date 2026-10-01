@@ -95,6 +95,24 @@
                         <article class="card p-5"><p class="text-sm font-medium text-muted">Saldo akhir</p><p class="mt-2 text-2xl font-semibold text-brand-800" x-text="formatQuantity(report.detail_summary.closing_balance)"></p></article>
                     </section>
 
+                    <section
+                        class="mb-6 rounded-xl border px-5 py-4 text-sm"
+                        :class="report.detail_summary.reconciliation_status === 'needs_reconciliation' ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900'"
+                        aria-live="polite"
+                    >
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <p class="font-semibold" x-text="reconciliationLabel(report.detail_summary.reconciliation_status)"></p>
+                                <p class="mt-1" x-show="report.detail_summary.reconciliation_status !== 'not_applicable'">
+                                    Saldo ledger: <strong x-text="formatQuantity(report.detail_summary.ledger_stock)"></strong>
+                                    · Stok produk: <strong x-text="formatQuantity(report.detail_summary.product_stock)"></strong>
+                                    · Selisih: <strong x-text="formatQuantity(report.detail_summary.difference)"></strong>
+                                </p>
+                            </div>
+                            <span class="text-xs" x-show="report.detail_summary.reconciliation_status === 'needs_reconciliation'">Gunakan Stock Adjustment resmi untuk koreksi; histori ledger tidak dihapus.</span>
+                        </div>
+                    </section>
+
                     <section class="card overflow-hidden" aria-labelledby="mutation-table-heading">
                         <div class="flex flex-col gap-2 border-b border-line bg-surface-low px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                             <div><h2 id="mutation-table-heading" class="font-semibold text-ink" x-text="report.product.name"></h2><p class="mt-1 text-sm text-muted"><span class="font-mono" x-text="report.product.sku"></span> · Saldo berjalan per transaksi</p></div>

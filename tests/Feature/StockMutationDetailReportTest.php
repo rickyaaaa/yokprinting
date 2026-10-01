@@ -67,6 +67,31 @@ class StockMutationDetailReportTest extends TestCase
             ->assertJsonPath('data.mutations.1.balance', 34000);
     }
 
+    public function test_report_exposes_product_ledger_reconciliation_when_stock_was_overwritten_without_a_movement(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-01 12:00:00'));
+        $product = Product::query()->create([
+            'sku' => 'RECON-H002',
+            'name' => 'Produk Rekonsiliasi H-002',
+            'track_stock' => true,
+            'stock' => 1000,
+        ]);
+        $this->movement($product, StockMovement::TYPE_OPENING_BALANCE, 1000, 'OPEN-RECON', '2026-09-01 08:00:00');
+        $this->movement($product, StockMovement::TYPE_PURCHASE, 1000, 'GR-RECON', '2026-09-29 08:00:00');
+        $product->forceFill(['stock' => 1500])->save();
+
+        $this->getJson(route('api.reports.stock-mutations.index', [
+            'start_date' => '2026-09-01',
+            'end_date' => '2026-10-01',
+            'product_id' => $product->id,
+        ]))
+            ->assertOk()
+            ->assertJsonPath('data.detail_summary.ledger_stock', 2000)
+            ->assertJsonPath('data.detail_summary.product_stock', 1500)
+            ->assertJsonPath('data.detail_summary.difference', -500)
+            ->assertJsonPath('data.detail_summary.reconciliation_status', 'needs_reconciliation');
+    }
+
     public function test_cancelled_invoice_mutations_are_hidden_and_restore_rows_have_no_customer(): void
     {
         $customer = Customer::query()->create(['name' => 'Warkop Elbareen']);

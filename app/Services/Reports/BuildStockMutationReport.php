@@ -2,8 +2,8 @@
 
 namespace App\Services\Reports;
 
-use App\Models\GoodsReceipt;
 use App\Models\ActivityLog;
+use App\Models\GoodsReceipt;
 use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\StockMovement;
@@ -30,7 +30,10 @@ class BuildStockMutationReport
             ->when($productId, fn ($query) => $query->whereKey($productId))
             ->when(! $productId, fn ($query) => $query->whereHas('stockMovements', fn ($query) => $query->where('created_at', '<=', $end)))
             ->with([
-                'stockMovements' => fn ($query) => $query->where('created_at', '<=', $end)->orderBy('created_at')->orderBy('id'),
+                // Keep the complete ledger in memory. The period view is
+                // derived from it, while reconciliation must also compare
+                // the current Product.stock with every active movement.
+                'stockMovements' => fn ($query) => $query->orderBy('created_at')->orderBy('id'),
                 'inventoryBatches' => fn ($query) => $query->where('qty_remaining', '>', 0),
             ])
             ->orderBy('name')
@@ -78,6 +81,7 @@ class BuildStockMutationReport
         $adjustments = (float) $period->whereIn('type', $adjustmentTypes)->sum('quantity');
         $opening = $this->openingBalance($product, $start, $excludedReferences);
         $closing = (float) ($opening + $period->sum('quantity'));
+        $reconciliation = $this->reconciliation($product, $movements, $end, $excludedReferences);
 
         return [
             'product_id' => $product->getKey(),
@@ -91,6 +95,9 @@ class BuildStockMutationReport
             'adjustments' => round($adjustments, 4),
             'closing_balance' => round($closing, 4),
             'current_stock' => $product->stock === null ? null : (float) $product->stock,
+            'ledger_current_stock' => $reconciliation['ledger_stock'],
+            'stock_difference' => $reconciliation['difference'],
+            'reconciliation_status' => $reconciliation['reconciliation_status'],
             'fifo_inventory_value' => round((float) $product->inventoryBatches->sum(
                 fn ($batch): float => (float) $batch->qty_remaining * (float) $batch->unit_cost,
             ), 2),
@@ -172,6 +179,7 @@ class BuildStockMutationReport
                 StockMovement::TYPE_STOCK_OPNAME,
             ])->sum('quantity'), 4),
             'closing_balance' => $balance,
+            ...$this->reconciliation($product, $movements, $end, $excludedReferences),
         ];
 
         return [
@@ -287,6 +295,54 @@ class BuildStockMutationReport
         $baseline = $first ? (float) $first->stock_before : (float) ($product->stock ?? 0);
 
         return round($baseline + (float) $movements->where('created_at', '<', $start)->sum('quantity'), 4);
+    }
+
+    /**
+     * Compare the persisted product stock with the active stock ledger.
+     * A product without any movement has no historical ledger baseline, so it
+     * is intentionally reported as not applicable rather than falsely flagged.
+     *
+     * @param  Collection<int, StockMovement>  $movements
+     * @return array{ledger_stock: float|null, product_stock: float|null, difference: float|null, reconciliation_status: string}
+     */
+    private function reconciliation(Product $product, Collection $movements, CarbonImmutable $end, Collection $excludedReferences): array
+    {
+        if (! $product->track_stock || $product->stock === null) {
+            return [
+                'ledger_stock' => null,
+                'product_stock' => $product->stock === null ? null : (float) $product->stock,
+                'difference' => null,
+                'reconciliation_status' => 'not_applicable',
+            ];
+        }
+
+        $active = $this->activeMovements($movements, $excludedReferences);
+        if ($active->isEmpty()) {
+            return [
+                'ledger_stock' => null,
+                'product_stock' => (float) $product->stock,
+                'difference' => 0.0,
+                'reconciliation_status' => 'not_applicable',
+            ];
+        }
+
+        $first = $active->sortBy([['created_at', 'asc'], ['id', 'asc']])->first();
+        $ledgerStock = round((float) $first->stock_before + (float) $active->sum('quantity'), 4);
+        $difference = round((float) $product->stock - $ledgerStock, 4);
+
+        // A historical period can legitimately end before later movements,
+        // so only compare to the live product balance when the selected end
+        // date reaches today.
+        $status = $end->lt(CarbonImmutable::now()->startOfDay())
+            ? 'historical_period'
+            : (abs($difference) < 0.0001 ? 'balanced' : 'needs_reconciliation');
+
+        return [
+            'ledger_stock' => $ledgerStock,
+            'product_stock' => (float) $product->stock,
+            'difference' => $difference,
+            'reconciliation_status' => $status,
+        ];
     }
 
     /**

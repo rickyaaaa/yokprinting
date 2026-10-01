@@ -161,7 +161,10 @@
                                             </td>
                                             <td class="px-5 py-4 text-muted" x-text="product.category"></td>
                                             <td class="px-5 py-4 text-muted" x-text="product.unit"></td>
-                                            <td class="px-5 py-4 text-right font-semibold text-ink" x-text="product.purchasePrice"></td>
+                                            <td class="px-5 py-4 text-right">
+                                                <p class="font-semibold text-ink" x-text="product.purchasePrice"></p>
+                                                <p class="mt-1 text-xs text-muted" x-show="product.lastPurchasePrice !== null">Terakhir <span x-text="product.lastPurchasePriceFormatted"></span></p>
+                                            </td>
                                             <td class="px-5 py-4 text-right">
                                                 <p class="font-medium" :class="isLowStock(product) ? 'text-yellow-900' : 'text-muted'" x-text="product.stock"></p>
                                                 <p class="mt-1 text-xs text-muted" x-show="product.minimumStock > 0">Minimum <span x-text="product.minimumStock"></span> <span x-text="product.unit"></span></p>

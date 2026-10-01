@@ -92,7 +92,7 @@ class GenerateStockMutationSpreadsheet
         $period = $report['period'];
         $summary = $report['detail_summary'] ?? null;
         $rows = [];
-        $lastColumn = $product !== null ? 'H' : 'J';
+        $lastColumn = $product !== null ? 'H' : 'N';
 
         $rows[] = $this->row(1, [$this->textCell('A1', 'LAPORAN MUTASI STOK', 1)]);
         $rows[] = $this->row(2, [$this->textCell('A2', $this->companyName(), 2)]);
@@ -110,8 +110,12 @@ class GenerateStockMutationSpreadsheet
             $rows[] = $this->row(11, [$this->textCell('A11', 'Barang keluar / penjualan'), $this->numberCell('B11', $summary['outgoing'] ?? 0, 6)]);
             $rows[] = $this->row(12, [$this->textCell('A12', 'Penyesuaian'), $this->numberCell('B12', $summary['adjustments'] ?? 0, 6)]);
             $rows[] = $this->row(13, [$this->textCell('A13', 'Saldo akhir'), $this->numberCell('B13', $summary['closing_balance'] ?? 0, 6)]);
+            $rows[] = $this->row(14, [$this->textCell('A14', 'Saldo ledger saat ini'), $this->numberCell('B14', $summary['ledger_stock'] ?? 0, 6)]);
+            $rows[] = $this->row(15, [$this->textCell('A15', 'Stok produk saat ini'), $this->numberCell('B15', $summary['product_stock'] ?? 0, 6)]);
+            $rows[] = $this->row(16, [$this->textCell('A16', 'Selisih rekonsiliasi'), $this->numberCell('B16', $summary['difference'] ?? 0, 6)]);
+            $rows[] = $this->row(17, [$this->textCell('A17', 'Status rekonsiliasi'), $this->textCell('B17', $this->reconciliationLabel($summary['reconciliation_status'] ?? 'not_applicable'))]);
 
-            $headerRow = 15;
+            $headerRow = 19;
             $headers = ['Nomor Dokumen', 'Tanggal', 'Tipe Mutasi', 'Deskripsi / Keterangan', 'Customer / Supplier', 'Masuk', 'Keluar', 'Saldo'];
             $rows[] = $this->headerRow($headerRow, $headers);
 
@@ -131,7 +135,7 @@ class GenerateStockMutationSpreadsheet
             }
         } else {
             $headerRow = 5;
-            $headers = ['SKU', 'Nama Produk', 'Kategori', 'Unit', 'Saldo Awal', 'Pembelian / Masuk', 'Penjualan / Keluar', 'Penyesuaian', 'Saldo Akhir', 'Nilai Persediaan FIFO'];
+            $headers = ['SKU', 'Nama Produk', 'Kategori', 'Unit', 'Saldo Awal', 'Pembelian / Masuk', 'Penjualan / Keluar', 'Penyesuaian', 'Saldo Akhir', 'Nilai Persediaan FIFO', 'Stok Produk', 'Saldo Ledger', 'Selisih', 'Status Rekonsiliasi'];
             $rows[] = $this->headerRow($headerRow, $headers);
 
             $rowNumber = $headerRow;
@@ -148,13 +152,17 @@ class GenerateStockMutationSpreadsheet
                     $this->numberCell('H'.$rowNumber, $productRow['adjustments'] ?? 0, 6),
                     $this->numberCell('I'.$rowNumber, $productRow['closing_balance'] ?? 0, 6),
                     $this->numberCell('J'.$rowNumber, $productRow['fifo_inventory_value'] ?? 0, 7),
+                    $this->numberCell('K'.$rowNumber, $productRow['current_stock'] ?? 0, 6),
+                    $this->numberCell('L'.$rowNumber, $productRow['ledger_current_stock'] ?? 0, 6),
+                    $this->numberCell('M'.$rowNumber, $productRow['stock_difference'] ?? 0, 6),
+                    $this->textCell('N'.$rowNumber, $this->reconciliationLabel($productRow['reconciliation_status'] ?? 'not_applicable')),
                 ]);
             }
         }
 
         $columns = $product !== null
             ? [22, 14, 18, 48, 28, 14, 14, 14]
-            : [18, 40, 22, 12, 16, 18, 18, 16, 16, 22];
+            : [18, 40, 22, 12, 16, 18, 18, 16, 16, 22, 16, 16, 14, 22];
         $widths = [];
         foreach ($columns as $index => $width) {
             $widths[] = '<col min="'.($index + 1).'" max="'.($index + 1).'" width="'.$width.'" customWidth="1"/>';
@@ -164,7 +172,7 @@ class GenerateStockMutationSpreadsheet
 
         return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             .'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-            .'<sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="'.($product !== null ? 15 : 5).'" topLeftCell="A'.($product !== null ? 16 : 6).'" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+            .'<sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="'.($product !== null ? 19 : 5).'" topLeftCell="A'.($product !== null ? 20 : 6).'" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
             .'<sheetFormatPr defaultRowHeight="18"/><cols>'.implode('', $widths).'</cols>'
             .'<sheetData>'.implode('', $rows).'</sheetData>'
             .'<autoFilter ref="A'.($product !== null ? 15 : 5).':'.$lastColumn.$rowCount.'"/>'
@@ -195,6 +203,16 @@ class GenerateStockMutationSpreadsheet
             'stock_opname' => 'Stok opname',
             'return' => 'Retur barang',
             default => 'Mutasi stok',
+        };
+    }
+
+    private function reconciliationLabel(string $status): string
+    {
+        return match ($status) {
+            'balanced' => 'Seimbang',
+            'needs_reconciliation' => 'Perlu rekonsiliasi',
+            'historical_period' => 'Periode historis',
+            default => 'Tidak tersedia',
         };
     }
 

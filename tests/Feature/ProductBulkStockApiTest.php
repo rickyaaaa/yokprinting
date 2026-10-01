@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Permission;
 use App\Models\Product;
 use App\Models\Role;
+use App\Models\StockMovement;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use RuntimeException;
@@ -39,6 +40,30 @@ class ProductBulkStockApiTest extends TestCase
         $this->assertDatabaseHas('products', ['id' => $products[0]->id, 'stock' => 1000]);
         $this->assertDatabaseHas('products', ['id' => $products[1]->id, 'minimum_stock' => 0]);
         $this->assertDatabaseHas('products', ['id' => $products[2]->id, 'stock' => 1500]);
+        $this->assertDatabaseHas('stock_movements', [
+            'product_id' => $products[0]->id,
+            'type' => StockMovement::TYPE_ADJUSTMENT,
+            'quantity' => 500,
+        ]);
+    }
+
+    public function test_bulk_stock_edit_uses_a_ledger_adjustment_instead_of_directly_overwriting_stock(): void
+    {
+        $this->actingAsUserWithProductUpdatePermission();
+        $product = $this->createProduct('BULK-LEDGER');
+
+        $this->patchJson(route('api.products.bulk-stock.update'), [
+            'items' => [$this->bulkItem($product, 'stock', 1200)],
+        ])->assertOk();
+
+        $this->assertDatabaseHas('stock_movements', [
+            'product_id' => $product->id,
+            'type' => StockMovement::TYPE_ADJUSTMENT,
+            'quantity' => 700,
+            'stock_before' => 500,
+            'stock_after' => 1200,
+        ]);
+        $this->assertSame(1200.0, (float) $product->refresh()->stock);
     }
 
     public function test_failure_on_one_product_rolls_back_every_update(): void

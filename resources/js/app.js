@@ -2822,7 +2822,7 @@ Alpine.data('productIndexTable', (initialProducts = [], exportEndpoints = {}) =>
         const stockValue = product.stock === null ? 0 : Number(product.stock) || 0;
         const minimumStock = normalizeMinimumStock(product.minimum_stock);
         const trackStock = product.track_stock ?? true;
-        const { fifoHpp, inventoryValue, sales } = resolveProductMetrics(product, initialProduct);
+        const { fifoHpp, lastPurchasePrice, averagePurchaseCost, inventoryValue, sales } = resolveProductMetrics(product, initialProduct);
         const status = product.status === 'inactive'
             ? 'Nonaktif'
             : isProductLowStock({
@@ -2847,6 +2847,9 @@ Alpine.data('productIndexTable', (initialProducts = [], exportEndpoints = {}) =>
             // Product::fifoUnitCost() on the backend.
             purchasePrice: formatRupiah(fifoHpp),
             purchasePriceValue: fifoHpp,
+            lastPurchasePrice: lastPurchasePrice === null ? null : Number(lastPurchasePrice),
+            lastPurchasePriceFormatted: lastPurchasePrice === null ? '' : formatRupiah(Number(lastPurchasePrice)),
+            averagePurchaseCost: averagePurchaseCost === null ? null : Number(averagePurchaseCost),
             // True remaining-stock valuation (SUM(qty_remaining x unit_cost)
             // across available batches) - distinct from the per-unit value
             // above, used for the "Nilai persediaan" total.
