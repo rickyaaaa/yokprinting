@@ -10,13 +10,16 @@ class ProductIndexPageController extends Controller
     public function __invoke(): View
     {
         $models = Product::query()
-            // "Terjual"/"Produk terlaris" is the quantity from real
-            // transactions, not the number of invoice rows. Previously a
-            // 1,000-piece line counted as one sale. Cancelled invoices are
-            // excluded by the same business-transaction scope used elsewhere.
+            // "Terjual"/"Produk terlaris" is the quantity whose invoice has
+            // crossed the first verified-DP boundary, not the number of
+            // invoice rows. An unpaid invoice must not look sold before it
+            // has reserved/consumed inventory. Cancelled invoices are always
+            // excluded.
             ->withSum([
                 'invoiceItems as active_sales_quantity' => fn ($query) => $query
-                    ->whereHas('invoice', fn ($invoiceQuery) => $invoiceQuery->businessTransaction()),
+                    ->whereHas('invoice', fn ($invoiceQuery) => $invoiceQuery
+                        ->businessTransaction()
+                        ->whereHas('payments', fn ($paymentQuery) => $paymentQuery->verified()->where('amount', '>', 0))),
             ], 'quantity')
             ->with('inventoryBatches')
             ->orderBy('sku')

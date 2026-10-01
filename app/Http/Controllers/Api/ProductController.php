@@ -168,11 +168,10 @@ class ProductController extends Controller
      * while edit/detail flows use show/update; returning zero simply because
      * a caller forgot to eager-load the count is what made those flows drift.
      *
-     * The product catalogue reports the quantity on active invoice lines,
-     * not the number of invoice rows. Cancelled invoices are excluded while
-     * payment and delivery state remain intentionally irrelevant: an invoice
-     * is a business transaction from creation until it is explicitly
-     * cancelled.
+     * The product catalogue reports the quantity on invoice lines after the
+     * first verified payment/DP, matching the inventory boundary in
+     * RecordInvoicePayment. Unpaid drafts do not count as sold, while
+     * payment amount and delivery state remain otherwise irrelevant.
      *
      * @return array<string, callable(Builder): Builder>
      */
@@ -180,7 +179,9 @@ class ProductController extends Controller
     {
         return [
             'invoiceItems as active_sales_quantity' => fn (Builder $query): Builder => $query
-                ->whereHas('invoice', fn (Builder $invoiceQuery): Builder => $invoiceQuery->businessTransaction()),
+                ->whereHas('invoice', fn (Builder $invoiceQuery): Builder => $invoiceQuery
+                    ->businessTransaction()
+                    ->whereHas('payments', fn (Builder $paymentQuery): Builder => $paymentQuery->verified()->where('amount', '>', 0))),
         ];
     }
 
