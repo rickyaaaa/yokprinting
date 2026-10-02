@@ -443,4 +443,7 @@ Route::middleware(['web', 'auth'])->group(function (): void {
     Route::get('/reports/stock-mutations/excel', [StockReportExportController::class, 'excel'])
         ->middleware(['permission:report.export', 'throttle:report-export'])
         ->name('api.reports.stock-mutations.excel');
+    Route::get('/reports/stock-mutations/pdf', [StockReportExportController::class, 'pdf'])
+        ->middleware(['permission:report.export', 'throttle:report-export'])
+        ->name('api.reports.stock-mutations.pdf');
 });

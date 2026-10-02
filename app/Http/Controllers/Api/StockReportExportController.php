@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ListStockMovementReportRequest;
 use App\Services\Reports\BuildStockMutationReport;
 use App\Services\Reports\GeneratedReportFile;
+use App\Services\Reports\GenerateStockMutationPdf;
 use App\Services\Reports\GenerateStockMutationSpreadsheet;
 use Illuminate\Http\Response;
 
@@ -17,6 +18,14 @@ class StockReportExportController extends Controller
         BuildStockMutationReport $report,
     ): Response {
         return $this->download($spreadsheet->generate($report->handle($request->validated())));
+    }
+
+    public function pdf(
+        ListStockMovementReportRequest $request,
+        GenerateStockMutationPdf $pdf,
+        BuildStockMutationReport $report,
+    ): Response {
+        return $this->download($pdf->generate($report->handle($request->validated())));
     }
 
     private function download(GeneratedReportFile $file): Response

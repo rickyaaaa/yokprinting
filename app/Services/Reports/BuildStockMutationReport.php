@@ -24,6 +24,8 @@ class BuildStockMutationReport
         $start = CarbonImmutable::parse($filters['start_date'] ?? now()->startOfMonth())->startOfDay();
         $end = CarbonImmutable::parse($filters['end_date'] ?? now())->endOfDay();
         $productId = isset($filters['product_id']) ? (int) $filters['product_id'] : null;
+        $movementType = $filters['type'] ?? $filters['movement_type'] ?? null;
+        $search = trim((string) ($filters['q'] ?? ''));
         $excludedReferences = $this->cancelledReferences();
 
         $products = Product::query()
@@ -41,11 +43,11 @@ class BuildStockMutationReport
 
         $rows = $products
             ->filter(fn (Product $product): bool => $productId || $this->activeMovements($product->stockMovements, $excludedReferences)->isNotEmpty())
-            ->map(fn (Product $product): array => $this->summaryRow($product, $start, $end, $excludedReferences))
+            ->map(fn (Product $product): array => $this->summaryRow($product, $start, $end, $excludedReferences, $movementType, $search))
             ->values();
         $selectedProduct = $productId ? $products->firstWhere('id', $productId) : null;
         $detail = $selectedProduct
-            ? $this->detail($selectedProduct, $start, $end, $excludedReferences)
+            ? $this->detail($selectedProduct, $start, $end, $excludedReferences, $movementType, $search)
             : null;
 
         return [
@@ -69,18 +71,19 @@ class BuildStockMutationReport
     /**
      * @return array<string, mixed>
      */
-    private function summaryRow(Product $product, CarbonImmutable $start, CarbonImmutable $end, Collection $excludedReferences): array
+    private function summaryRow(Product $product, CarbonImmutable $start, CarbonImmutable $end, Collection $excludedReferences, ?string $movementType = null, string $search = ''): array
     {
         /** @var Collection<int, StockMovement> $movements */
         $movements = $this->activeMovements($product->stockMovements, $excludedReferences);
-        $period = $movements->where('created_at', '>=', $start)->where('created_at', '<=', $end);
+        $allPeriod = $movements->where('created_at', '>=', $start)->where('created_at', '<=', $end)->values();
+        $period = $this->filterPeriod($allPeriod, $movementType, $search);
         $adjustmentTypes = [StockMovement::TYPE_ADJUSTMENT, StockMovement::TYPE_STOCK_OPNAME];
         $regularMovements = $period->whereNotIn('type', $adjustmentTypes);
         $incoming = (float) $regularMovements->where('quantity', '>', 0)->sum('quantity');
         $outgoing = abs((float) $regularMovements->where('quantity', '<', 0)->sum('quantity'));
         $adjustments = (float) $period->whereIn('type', $adjustmentTypes)->sum('quantity');
         $opening = $this->openingBalance($product, $start, $excludedReferences);
-        $closing = (float) ($opening + $period->sum('quantity'));
+        $closing = (float) ($opening + $allPeriod->sum('quantity'));
         $reconciliation = $this->reconciliation($product, $movements, $end, $excludedReferences);
 
         return [
@@ -107,13 +110,14 @@ class BuildStockMutationReport
     /**
      * @return array{product: array<string, mixed>, mutations: list<array<string, mixed>>, summary: array<string, mixed>}
      */
-    private function detail(Product $product, CarbonImmutable $start, CarbonImmutable $end, Collection $excludedReferences): array
+    private function detail(Product $product, CarbonImmutable $start, CarbonImmutable $end, Collection $excludedReferences, ?string $movementType = null, string $search = ''): array
     {
         /** @var Collection<int, StockMovement> $movements */
         $movements = $this->activeMovements($product->stockMovements, $excludedReferences);
-        $period = $movements->where('created_at', '>=', $start)->where('created_at', '<=', $end)->values();
+        $allPeriod = $movements->where('created_at', '>=', $start)->where('created_at', '<=', $end)->values();
         $opening = $this->openingBalance($product, $start, $excludedReferences);
-        $contexts = $this->referenceContexts($period);
+        $contexts = $this->referenceContexts($allPeriod);
+        $period = $this->filterPeriod($allPeriod, $movementType, $search, $contexts);
         $legacyReturns = $period->filter(fn (StockMovement $movement): bool => str_starts_with((string) $movement->notes, 'Pengembalian layer FIFO invoice '));
         $editLogs = ActivityLog::query()
             ->where('module', 'invoice')
@@ -125,6 +129,12 @@ class BuildStockMutationReport
             ->groupBy('subject_id');
         $invoiceIds = Invoice::query()->whereIn('invoice_number', $legacyReturns->pluck('reference_number')->filter()->unique())
             ->pluck('id', 'invoice_number');
+        $balance = $opening;
+        $balances = [];
+        foreach ($allPeriod as $movement) {
+            $balance = round($balance + (float) $movement->quantity, 4);
+            $balances[$movement->getKey()] = $balance;
+        }
         $balance = $opening;
         $rows = [[
             'id' => 'opening-'.$product->getKey(),
@@ -141,7 +151,7 @@ class BuildStockMutationReport
 
         foreach ($period as $movement) {
             $quantity = (float) $movement->quantity;
-            $balance = round($balance + $quantity, 4);
+            $balance = $balances[$movement->getKey()] ?? round($balance + $quantity, 4);
             $context = match ($movement->type) {
                 StockMovement::TYPE_SALE => $contexts['sale'][$movement->reference_number] ?? null,
                 StockMovement::TYPE_PURCHASE => $contexts['purchase'][$movement->reference_number] ?? null,
@@ -178,7 +188,7 @@ class BuildStockMutationReport
                 StockMovement::TYPE_ADJUSTMENT,
                 StockMovement::TYPE_STOCK_OPNAME,
             ])->sum('quantity'), 4),
-            'closing_balance' => $balance,
+            'closing_balance' => round($opening + $allPeriod->sum('quantity'), 4),
             ...$this->reconciliation($product, $movements, $end, $excludedReferences),
         ];
 
@@ -286,6 +296,39 @@ class BuildStockMutationReport
             StockMovement::TYPE_SALE => 'Barang keluar',
             default => 'Mutasi stok',
         };
+    }
+
+    /**
+     * Apply optional report filters to rows inside the selected period. The
+     * opening balance intentionally remains based on the complete ledger so a
+     * type/search filter does not manufacture an incorrect starting balance.
+     *
+     * @param  array<string, array<string, array{party: string|null, party_type: string, description: string}>>|null  $contexts
+     */
+    private function filterPeriod(Collection $period, ?string $movementType, string $search, ?array $contexts = null): Collection
+    {
+        $needle = mb_strtolower(trim($search));
+
+        return $period->filter(function (StockMovement $movement) use ($movementType, $needle, $contexts): bool {
+            if ($movementType !== null && $movementType !== '' && $movement->type !== $movementType) {
+                return false;
+            }
+
+            if ($needle === '') {
+                return true;
+            }
+
+            $context = $contexts['sale'][$movement->reference_number] ?? $contexts['purchase'][$movement->reference_number] ?? null;
+            $haystack = implode(' ', array_filter([
+                $movement->reference_number,
+                $movement->notes,
+                $movement->type,
+                $context['party'] ?? null,
+                $context['description'] ?? null,
+            ]));
+
+            return str_contains(mb_strtolower($haystack), $needle);
+        })->values();
     }
 
     private function openingBalance(Product $product, CarbonImmutable $start, Collection $excludedReferences): float

@@ -17,6 +17,7 @@ export const registerStockMutationReportComponents = (Alpine) => {
         filters: {
             start_date: config.dateFrom ?? '',
             end_date: config.dateTo ?? '',
+            type: '',
             product_id: '',
         },
         productSearch: '',

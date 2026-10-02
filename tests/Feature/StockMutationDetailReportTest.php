@@ -155,7 +155,8 @@ class StockMutationDetailReportTest extends TestCase
         $this->get(route('reports.stock-mutations.index'))
             ->assertOk()
             ->assertSee('Mutasi per Barang')
-            ->assertSee('Barang &amp; Jasa', false);
+            ->assertSee('Barang &amp; Jasa', false)
+            ->assertSee('Export PDF mutasi barang', false);
 
         $query = [
             'start_date' => '2026-09-01',
@@ -176,6 +177,14 @@ class StockMutationDetailReportTest extends TestCase
         $this->assertIsString($worksheet);
         $this->assertStringContainsString('Nomor Dokumen', $worksheet);
         $this->assertStringContainsString('Saldo awal per 31/08/2026', $worksheet);
+
+        $pdf = $this->get(route('api.reports.stock-mutations.pdf', $query))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('Content-Disposition');
+
+        $this->assertStringStartsWith('%PDF-', $pdf->getContent());
+        $this->assertStringContainsString('.pdf', (string) $pdf->headers->get('Content-Disposition'));
     }
 
     public function test_export_controls_are_hidden_without_report_export_permission(): void
@@ -191,7 +200,7 @@ class StockMutationDetailReportTest extends TestCase
         $this->getJson(route('api.reports.stock-mutations.excel'))
             ->assertForbidden();
 
-        $this->get('/api/reports/stock-mutations/pdf')->assertNotFound();
+        $this->get('/api/reports/stock-mutations/pdf')->assertForbidden();
     }
 
     private function writeTemporaryExport(string $contents): string

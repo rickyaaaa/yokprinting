@@ -12,6 +12,7 @@
         ])->values(),
         'exportEndpoints' => [
             'excel' => route('api.reports.stock-mutations.excel'),
+            'pdf' => route('api.reports.stock-mutations.pdf'),
         ],
     ];
 @endphp
@@ -55,14 +56,19 @@
                         <i class="iconify tabler--download text-base"></i>
                         <span x-text="exporting === 'excel' ? 'Menyiapkan...' : 'Export Excel'"></span>
                     </button>
+                    <button type="button" class="btn btn-secondary" @click="exportFile('pdf')" :aria-busy="exporting === 'pdf'" aria-label="Export PDF mutasi barang">
+                        <i class="iconify tabler--file-type-pdf text-base"></i>
+                        <span x-text="exporting === 'pdf' ? 'Menyiapkan...' : 'Export PDF'"></span>
+                    </button>
                 </div>
                 @endif
             </div>
 
             <form class="card mb-6 p-4 sm:p-5" @submit.prevent="load()" aria-label="Filter mutasi per barang">
-                <div class="grid gap-4 lg:grid-cols-[13rem_13rem_minmax(0,1fr)_auto] lg:items-end">
+                <div class="grid gap-4 lg:grid-cols-[13rem_13rem_12rem_minmax(0,1fr)_auto] lg:items-end">
                     <label class="text-sm"><span class="mb-1.5 block font-semibold text-muted">Dari</span><input class="form-control" type="date" x-model="filters.start_date"></label>
                     <label class="text-sm"><span class="mb-1.5 block font-semibold text-muted">Sampai</span><input class="form-control" type="date" x-model="filters.end_date"></label>
+                    <label class="text-sm"><span class="mb-1.5 block font-semibold text-muted">Tipe mutasi</span><select class="form-control" x-model="filters.type"><option value="">Semua tipe</option><option value="purchase">Pembelian / penerimaan</option><option value="sale">Penjualan</option><option value="adjustment">Penyesuaian</option><option value="stock_opname">Stok opname</option><option value="return">Retur barang</option></select></label>
                     <div class="relative text-sm" @click.outside="productMenuOpen = false">
                         <label for="stock-mutation-product" class="mb-1.5 block font-semibold text-muted">Barang &amp; Jasa <span class="text-danger">*</span></label>
                         <div class="relative">
