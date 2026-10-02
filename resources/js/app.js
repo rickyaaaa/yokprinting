@@ -3121,6 +3121,8 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
     // Read-only, system-managed cost reference - never part of the submitted
     // payload. Only PostGoodsReceipt (Goods Receipt posting) ever writes these.
     lastPurchasePrice: initialForm.lastPurchasePrice ?? initialForm.last_purchase_price ?? null,
+    manualUnitCost: initialForm.manualUnitCost ?? initialForm.manual_unit_cost ?? initialForm.fifoHpp ?? initialForm.fifo_hpp ?? null,
+    initialManualUnitCost: initialForm.manualUnitCost ?? initialForm.manual_unit_cost ?? initialForm.fifoHpp ?? initialForm.fifo_hpp ?? null,
     // "HPP FIFO": cost of the oldest available FIFO batch, not a weighted
     // average - see Product::fifoUnitCost() on the backend.
     fifoHpp: initialForm.fifoHpp ?? initialForm.fifo_hpp ?? null,
@@ -3160,6 +3162,8 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
             this.form = this.normalizeProduct(response.data);
             this.lastPurchasePrice = response.data.last_purchase_price ?? null;
             this.fifoHpp = response.data.fifo_hpp ?? null;
+            this.manualUnitCost = response.data.manual_unit_cost ?? response.data.fifo_hpp ?? null;
+            this.initialManualUnitCost = this.manualUnitCost;
             this.lastSupplierPrice = response.data.last_supplier_price ?? null;
         } catch (error) {
             this.error = error?.message ?? 'Detail produk belum dapat dimuat.';
@@ -3265,7 +3269,7 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
     },
 
     payload() {
-        return {
+        const payload = {
             sku: this.form.sku.trim() || null,
             name: this.form.name.trim(),
             category: this.form.category,
@@ -3280,6 +3284,12 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
             track_stock: Boolean(this.form.trackStock),
             status: this.form.status === 'Nonaktif' ? 'inactive' : 'active',
         };
+
+        if (this.manualUnitCost !== this.initialManualUnitCost && this.manualUnitCost !== null && this.manualUnitCost !== '') {
+            payload.manual_unit_cost = Number(this.manualUnitCost) || 0;
+        }
+
+        return payload;
     },
 
     applyApiErrors(errors = {}) {
@@ -3310,6 +3320,8 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
                 : await createProduct(this.payload());
 
             this.form = this.normalizeProduct(response.data);
+            this.manualUnitCost = response.data.manual_unit_cost ?? response.data.fifo_hpp ?? null;
+            this.initialManualUnitCost = this.manualUnitCost;
             this.saved = true;
         } catch (error) {
             this.error = error?.message ?? 'Produk belum dapat disimpan.';

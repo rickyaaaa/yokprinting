@@ -46,6 +46,7 @@ class StoreProductRequest extends FormRequest
             'short_description' => ['sometimes', 'nullable', 'string', 'max:500'],
             'unit' => ['sometimes', 'required', Rule::in([Product::UNIT_PCS])],
             'stock' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'manual_unit_cost' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'minimum_stock' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'minimum_order_qty' => ['sometimes', 'integer', 'min:1'],
             'package_conversion' => ['sometimes', 'integer', 'min:1'],

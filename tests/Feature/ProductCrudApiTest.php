@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\InventoryBatch;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -139,6 +140,47 @@ class ProductCrudApiTest extends TestCase
         ]))
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['status', 'sort', 'direction', 'limit']);
+    }
+
+    public function test_manual_opening_cost_creates_a_fifo_layer_for_initial_stock(): void
+    {
+        $response = $this->postJson(route('api.products.store'), [
+            'name' => 'Produk stok awal manual',
+            'track_stock' => true,
+            'stock' => 5000,
+            'manual_unit_cost' => 400,
+        ])->assertCreated()
+            ->assertJsonPath('data.stock', 5000)
+            ->assertJsonPath('data.fifo_hpp', 400)
+            ->assertJsonPath('data.fifo_inventory_value', 2000000)
+            ->assertJsonPath('data.last_purchase_price', 400);
+
+        $productId = $response->json('data.id');
+        $this->assertDatabaseHas('inventory_batches', [
+            'product_id' => $productId,
+            'qty_received' => 5000,
+            'qty_remaining' => 5000,
+            'unit_cost' => 400,
+            'source_type' => 'manual_opening',
+        ]);
+    }
+
+    public function test_manual_opening_cost_can_be_corrected_without_changing_invoice_history(): void
+    {
+        $product = Product::query()->create(['name' => 'Produk koreksi HPP', 'track_stock' => true, 'stock' => 1000]);
+
+        $this->patchJson(route('api.products.update', $product), [
+            'manual_unit_cost' => 500,
+        ])->assertOk()
+            ->assertJsonPath('data.fifo_hpp', 500)
+            ->assertJsonPath('data.fifo_inventory_value', 500000);
+
+        $this->assertSame(1, InventoryBatch::query()->where('product_id', $product->id)->count());
+        $this->assertDatabaseHas('inventory_batches', [
+            'product_id' => $product->id,
+            'unit_cost' => 500,
+            'source_type' => 'manual_opening',
+        ]);
     }
 
     public function test_minimum_stock_preserves_zero_and_normalizes_missing_values(): void

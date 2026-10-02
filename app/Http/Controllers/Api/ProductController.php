@@ -9,9 +9,11 @@ use App\Http\Requests\UpdateProductRequest;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\SupplierPriceList;
+use App\Services\Inventory\ApplyManualOpeningCost;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
@@ -89,9 +91,20 @@ class ProductController extends Controller
     /**
      * Store a newly created product.
      */
-    public function store(StoreProductRequest $request): JsonResponse
+    public function store(StoreProductRequest $request, ApplyManualOpeningCost $openingCost): JsonResponse
     {
-        $product = Product::query()->create($this->normalizeCategory($request->validated()));
+        $validated = $request->validated();
+        $manualCost = array_key_exists('manual_unit_cost', $validated) ? $validated['manual_unit_cost'] : null;
+        unset($validated['manual_unit_cost']);
+
+        $product = DB::transaction(function () use ($validated, $manualCost, $openingCost): Product {
+            $product = Product::query()->create($this->normalizeCategory($validated));
+            if ($manualCost !== null) {
+                $openingCost->handle($product->fresh(), (float) $manualCost);
+            }
+
+            return $product->fresh();
+        });
         $product->loadSum($this->salesQuantityRelation(), 'quantity');
 
         return response()->json([
@@ -115,9 +128,20 @@ class ProductController extends Controller
     /**
      * Update a product.
      */
-    public function update(UpdateProductRequest $request, Product $product): JsonResponse
+    public function update(UpdateProductRequest $request, Product $product, ApplyManualOpeningCost $openingCost): JsonResponse
     {
-        $product->update($this->normalizeCategory($request->validated()));
+        $validated = $request->validated();
+        $hasManualCost = array_key_exists('manual_unit_cost', $validated) && $validated['manual_unit_cost'] !== null;
+        $manualCost = $hasManualCost ? (float) $validated['manual_unit_cost'] : null;
+        unset($validated['manual_unit_cost']);
+
+        DB::transaction(function () use ($product, $validated, $hasManualCost, $manualCost, $openingCost): void {
+            $locked = Product::query()->lockForUpdate()->findOrFail($product->getKey());
+            $locked->update($this->normalizeCategory($validated));
+            if ($hasManualCost) {
+                $openingCost->handle($locked->fresh(), $manualCost);
+            }
+        });
         $product->refresh()->load(['categoryModel', 'inventoryBatches']);
         $product->loadSum($this->salesQuantityRelation(), 'quantity');
 
@@ -224,6 +248,7 @@ class ProductController extends Controller
             // Product::lastPurchaseCostFallback().
             // See Product::fifoUnitCost()/fifoInventoryValue().
             'fifo_hpp' => (float) $product->fifoUnitCost(),
+            'manual_unit_cost' => (float) $product->fifoUnitCost(),
             'fifo_inventory_value' => (float) $product->fifoInventoryValue(),
             // The product page hydrates itself from this API after the
             // initial server render. Keep the sales quantity in that payload so

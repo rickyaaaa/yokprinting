@@ -164,7 +164,7 @@
 
                             <section class="card p-5 sm:p-6" aria-labelledby="product-pricing-heading">
                                 <h2 id="product-pricing-heading" class="font-semibold text-ink">Informasi biaya & stok</h2>
-                                <p class="mt-1 text-sm text-muted">Harga beli tidak lagi diisi manual di sini - nilainya berasal otomatis dari Purchase Order &amp; Penerimaan Barang.</p>
+                                <p class="mt-1 text-sm text-muted">Harga PO dan Penerimaan Barang tetap otomatis. Untuk stok awal/manual, isi HPP FIFO awal per unit di bawah ini.</p>
                                 <div class="mt-5 grid gap-4 md:grid-cols-2">
                                     <div class="block rounded-lg border border-line bg-canvas p-3">
                                         <span class="text-sm font-medium text-muted">Harga pembelian terakhir</span>
@@ -174,6 +174,11 @@
                                         <span class="text-sm font-medium text-muted">HPP FIFO per unit</span>
                                         <p class="mt-1 font-semibold text-ink" x-text="formattedFifoHpp"></p>
                                     </div>
+                                    <label class="block md:col-span-2">
+                                        <span class="text-sm font-medium text-ink">HPP FIFO awal per unit</span>
+                                        <input type="number" min="0" step="0.01" class="form-control mt-1.5" x-model.number="manualUnitCost" placeholder="Contoh: 400">
+                                        <span class="mt-1 block text-xs text-muted">Gunakan saat memasukkan stok awal. Setelah PO/GR diposting, harga FIFO mengikuti harga penerimaan.</span>
+                                    </label>
                                     <div class="block rounded-lg border border-line bg-canvas p-3 md:col-span-2">
                                         <div class="flex flex-wrap items-start justify-between gap-3">
                                             <div>
