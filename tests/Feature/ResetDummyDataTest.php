@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\BankAccount;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Product;
@@ -83,5 +84,32 @@ class ResetDummyDataTest extends TestCase
         ]);
         $this->assertDatabaseHas('customers', ['id' => $customer->id]);
         $this->assertDatabaseHas('suppliers', ['id' => $supplier->id]);
+    }
+
+    public function test_reset_dry_run_reports_opening_balance_without_changing_it(): void
+    {
+        $account = BankAccount::query()->firstOrFail();
+        $account->update(['opening_balance' => 10_000_000]);
+
+        $this->artisan('app:reset-dummy-data --dry-run --preserve-master-data --zero-opening-balance')
+            ->assertSuccessful()
+            ->expectsOutputToContain('Pratinjau saja: tidak ada data yang diubah.')
+            ->expectsOutputToContain('Rekening aktif #');
+
+        $this->assertSame('10000000.00', $account->refresh()->opening_balance);
+    }
+
+    public function test_reset_can_zero_opening_balance_only_when_explicitly_requested(): void
+    {
+        $account = BankAccount::query()->firstOrFail();
+        $account->update(['opening_balance' => 10_000_000]);
+
+        $this->artisan('app:reset-dummy-data --force --preserve-master-data')
+            ->assertSuccessful();
+        $this->assertSame('10000000.00', $account->refresh()->opening_balance);
+
+        $this->artisan('app:reset-dummy-data --force --preserve-master-data --zero-opening-balance')
+            ->assertSuccessful();
+        $this->assertSame('0.00', $account->refresh()->opening_balance);
     }
 }

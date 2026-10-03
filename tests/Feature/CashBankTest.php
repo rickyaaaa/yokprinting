@@ -35,6 +35,29 @@ class CashBankTest extends TestCase
             ->assertJsonPath('data.account_name', 'Rekening Utama');
     }
 
+    public function test_reset_filter_is_not_a_financial_reset_and_account_update_is_audited(): void
+    {
+        $owner = $this->actingAsOwner();
+        $account = BankAccount::query()->firstOrFail();
+        $account->update(['opening_balance' => 10_000_000]);
+
+        $this->getJson(route('api.cash-bank.summary'))
+            ->assertOk()
+            ->assertJsonPath('data.opening_balance', 10_000_000)
+            ->assertJsonPath('data.current_balance', 10_000_000);
+
+        $this->patchJson(route('api.cash-bank.account.update'), [
+            'opening_balance' => 0,
+        ])->assertOk()->assertJsonPath('data.opening_balance', 0);
+
+        $this->assertDatabaseHas('activity_logs', [
+            'module' => 'cash_bank',
+            'action' => 'opening_balance_changed',
+            'user_id' => $owner->id,
+        ]);
+        $this->assertDatabaseHas('bank_accounts', ['id' => $account->id, 'opening_balance' => 0]);
+    }
+
     public function test_verified_bank_payment_creates_income_transaction(): void
     {
         $this->actingAsOwner();

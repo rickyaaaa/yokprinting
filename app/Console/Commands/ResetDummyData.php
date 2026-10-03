@@ -15,7 +15,9 @@ class ResetDummyData extends Command
      */
     protected $signature = 'app:reset-dummy-data
         {--force : Force execution without confirmation prompt}
-        {--preserve-master-data : Preserve customers, suppliers, and supplier price lists}';
+        {--preserve-master-data : Preserve customers, suppliers, and supplier price lists}
+        {--zero-opening-balance : Set active bank account opening balances to zero after the dummy-data reset}
+        {--dry-run : Preview affected records and opening balances without changing data}';
 
     /**
      * The console command description.
@@ -29,14 +31,6 @@ class ResetDummyData extends Command
      */
     public function handle(): int
     {
-        if (! $this->option('force')) {
-            if (! $this->confirm('PERINGATAN: Perintah ini akan MENGHAPUS SELURUH DATA DUMMY (Customer, Invoice, Expense, PO, Supplier, Stock Movement, Log). Lanjutkan?')) {
-                $this->info('Pembersihan data dibatalkan.');
-
-                return self::FAILURE;
-            }
-        }
-
         $tablesToWipe = [
             'invoice_items',
             'payments',
@@ -65,6 +59,41 @@ class ResetDummyData extends Command
                 'customers',
                 'activity_logs',
             );
+        }
+
+        if ($this->option('dry-run')) {
+            $this->info('Pratinjau saja: tidak ada data yang diubah.');
+            $this->table(['Tabel', 'Record yang akan dihapus'], collect($tablesToWipe)
+                ->filter(fn (string $table): bool => Schema::hasTable($table))
+                ->map(fn (string $table): array => [$table, DB::table($table)->count()])
+                ->values()->all());
+
+            if (Schema::hasTable('products')) {
+                $this->line('Produk yang tetap ada tetapi stok/HPP-nya akan dikosongkan: '.DB::table('products')->count());
+            }
+
+            if (Schema::hasTable('bank_accounts')) {
+                $accounts = DB::table('bank_accounts')->where('is_active', true)->get(['id', 'opening_balance']);
+                foreach ($accounts as $account) {
+                    $after = $this->option('zero-opening-balance') ? '0.00' : $account->opening_balance;
+                    $this->line("Rekening aktif #{$account->id}: saldo awal {$account->opening_balance} -> {$after}");
+                }
+            }
+
+            return self::SUCCESS;
+        }
+
+        if (! $this->option('force')) {
+            $message = 'PERINGATAN: Perintah ini akan MENGHAPUS SELURUH DATA DUMMY (Customer, Invoice, Expense, PO, Supplier, Stock Movement, Log).';
+            if ($this->option('zero-opening-balance')) {
+                $message .= ' Saldo awal rekening aktif juga akan diubah menjadi Rp0.';
+            }
+
+            if (! $this->confirm($message.' Lanjutkan?')) {
+                $this->info('Pembersihan data dibatalkan.');
+
+                return self::FAILURE;
+            }
         }
 
         $this->info('Memulai pembersihan data dummy...');
@@ -110,6 +139,12 @@ class ResetDummyData extends Command
                 'last_purchase_price' => null,
                 'average_purchase_cost' => null,
             ]);
+        }
+
+        if ($this->option('zero-opening-balance') && Schema::hasTable('bank_accounts')) {
+            $changed = DB::table('bank_accounts')->where('is_active', true)->where('opening_balance', '!=', 0)
+                ->update(['opening_balance' => 0, 'updated_at' => now()]);
+            $this->line("Saldo awal {$changed} rekening aktif diubah menjadi Rp0; rekening tetap dipertahankan.");
         }
 
         $this->line('----------------------------------------------------');
