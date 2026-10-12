@@ -69,6 +69,22 @@ export async function listProductCatalog(params = {}) {
     return body;
 }
 
+export async function listProductCategories(params = {}) {
+    const query = buildQuery({ limit: '100', ...params });
+    const response = await fetch(`/api/product-categories?${query.toString()}`, {
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+    });
+    const body = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+        throw new ProductApiError(body.message ?? 'Kategori produk belum dapat dimuat.', response.status);
+    }
+
+    return body;
+}
+
 export async function createProduct(payload) {
     const response = await fetch('/api/products', {
         method: 'POST',

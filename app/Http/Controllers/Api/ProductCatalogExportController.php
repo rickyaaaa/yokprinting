@@ -135,13 +135,14 @@ class ProductCatalogExportController extends Controller
         $keyword = trim((string) ($filters['q'] ?? ''));
 
         return Product::query()
-            ->with(['inventoryBatches' => fn ($query) => $query->where('qty_remaining', '>', 0)])
-            ->when(($filters['category'] ?? null), fn ($query, string $category) => $query->where('category', $category))
+            ->with(['categoryModel', 'inventoryBatches' => fn ($query) => $query->where('qty_remaining', '>', 0)])
+            ->when(($filters['category'] ?? null), fn ($query, string $category) => $query->whereCategory($category))
             ->when($keyword !== '', fn ($query) => $query->where(function ($query) use ($keyword): void {
                 $query
                     ->where('sku', 'like', "%{$keyword}%")
                     ->orWhere('name', 'like', "%{$keyword}%")
-                    ->orWhere('category', 'like', "%{$keyword}%");
+                    ->orWhere('category', 'like', "%{$keyword}%")
+                    ->orWhereHas('categoryModel', fn ($categoryQuery) => $categoryQuery->where('name', 'like', "%{$keyword}%"));
             }))
             ->orderBy('sku')
             ->get()
@@ -155,7 +156,7 @@ class ProductCatalogExportController extends Controller
                 return [
                     'sku' => $product->sku,
                     'name' => $product->name,
-                    'category' => $product->category ?: '-',
+                    'category' => $product->categoryLabel(),
                     'unit' => strtoupper($product->unit),
                     'fifo_unit_cost' => $product->fifoUnitCost(),
                     'stock' => $product->track_stock ? $stock : null,

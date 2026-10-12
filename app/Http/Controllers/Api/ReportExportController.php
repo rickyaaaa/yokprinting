@@ -78,11 +78,12 @@ class ReportExportController extends Controller
             ->lowStock()
             ->orderByRaw('(COALESCE(minimum_stock, ?) - stock) desc', [Product::DEFAULT_MINIMUM_STOCK])
             ->orderBy('name')
+            ->with('categoryModel')
             ->get()
             ->map(fn (Product $product): array => [
                 $product->sku,
                 $product->name,
-                $product->category,
+                $product->categoryLabel(),
                 $product->unit,
                 (float) $product->stock,
                 $product->minimumStockValue(),

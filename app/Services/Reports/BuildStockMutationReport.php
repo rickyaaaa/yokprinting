@@ -36,6 +36,7 @@ class BuildStockMutationReport
                 // derived from it, while reconciliation must also compare
                 // the current Product.stock with every active movement.
                 'stockMovements' => fn ($query) => $query->orderBy('created_at')->orderBy('id'),
+                'categoryModel',
                 'inventoryBatches' => fn ($query) => $query->where('qty_remaining', '>', 0),
             ])
             ->orderBy('name')
@@ -90,7 +91,7 @@ class BuildStockMutationReport
             'product_id' => $product->getKey(),
             'sku' => $product->sku,
             'name' => $product->name,
-            'category' => $product->category,
+            'category' => $product->categoryLabel(),
             'unit' => $product->unit,
             'opening_balance' => round($opening, 4),
             'incoming_quantity' => round($incoming, 4),

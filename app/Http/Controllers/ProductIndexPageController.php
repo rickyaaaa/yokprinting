@@ -21,7 +21,7 @@ class ProductIndexPageController extends Controller
                         ->businessTransaction()
                         ->whereHas('payments', fn ($paymentQuery) => $paymentQuery->verified()->where('amount', '>', 0))),
             ], 'quantity')
-            ->with('inventoryBatches')
+            ->with(['categoryModel', 'inventoryBatches'])
             ->orderBy('sku')
             ->get();
         $products = $models->map(function (Product $product): array {
@@ -33,7 +33,7 @@ class ProductIndexPageController extends Controller
                 'id' => $product->getKey(),
                 'sku' => $product->sku,
                 'name' => $product->name,
-                'category' => $product->category ?: '-',
+                'category' => $product->categoryLabel(),
                 'unit' => strtoupper($product->unit),
                 // "HPP FIFO": cost of the oldest available batch (what the
                 // next sale draws from), NOT a weighted average; falls back to

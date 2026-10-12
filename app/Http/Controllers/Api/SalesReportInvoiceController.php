@@ -27,14 +27,14 @@ class SalesReportInvoiceController extends Controller
         $direction = $filters['direction'] ?? 'desc';
 
         $query = Invoice::query()
-            ->with(['customer', 'items.product'])
+            ->with(['customer', 'items.product.categoryModel'])
             ->businessTransaction()
             ->whereBetween('issue_date', [$dateFrom->toDateString(), $dateTo->toDateString()]);
 
         if (is_string($category) && trim($category) !== '') {
             $category = trim($category);
             $query->whereHas('items.product', function ($query) use ($category): void {
-                $query->where('category', $category);
+                $query->whereCategory($category);
             });
         }
 
@@ -83,7 +83,7 @@ class SalesReportInvoiceController extends Controller
     {
         $status = $this->resolveStatus($invoice);
         $categories = $invoice->items
-            ->map(fn ($item): ?string => $item->product?->category)
+            ->map(fn ($item): ?string => $item->product?->categoryLabel())
             ->filter()
             ->unique()
             ->values();

@@ -5,6 +5,7 @@
         'id' => $productCode,
         'sku' => '',
         'name' => '',
+        'categoryId' => null,
         'category' => 'Cup PP',
         'brand' => '',
         'unit' => 'Pcs',
@@ -140,7 +141,13 @@
                                     </label>
                                     <label class="block">
                                         <span class="text-sm font-medium text-ink">Kategori</span>
-                                        <input class="form-control mt-1.5" x-model="form.category" placeholder="Contoh: Cup PP, Cup PET, Tutup/Lid">
+                                        <select class="form-control mt-1.5" x-model.number="form.categoryId" @change="categoryChanged()">
+                                            <option :value="null">Tanpa kategori</option>
+                                            <template x-for="category in categoryOptions" :key="category.id ?? category.name">
+                                                <option :value="category.id" x-text="category.name"></option>
+                                            </template>
+                                        </select>
+                                        <span class="mt-1 block text-xs text-muted" x-show="form.category && !form.categoryId">Kategori legacy: <span x-text="form.category"></span></span>
                                     </label>
                                     <label class="block">
                                         <span class="text-sm font-medium text-ink">Satuan</span>

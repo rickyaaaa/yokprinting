@@ -6,6 +6,7 @@ use App\Models\CompanyProfile;
 use App\Models\InventoryBatch;
 use App\Models\Permission;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,6 +24,21 @@ class ProductCatalogExportApiTest extends TestCase
 {
     use ActsAsOwner;
     use RefreshDatabase;
+
+    public function test_export_uses_canonical_category_when_legacy_label_is_empty(): void
+    {
+        $category = ProductCategory::query()->create(['name' => 'Jasa']);
+        $this->product('JASA-01', 'Jasa desain', '', [
+            'category_id' => $category->id,
+            'category' => null,
+            'track_stock' => false,
+        ]);
+
+        $sheet = $this->worksheetXml($this->get(route('api.products.export.excel', ['category' => 'Jasa']))->assertOk()->getContent());
+
+        $this->assertStringContainsString('Jasa desain', $sheet);
+        $this->assertStringContainsString('Jasa', $sheet);
+    }
 
     public function test_excel_export_is_a_real_workbook_with_the_agreed_columns(): void
     {

@@ -38,7 +38,7 @@ class ProductLowStockSummaryController extends Controller
                     'id' => $product->getKey(),
                     'sku' => $product->sku,
                     'name' => $product->name,
-                    'category' => $product->category,
+                    'category' => $product->categoryLabel(),
                     'category_detail' => $product->categoryModel ? [
                         'id' => $product->categoryModel->getKey(),
                         'name' => $product->categoryModel->name,

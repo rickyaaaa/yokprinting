@@ -24,6 +24,7 @@ class ProductOptionController extends Controller
                 'id',
                 'name',
                 'sku',
+                'category_id',
                 'category',
                 'brand',
                 'cup_size',
@@ -51,9 +52,11 @@ class ProductOptionController extends Controller
                         ->where('name', 'like', "%{$search}%")
                         ->orWhere('sku', 'like', "%{$search}%")
                         ->orWhere('brand', 'like', "%{$search}%")
-                        ->orWhere('category', 'like', "%{$search}%");
+                        ->orWhere('category', 'like', "%{$search}%")
+                        ->orWhereHas('categoryModel', fn (Builder $categoryQuery): Builder => $categoryQuery->where('name', 'like', "%{$search}%"));
                 });
             })
+            ->with('categoryModel')
             ->orderBy('sku')
             ->limit($limit)
             ->get()
@@ -61,7 +64,13 @@ class ProductOptionController extends Controller
                 'id' => $product->getKey(),
                 'name' => $product->name,
                 'sku' => $product->sku,
-                'category' => $product->category,
+                'category_id' => $product->category_id,
+                'category' => $product->categoryLabel(),
+                'category_detail' => $product->categoryModel ? [
+                    'id' => $product->categoryModel->getKey(),
+                    'name' => $product->categoryModel->name,
+                    'slug' => $product->categoryModel->slug,
+                ] : null,
                 'brand' => $product->brand,
                 'cup_size' => $product->cup_size,
                 'cup_model' => $product->cup_model,

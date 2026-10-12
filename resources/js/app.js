@@ -23,6 +23,7 @@ import {
     createProduct,
     deleteProduct,
     getProduct,
+    listProductCategories,
     listProductCatalog,
     listProducts,
     updateProduct as updateCatalogProduct,
@@ -3118,6 +3119,7 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
     loading: false,
     error: '',
     fieldErrors: {},
+    categoryOptions: [],
     // Read-only, system-managed cost reference - never part of the submitted
     // payload. Only PostGoodsReceipt (Goods Receipt posting) ever writes these.
     lastPurchasePrice: initialForm.lastPurchasePrice ?? initialForm.last_purchase_price ?? null,
@@ -3133,6 +3135,7 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
         id: initialForm.id ?? null,
         sku: initialForm.sku ?? 'PRN-NEW-01',
         name: initialForm.name ?? '',
+        categoryId: initialForm.categoryId ?? initialForm.category_id ?? null,
         category: initialForm.category ?? 'Cetak premium',
         brand: initialForm.brand ?? '',
         unit: initialForm.unit ?? 'Pcs',
@@ -3147,8 +3150,11 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
     },
 
     async init() {
+        await this.loadCategories();
+
         if (!this.isEdit || !this.form.id) {
             this.form.sku = '';
+            this.syncCategoryIdFromLabel();
 
             return;
         }
@@ -3165,10 +3171,54 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
             this.manualUnitCost = response.data.manual_unit_cost ?? response.data.fifo_hpp ?? null;
             this.initialManualUnitCost = this.manualUnitCost;
             this.lastSupplierPrice = response.data.last_supplier_price ?? null;
+            this.ensureLegacyCategoryOption();
         } catch (error) {
             this.error = error?.message ?? 'Detail produk belum dapat dimuat.';
         } finally {
             this.loading = false;
+        }
+    },
+
+    async loadCategories() {
+        try {
+            const response = await listProductCategories();
+            this.categoryOptions = response.data ?? [];
+        } catch (error) {
+            this.categoryOptions = [];
+            this.error = error?.message ?? 'Kategori produk belum dapat dimuat.';
+        }
+    },
+
+    ensureLegacyCategoryOption() {
+        const label = String(this.form.category ?? '').trim();
+        const categoryId = this.form.categoryId;
+        if (categoryId && !this.categoryOptions.some((category) => Number(category.id) === Number(categoryId))) {
+            this.categoryOptions = [{ id: categoryId, name: label, slug: '', inactive: true }, ...this.categoryOptions];
+
+            return;
+        }
+
+        if (!label || this.categoryOptions.some((category) => Number(category.id) === Number(categoryId))) {
+            return;
+        }
+
+        if (!this.categoryOptions.some((category) => category.name === label)) {
+            this.categoryOptions = [{ id: null, name: label, slug: '', legacy: true }, ...this.categoryOptions];
+        }
+    },
+
+    syncCategoryIdFromLabel() {
+        const match = this.categoryOptions.find((category) => category.name === this.form.category);
+        if (match) {
+            this.form.categoryId = match.id;
+            this.form.category = match.name;
+        }
+    },
+
+    categoryChanged() {
+        const selected = this.categoryOptions.find((category) => Number(category.id) === Number(this.form.categoryId));
+        if (selected) {
+            this.form.category = selected.name;
         }
     },
 
@@ -3177,7 +3227,8 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
             id: product.id,
             sku: product.sku ?? product.code ?? '',
             name: product.name ?? '',
-            category: product.category ?? 'Cup PP',
+            categoryId: product.category_id ?? null,
+            category: product.category ?? product.category_detail?.name ?? 'Tanpa kategori',
             brand: product.brand ?? '',
             unit: product.unit ?? 'Pcs',
             stock: Number(product.stock) || 0,
@@ -3284,6 +3335,10 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
             track_stock: Boolean(this.form.trackStock),
             status: this.form.status === 'Nonaktif' ? 'inactive' : 'active',
         };
+
+        if (this.form.categoryId !== null && this.form.categoryId !== '') {
+            payload.category_id = Number(this.form.categoryId);
+        }
 
         if (this.manualUnitCost !== this.initialManualUnitCost && this.manualUnitCost !== null && this.manualUnitCost !== '') {
             payload.manual_unit_cost = Number(this.manualUnitCost) || 0;

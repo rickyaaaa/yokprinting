@@ -44,10 +44,7 @@ class ProductController extends Controller
                 filled($validated['category_id'] ?? null),
                 fn (Builder $query): Builder => $query->where('category_id', $validated['category_id']),
             )
-            ->when(
-                filled($validated['category'] ?? null),
-                fn (Builder $query): Builder => $query->where('category', $validated['category']),
-            )
+            ->when(filled($validated['category'] ?? null), fn (Builder $query): Builder => $query->whereCategory($validated['category']))
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $query->where(function (Builder $searchQuery) use ($search): void {
                     $searchQuery
@@ -175,8 +172,10 @@ class ProductController extends Controller
 
         unset($payload['code']);
 
-        if (array_key_exists('category_id', $payload) && ! array_key_exists('category', $payload)) {
-            $payload['category'] = ProductCategory::query()->find($payload['category_id'])?->name;
+        if (array_key_exists('category_id', $payload)) {
+            $payload['category'] = filled($payload['category_id'])
+                ? ProductCategory::query()->find($payload['category_id'])?->name
+                : ($payload['category'] ?? null);
         }
 
         if (array_key_exists('minimum_stock', $payload) && $payload['minimum_stock'] === null) {
@@ -222,7 +221,7 @@ class ProductController extends Controller
             'sku' => $product->sku,
             'name' => $product->name,
             'category_id' => $product->category_id,
-            'category' => $product->category,
+            'category' => $product->categoryLabel(),
             'brand' => $product->brand,
             'cup_size' => $product->cup_size,
             'cup_model' => $product->cup_model,

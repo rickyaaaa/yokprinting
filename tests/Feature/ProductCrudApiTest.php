@@ -14,6 +14,34 @@ class ProductCrudApiTest extends TestCase
     use ActsAsOwner;
     use RefreshDatabase;
 
+    public function test_category_relation_is_canonical_when_legacy_label_is_missing(): void
+    {
+        $service = ProductCategory::query()->create(['name' => 'Jasa', 'sort_order' => 1]);
+        $product = Product::query()->create([
+            'sku' => 'JASA-001',
+            'name' => 'Jasa desain logo',
+            'category_id' => $service->id,
+            'category' => null,
+            'track_stock' => false,
+        ]);
+
+        $this->getJson(route('api.products.index', ['category' => 'Jasa', 'status' => 'all']))
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $product->id)
+            ->assertJsonPath('data.0.category', 'Jasa')
+            ->assertJsonPath('data.0.category_detail.name', 'Jasa');
+
+        $this->getJson(route('api.products.options.index', ['search' => 'Jasa']))
+            ->assertOk()
+            ->assertJsonPath('data.0.category', 'Jasa')
+            ->assertJsonPath('data.0.category_detail.slug', 'jasa');
+
+        $this->get(route('products.index'))
+            ->assertOk()
+            ->assertSee('Jasa desain logo')
+            ->assertSee('Jasa');
+    }
+
     public function test_products_can_be_listed_with_search_filters_and_sorting(): void
     {
         $premium = ProductCategory::query()->create(['name' => 'Cetak premium']);

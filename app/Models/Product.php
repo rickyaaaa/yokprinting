@@ -317,6 +317,24 @@ class Product extends Model
         return $this->belongsTo(ProductCategory::class, 'category_id');
     }
 
+    /** Return the canonical category label with a legacy-data fallback. */
+    public function categoryLabel(): string
+    {
+        $canonical = $this->categoryModel?->name;
+
+        return trim((string) ($canonical ?: $this->category ?: '')) ?: 'Tanpa kategori';
+    }
+
+    /** Match both normalized category relations and legacy category labels. */
+    public function scopeWhereCategory(Builder $query, string $category): Builder
+    {
+        return $query->where(function (Builder $categoryQuery) use ($category): void {
+            $categoryQuery
+                ->where('category', $category)
+                ->orWhereHas('categoryModel', fn (Builder $relationQuery): Builder => $relationQuery->where('name', $category));
+        });
+    }
+
     /**
      * Scope active products selectable on transactional forms.
      */
