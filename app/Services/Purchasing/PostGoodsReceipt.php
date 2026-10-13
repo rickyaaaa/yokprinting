@@ -90,7 +90,7 @@ class PostGoodsReceipt
         $receivedQuantity = (float) $item->quantity_received;
         $unitPrice = (float) $item->unit_price;
 
-        if (! $product->track_stock) {
+        if (! $product->tracksInventory()) {
             // Not stock-tracked: still worth knowing the latest price paid,
             // but there's no stock ledger to reconcile an average cost against.
             $product->forceFill(['last_purchase_price' => $unitPrice])->save();

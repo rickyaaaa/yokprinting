@@ -130,6 +130,20 @@ class InvoiceItem extends Model
         return $this->hasMany(InvoiceItemCostLayer::class);
     }
 
+    public function tracksInventory(): bool
+    {
+        $snapshot = $this->metadata['inventory'] ?? null;
+
+        return is_array($snapshot) && array_key_exists('track_stock', $snapshot)
+            ? (bool) $snapshot['track_stock']
+            : (bool) $this->product?->tracksInventory();
+    }
+
+    public function productType(): string
+    {
+        return $this->metadata['inventory']['product_type'] ?? $this->product?->effectiveProductType() ?? Product::TYPE_GOODS;
+    }
+
     /**
      * Build a human-readable production item description for sablon cup orders.
      */

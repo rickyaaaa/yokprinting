@@ -15,6 +15,10 @@ class Product extends Model
 
     public const UNIT_PCS = 'Pcs';
 
+    public const TYPE_GOODS = 'goods';
+
+    public const TYPE_SERVICE = 'service';
+
     public const CUP_SIZES = ['4 Oz', '8 Oz', '12 Oz', '14 Oz', '16 Oz', '18 Oz', '22 Oz', '16/22 Oz'];
 
     public const CUP_MODELS = ['Datar', 'Oval'];
@@ -64,6 +68,7 @@ class Product extends Model
     protected $fillable = [
         'sku',
         'name',
+        'product_type',
         'category_id',
         'category',
         'brand',
@@ -128,11 +133,17 @@ class Product extends Model
                 $product->sku = static::nextSku();
             }
 
-            $product->unit = self::UNIT_PCS;
+            if (! $product->isService()) {
+                $product->unit = self::UNIT_PCS;
+            }
         });
 
         static::saving(function (Product $product): void {
-            $product->unit = self::UNIT_PCS;
+            if ($product->isService()) {
+                $product->track_stock = false;
+            } else {
+                $product->unit = self::UNIT_PCS;
+            }
         });
     }
 
@@ -236,6 +247,10 @@ class Product extends Model
      */
     public function fifoInventoryValue(): float
     {
+        if ($this->isService()) {
+            return 0.0;
+        }
+
         $batches = $this->relationLoaded('inventoryBatches')
             ? $this->inventoryBatches
             : $this->inventoryBatches()->get();
@@ -351,6 +366,7 @@ class Product extends Model
         return $query
             ->where('status', self::STATUS_ACTIVE)
             ->where('track_stock', true)
+            ->where(fn (Builder $types) => $types->whereNull('product_type')->orWhere('product_type', self::TYPE_GOODS))
             ->whereNotNull('stock')
             ->whereRaw('stock <= COALESCE(minimum_stock, ?)', [self::DEFAULT_MINIMUM_STOCK]);
     }
@@ -403,9 +419,40 @@ class Product extends Model
      */
     public function isValidOrderQuantity(int $quantity): bool
     {
-        $increment = max(1, (int) ($this->package_conversion ?: $this->order_increment ?: 500));
+        $increment = $this->orderIncrement();
 
         return $quantity > 0 && $quantity % $increment === 0;
+    }
+
+    public function isService(): bool
+    {
+        return $this->product_type === self::TYPE_SERVICE;
+    }
+
+    public function effectiveProductType(): string
+    {
+        return $this->product_type ?? self::TYPE_GOODS;
+    }
+
+    public function tracksInventory(): bool
+    {
+        return ! $this->isService() && (bool) $this->track_stock;
+    }
+
+    public function orderIncrement(): int
+    {
+        return $this->isService() ? 1 : max(1, (int) ($this->package_conversion ?: $this->order_increment ?: 500));
+    }
+
+    public function productTypeLabel(): string
+    {
+        return $this->isService() ? 'Jasa' : 'Produk';
+    }
+
+    public function scopeOfProductType(Builder $query, string $type): Builder
+    {
+        return $query->where(fn (Builder $types) => $types->where('product_type', $type)
+            ->when($type === self::TYPE_GOODS, fn (Builder $legacy) => $legacy->orWhereNull('product_type')));
     }
 
     /**

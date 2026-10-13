@@ -157,6 +157,7 @@
                                         <tr class="hover:bg-brand-50/45" :class="isLowStock(product) ? 'bg-yellow-50/55' : ''">
                                             <td class="px-5 py-4 sm:px-6">
                                                 <p class="font-semibold text-ink" x-text="product.name"></p>
+                                                <span class="mt-1 inline-block text-xs text-muted" x-text="product.productTypeLabel || 'Produk'"></span>
                                                 <p class="mt-0.5 font-mono text-xs text-muted" x-text="product.sku"></p>
                                             </td>
                                             <td class="px-5 py-4 text-muted" x-text="product.category"></td>

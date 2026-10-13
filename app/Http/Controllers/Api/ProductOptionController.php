@@ -23,6 +23,9 @@ class ProductOptionController extends Controller
             ->select([
                 'id',
                 'name',
+                'product_type',
+                'track_stock',
+                'description',
                 'sku',
                 'category_id',
                 'category',
@@ -42,6 +45,7 @@ class ProductOptionController extends Controller
                 'unit',
             ])
             ->selectable()
+            ->when(filled($validated['product_type'] ?? null), fn (Builder $query) => $query->ofProductType($validated['product_type']))
             ->when(
                 filled($validated['ids'] ?? null),
                 fn (Builder $query): Builder => $query->whereIn('id', $validated['ids']),
@@ -63,6 +67,11 @@ class ProductOptionController extends Controller
             ->map(fn (Product $product): array => [
                 'id' => $product->getKey(),
                 'name' => $product->name,
+                'product_type' => $product->effectiveProductType(),
+                'product_type_unclassified' => $product->product_type === null,
+                'product_type_label' => $product->productTypeLabel(),
+                'track_stock' => $product->tracksInventory(),
+                'description' => $product->description,
                 'sku' => $product->sku,
                 'category_id' => $product->category_id,
                 'category' => $product->categoryLabel(),
@@ -82,8 +91,8 @@ class ProductOptionController extends Controller
                 'last_purchase_price' => $product->last_purchase_price === null ? null : (float) $product->last_purchase_price,
                 'average_purchase_cost' => $product->average_purchase_cost === null ? null : (float) $product->average_purchase_cost,
                 'stock' => $product->stock === null ? null : (float) $product->stock,
-                'minimum_order_qty' => $product->minimum_order_qty,
-                'package_conversion' => $product->package_conversion,
+                'minimum_order_qty' => $product->isService() ? 1 : $product->minimum_order_qty,
+                'package_conversion' => $product->orderIncrement(),
                 'unit' => $product->unit,
             ])
             ->values();

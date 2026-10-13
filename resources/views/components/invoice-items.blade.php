@@ -69,6 +69,13 @@
                 <template x-for="(item, index) in items" :key="item.key">
                     <tr>
                         <td class="px-6 py-4 align-top">
+                            <label class="mb-3 block">
+                                <span class="mb-1 block text-xs font-medium text-muted">Jenis Barang</span>
+                                <select class="form-control" x-model="item.typeFilter" @change="changeItemType(item)" :aria-label="`Jenis Barang baris ${index + 1}`">
+                                    <option value="goods">Produk</option>
+                                    <option value="service">Jasa</option>
+                                </select>
+                            </label>
                             <div class="relative" @keydown.escape="item.pickerOpen = false">
                                 <label class="sr-only" :for="`product-search-${item.key}`" x-text="`Produk baris ${index + 1}`"></label>
                                 <input
@@ -171,7 +178,12 @@
                             <input type="hidden" :name="`items[${index}][packaging_unit]`" :value="item.packagingUnit">
                             <input type="hidden" :name="`items[${index}][description]`" :value="cupDescription(item)">
 
-                            <div data-testid="{{ $hideLegacySpecs ? 'create-invoice-specs' : 'invoice-specs' }}" class="mt-4 grid {{ $hideLegacySpecs ? 'w-full max-w-[22rem] grid-cols-[minmax(0,1fr)_minmax(0,1fr)]' : 'min-w-[32rem] grid-cols-[5rem_5rem_4.75rem_5rem_7rem]' }} gap-2 rounded-lg border border-line bg-canvas p-3">
+                            <label class="mt-3 block" x-cloak x-show="item.productType === 'service'">
+                                <span class="mb-1 block text-xs font-medium text-muted">Keterangan jasa</span>
+                                <textarea class="form-control" x-model="item.description" :aria-label="`Keterangan jasa baris ${index + 1}`" placeholder="Contoh: Jasa printing sesuai desain pelanggan"></textarea>
+                                <span class="mt-1 block text-xs text-muted">Jasa tidak mengurangi stok persediaan.</span>
+                            </label>
+                            <div x-show="item.productType !== 'service'" data-testid="{{ $hideLegacySpecs ? 'create-invoice-specs' : 'invoice-specs' }}" class="mt-4 grid {{ $hideLegacySpecs ? 'w-full max-w-[22rem] grid-cols-[minmax(0,1fr)_minmax(0,1fr)]' : 'min-w-[32rem] grid-cols-[5rem_5rem_4.75rem_5rem_7rem]' }} gap-2 rounded-lg border border-line bg-canvas p-3">
                                 @if (! $hideLegacySpecs)
                                     <div>
                                         <label class="mb-1 block text-[11px] font-semibold text-muted" :for="`cup-size-${item.key}`">Ukuran</label>
@@ -234,6 +246,7 @@
                                 :aria-invalid="Boolean(fieldErrors?.items)"
                                 @blur="normalizeQuantity(item)"
                             >
+                            <p class="mt-1 text-center text-xs text-muted" x-text="item.packagingUnit"></p>
                         </td>
                         <td class="px-3 py-4 align-top">
                             <div class="relative">

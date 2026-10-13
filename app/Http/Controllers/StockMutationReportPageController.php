@@ -26,6 +26,7 @@ class StockMutationReportPageController extends Controller
         $products = Product::query()
             ->select(['id', 'sku', 'name', 'unit'])
             ->selectable()
+            ->ofProductType(Product::TYPE_GOODS)
             ->orderBy('name')
             ->get();
 

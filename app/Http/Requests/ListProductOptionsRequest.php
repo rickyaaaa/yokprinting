@@ -26,6 +26,7 @@ class ListProductOptionsRequest extends FormRequest
     {
         return [
             'search' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'product_type' => ['sometimes', Rule::in([Product::TYPE_GOODS, Product::TYPE_SERVICE])],
             'ids' => ['sometimes', 'array', 'max:150'],
             'ids.*' => ['integer', 'distinct', 'min:1'],
             'status' => ['sometimes', Rule::in([Product::STATUS_ACTIVE])],

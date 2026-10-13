@@ -47,6 +47,9 @@ class InvoiceEditPageController extends Controller
             'items' => $invoice->items->map(fn ($item): array => [
                 'product_id' => $item->product_id,
                 'product_name' => $item->product_name,
+                'product_type' => $item->productType(),
+                'track_stock' => $item->tracksInventory(),
+                'unit' => $item->unit,
                 'sku' => $item->sku,
                 'cup_size' => $item->cup_size,
                 'cup_model' => $item->cup_model,

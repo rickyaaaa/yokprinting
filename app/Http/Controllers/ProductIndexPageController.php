@@ -33,6 +33,9 @@ class ProductIndexPageController extends Controller
                 'id' => $product->getKey(),
                 'sku' => $product->sku,
                 'name' => $product->name,
+                'productType' => $product->effectiveProductType(),
+                'productTypeLabel' => $product->productTypeLabel(),
+                'trackStock' => $product->tracksInventory(),
                 'category' => $product->categoryLabel(),
                 'unit' => strtoupper($product->unit),
                 // "HPP FIFO": cost of the oldest available batch (what the

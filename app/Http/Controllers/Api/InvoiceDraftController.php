@@ -55,6 +55,11 @@ class InvoiceDraftController extends Controller
     {
         return [
             'id' => $invoice->getKey(),
+            'items' => $invoice->items->map(fn ($item): array => [
+                'id' => $item->id, 'product_id' => $item->product_id, 'product_type' => $item->productType(),
+                'track_stock' => $item->tracksInventory(), 'unit' => $item->unit,
+                'quantity' => (float) $item->quantity, 'description' => $item->description,
+            ])->values(),
             'invoice_number' => $invoice->invoice_number,
             'status' => $invoice->status,
             'sent_at' => $invoice->sent_at?->toISOString(),

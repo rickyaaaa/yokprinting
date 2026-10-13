@@ -25,6 +25,7 @@ class CalculateInvoicePreview
                 'product_name' => $item['name'],
                 'quantity' => $item['quantity'],
                 'price' => $item['unit_price'],
+                'unit' => $item['unit'] ?? 'Pcs',
             ])
             ->all();
         $isFreeShipping = (bool) ($preview['is_free_shipping'] ?? false);
@@ -51,7 +52,7 @@ class CalculateInvoicePreview
             ->values()
             ->map(function (array $item, int $index) use ($totals): array {
                 $calculated = $totals['items'][$index];
-                $unit = 'Pcs';
+                $unit = $calculated['unit'];
 
                 return [
                     ...$item,

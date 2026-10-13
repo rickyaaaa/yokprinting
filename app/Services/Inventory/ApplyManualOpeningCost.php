@@ -9,6 +9,10 @@ class ApplyManualOpeningCost
 {
     public function handle(Product $product, float $unitCost): void
     {
+        if ($product->isService()) {
+            return;
+        }
+
         $unitCost = round(max(0, $unitCost), 2);
 
         $product->forceFill([

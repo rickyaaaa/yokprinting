@@ -50,6 +50,12 @@ class ProductBulkStockController extends Controller
                     continue;
                 }
 
+                if ($product->isService()) {
+                    $errors["items.{$index}.id"] = ['Jasa tidak memiliki stok atau minimum stok.'];
+
+                    continue;
+                }
+
                 $currentValue = $item['field'] === 'minimum_stock'
                     ? $product->minimumStockValue()
                     : (float) ($product->stock ?? 0);

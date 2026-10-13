@@ -6,6 +6,7 @@
         'sku' => '',
         'name' => '',
         'categoryId' => null,
+        'productType' => 'goods',
         'category' => 'Cup PP',
         'brand' => '',
         'unit' => 'Pcs',
@@ -150,9 +151,20 @@
                                         <span class="mt-1 block text-xs text-muted" x-show="form.category && !form.categoryId">Kategori legacy: <span x-text="form.category"></span></span>
                                     </label>
                                     <label class="block">
+                                        <span class="text-sm font-medium text-ink">Jenis Barang</span>
+                                        <select class="form-control mt-1.5" x-model="form.productType" @change="typeChanged()" data-validation-field="productType" :aria-invalid="Boolean(fieldErrors.productType)">
+                                            <option value="goods">Produk</option>
+                                            <option value="service">Jasa</option>
+                                        </select>
+                                        <span class="mt-1 block text-xs text-muted" x-text="form.productType === 'service' ? 'Tidak menggunakan atau mengurangi stok persediaan.' : 'Stok berkurang setelah DP/pembayaran terverifikasi.'"></span>
+                                        <span class="mt-1 block text-xs text-muted" x-show="form.typeUnclassified">Data lama belum diklasifikasikan. Pelacakan stok existing tetap dipertahankan.</span>
+                                        <span class="mt-1 block text-xs text-red-700" x-show="fieldErrors.productType" x-text="fieldErrors.productType"></span>
+                                    </label>
+                                    <label class="block">
                                         <span class="text-sm font-medium text-ink">Satuan</span>
-                                        <input class="form-control mt-1.5 bg-canvas font-semibold text-muted" x-model="form.unit" readonly>
-                                        <span class="mt-1 block text-xs text-muted">Satuan master produk dikunci ke Pcs.</span>
+                                        <input class="form-control mt-1.5" x-model="form.unit" :readonly="form.productType !== 'service'" maxlength="20" placeholder="Pekerjaan, Paket, Jam atau Pcs" :aria-invalid="Boolean(fieldErrors.unit)">
+                                        <span class="mt-1 block text-xs text-muted" x-text="form.productType === 'service' ? 'Isi satuan penagihan jasa, misalnya Pekerjaan atau Pcs.' : 'Satuan produk dikunci ke Pcs.'"></span>
+                                        <span class="mt-1 block text-xs text-red-700" x-show="fieldErrors.unit" x-text="fieldErrors.unit"></span>
                                     </label>
                                     <label class="block md:col-span-2">
                                         <span class="text-sm font-medium text-ink">Merk barang</span>
@@ -171,19 +183,20 @@
 
                             <section class="card p-5 sm:p-6" aria-labelledby="product-pricing-heading">
                                 <h2 id="product-pricing-heading" class="font-semibold text-ink">Informasi biaya & stok</h2>
-                                <p class="mt-1 text-sm text-muted">Harga PO dan Penerimaan Barang tetap otomatis. Untuk stok awal/manual, isi HPP FIFO awal per unit di bawah ini.</p>
+                                <p class="mt-1 text-sm text-muted" x-show="form.productType !== 'service'">Harga PO dan Penerimaan Barang tetap otomatis. Untuk stok awal/manual, isi HPP FIFO awal per unit di bawah ini.</p>
+                                <p class="mt-1 text-sm text-muted" x-cloak x-show="form.productType === 'service'">Jasa tidak memiliki stok atau layer HPP FIFO. Harga jual diisi pada invoice.</p>
                                 <div class="mt-5 grid gap-4 md:grid-cols-2">
                                     <div class="block rounded-lg border border-line bg-canvas p-3">
                                         <span class="text-sm font-medium text-muted">Harga pembelian terakhir</span>
                                         <p class="mt-1 font-semibold text-ink" x-text="formattedLastPurchasePrice"></p>
                                     </div>
-                                    <div class="block rounded-lg border border-line bg-canvas p-3">
+                                    <div class="block rounded-lg border border-line bg-canvas p-3" x-show="form.productType !== 'service'">
                                         <span class="text-sm font-medium text-muted">HPP FIFO per unit</span>
                                         <p class="mt-1 font-semibold text-ink" x-text="formattedFifoHpp"></p>
                                     </div>
-                                    <label class="block md:col-span-2">
+                                    <label class="block md:col-span-2" x-show="form.productType !== 'service'">
                                         <span class="text-sm font-medium text-ink">HPP FIFO awal per unit</span>
-                                        <input type="number" min="0" step="0.01" class="form-control mt-1.5" x-model.number="manualUnitCost" placeholder="Contoh: 400">
+                                        <input type="number" min="0" step="0.01" class="form-control mt-1.5" x-model.number="manualUnitCost" :disabled="form.productType === 'service'" placeholder="Contoh: 400">
                                         <span class="mt-1 block text-xs text-muted">Gunakan saat memasukkan stok awal. Setelah PO/GR diposting, harga FIFO mengikuti harga penerimaan.</span>
                                     </label>
                                     <div class="block rounded-lg border border-line bg-canvas p-3 md:col-span-2">
@@ -204,34 +217,34 @@
                                             <option>Nonaktif</option>
                                         </select>
                                     </label>
-                                    <label class="block rounded-xl border border-line bg-canvas p-4 md:col-span-2">
+                                    <label class="block rounded-xl border border-line bg-canvas p-4 md:col-span-2" x-show="form.productType !== 'service'">
                                         <span class="flex items-start gap-3">
-                                            <input type="checkbox" class="mt-1 size-4 rounded border-line text-brand-700 focus:ring-brand-600" x-model="form.trackStock">
+                                            <input type="checkbox" class="mt-1 size-4 rounded border-line text-brand-700 focus:ring-brand-600" x-model="form.trackStock" :disabled="form.productType === 'service'">
                                             <span>
                                                 <span class="block text-sm font-semibold text-ink">Lacak stok produk</span>
-                                                <span class="mt-1 block text-sm leading-6 text-muted">Matikan untuk jasa desain atau layanan yang tidak memakai inventori fisik.</span>
+                                                <span class="mt-1 block text-sm leading-6 text-muted">Pertahankan pelacakan stok sesuai konfigurasi barang. Untuk layanan, pilih jenis Jasa.</span>
                                             </span>
                                         </span>
                                     </label>
-                                    <label class="block">
+                                    <label class="block" x-show="form.productType !== 'service'">
                                         <span class="text-sm font-medium text-ink">Stok tersedia</span>
                                         <input type="number" min="0" class="form-control mt-1.5" x-model.number="form.stock" data-validation-field="stock" :disabled="!form.trackStock" :aria-invalid="Boolean(fieldErrors.stock)" @input="clearFieldError('stock')">
                                         <span class="mt-1 block text-xs text-red-700" x-show="fieldErrors.stock" x-text="fieldErrors.stock"></span>
                                     </label>
-                                    <label class="block">
+                                    <label class="block" x-show="form.productType !== 'service'">
                                         <span class="text-sm font-medium text-ink">Minimum stok</span>
                                         <input type="number" min="0" class="form-control mt-1.5" x-model.number="form.minimumStock" data-validation-field="minimumStock" :disabled="!form.trackStock" :aria-invalid="Boolean(fieldErrors.minimumStock)" @input="clearFieldError('minimumStock')">
                                         <span class="mt-1 block text-xs text-red-700" x-show="fieldErrors.minimumStock" x-text="fieldErrors.minimumStock"></span>
                                     </label>
                                     <label class="block">
                                         <span class="text-sm font-medium text-ink">Minimum order</span>
-                                        <input type="number" min="1" step="500" class="form-control mt-1.5" x-model.number="form.minimumOrderQty" data-validation-field="minimumOrderQty" :aria-invalid="Boolean(fieldErrors.minimumOrderQty)" @input="clearFieldError('minimumOrderQty')">
+                                        <input type="number" min="1" :step="form.productType === 'service' ? 1 : 500" :readonly="form.productType === 'service'" class="form-control mt-1.5" x-model.number="form.minimumOrderQty" data-validation-field="minimumOrderQty" :aria-invalid="Boolean(fieldErrors.minimumOrderQty)" @input="clearFieldError('minimumOrderQty')">
                                         <span class="mt-1 block text-xs text-red-700" x-show="fieldErrors.minimumOrderQty" x-text="fieldErrors.minimumOrderQty"></span>
                                     </label>
                                     <label class="block">
                                         <span class="text-sm font-medium text-ink">Kelipatan order</span>
-                                        <input type="number" min="1" step="500" class="form-control mt-1.5" x-model.number="form.packageConversion" data-validation-field="packageConversion" :aria-invalid="Boolean(fieldErrors.packageConversion)" @input="clearFieldError('packageConversion')">
-                                        <span class="mt-1 block text-xs text-muted">Default YokPrinting: 500 Pcs.</span>
+                                        <input type="number" min="1" :step="form.productType === 'service' ? 1 : 500" :readonly="form.productType === 'service'" class="form-control mt-1.5" x-model.number="form.packageConversion" data-validation-field="packageConversion" :aria-invalid="Boolean(fieldErrors.packageConversion)" @input="clearFieldError('packageConversion')">
+                                        <span class="mt-1 block text-xs text-muted" x-text="form.productType === 'service' ? 'Jasa ditagihkan mulai jumlah 1.' : 'Default YokPrinting: 500 Pcs.'"></span>
                                         <span class="mt-1 block text-xs text-red-700" x-show="fieldErrors.packageConversion" x-text="fieldErrors.packageConversion"></span>
                                     </label>
                                 </div>
@@ -251,10 +264,14 @@
                                     </div>
                                     <dl class="mt-5 space-y-3 text-sm">
                                         <div class="flex justify-between gap-3">
+                                            <dt class="text-muted">Jenis Barang</dt>
+                                            <dd class="font-medium text-ink" x-text="form.productType === 'service' ? 'Jasa' : 'Produk'"></dd>
+                                        </div>
+                                        <div class="flex justify-between gap-3">
                                             <dt class="text-muted">Kategori</dt>
                                             <dd class="font-medium text-ink" x-text="form.category"></dd>
                                         </div>
-                                        <div class="flex justify-between gap-3">
+                                        <div class="flex justify-between gap-3" x-show="form.productType !== 'service'">
                                             <dt class="text-muted">HPP FIFO per unit</dt>
                                             <dd class="font-semibold text-ink" x-text="formattedFifoHpp"></dd>
                                         </div>

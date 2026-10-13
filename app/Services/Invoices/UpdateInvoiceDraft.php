@@ -166,9 +166,9 @@ class UpdateInvoiceDraft
                 foreach ($totals['items'] as $attributes) {
                     $key = $this->itemIdentity($attributes['product_id'], $attributes['quantity']);
                     $item = $remaining[$key]->shift();
-                    if ($hasConsumedInventory) {
-                        unset($attributes['purchase_cost_snapshot'], $attributes['unit_hpp'], $attributes['hpp_total']);
-                    }
+                    // Same identity: preserve the original classification/unit/cost snapshot,
+                    // including service-only invoices without FIFO layers.
+                    unset($attributes['purchase_cost_snapshot'], $attributes['unit_hpp'], $attributes['hpp_total'], $attributes['metadata'], $attributes['unit'], $attributes['packaging_unit'], $attributes['order_increment'], $attributes['moq_quantity']);
                     $item->update($attributes);
                     $currentItems->push($item);
                 }
@@ -247,6 +247,7 @@ class UpdateInvoiceDraft
         foreach ($items as $item) {
             $identity[] = $this->itemIdentity($item['product_id'], $item['quantity']);
         }
+
         return $identity;
     }
 

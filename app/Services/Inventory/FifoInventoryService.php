@@ -22,7 +22,7 @@ class FifoInventoryService
     ): ?InventoryBatch {
         $product = Product::query()->whereKey($item->product_id)->lockForUpdate()->firstOrFail();
 
-        if (! $product->track_stock) {
+        if (! $product->tracksInventory()) {
             return null;
         }
 
@@ -53,7 +53,7 @@ class FifoInventoryService
     {
         $product = Product::query()->whereKey($item->product_id)->lockForUpdate()->firstOrFail();
 
-        if (! $product->track_stock) {
+        if (! $item->tracksInventory()) {
             $hpp = round((float) $item->quantity * (float) $item->purchase_cost_snapshot, 2);
             $this->saveItemCost($item, $hpp);
 
@@ -137,7 +137,7 @@ class FifoInventoryService
         foreach ($invoice->items()->with('costLayers')->get() as $item) {
             $product = Product::query()->whereKey($item->product_id)->lockForUpdate()->first();
 
-            if (! $product instanceof Product || ! $product->track_stock) {
+            if (! $product instanceof Product || ! $item->tracksInventory()) {
                 continue;
             }
 

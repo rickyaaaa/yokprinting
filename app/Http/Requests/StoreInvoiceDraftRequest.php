@@ -116,17 +116,17 @@ class StoreInvoiceDraftRequest extends FormRequest
                     ->keyBy('id');
 
                 foreach ($this->input('items', []) as $index => $item) {
-                    $quantity = (int) ($item['quantity'] ?? 0);
+                    $quantity = (float) ($item['quantity'] ?? 0);
                     $product = $products->get($item['product_id'] ?? null);
 
                     if (! $product instanceof Product) {
                         continue;
                     }
 
-                    $increment = max(1, (int) ($product->package_conversion ?: $product->order_increment ?: 500));
+                    $increment = $product->orderIncrement();
                     $unit = strtolower($product->unit ?: Product::UNIT_PCS);
 
-                    if ($increment > 0 && $quantity % $increment !== 0) {
+                    if (abs($quantity / $increment - round($quantity / $increment)) > 0.00001) {
                         $validator->errors()->add(
                             "items.{$index}.quantity",
                             "Jumlah item harus kelipatan {$increment} {$unit}.",

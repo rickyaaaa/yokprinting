@@ -25,7 +25,7 @@ class RecordInvoiceSaleMovements
         foreach ($items as $item) {
             $product = $item->product;
 
-            if (! $product instanceof Product || ! $product->track_stock) {
+            if (! $product instanceof Product || ! $item->tracksInventory()) {
                 continue;
             }
 

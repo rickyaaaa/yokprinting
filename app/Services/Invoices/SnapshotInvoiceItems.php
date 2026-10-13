@@ -19,7 +19,7 @@ class SnapshotInvoiceItems
     {
         $products = Product::query()
             ->whereIn('id', collect($items)->pluck('product_id')->filter()->unique()->values())
-            ->get()
+            ->lockForUpdate()->get()
             ->keyBy('id');
 
         return collect($items)
@@ -40,18 +40,27 @@ class SnapshotInvoiceItems
                     $item['jenis_cetak'] = $item['jenis_cetak']
                         ?? ($product->sides ? "{$product->sides} warna" : null);
                     $item['description'] = $this->normalizeGeneratedDescription($item, $product);
-                    $item['order_increment'] = $product->package_conversion ?: $product->order_increment ?: 500;
+                    $item['order_increment'] = $product->orderIncrement();
                     $item['moq_quantity'] = $item['order_increment'];
                     $item['packaging_unit'] = $product->unit ?: Product::UNIT_PCS;
+                    $item['unit'] = $item['packaging_unit'];
+                    $item['metadata'] = ['inventory' => [
+                        'product_type' => $product->effectiveProductType(),
+                        'track_stock' => $product->tracksInventory(),
+                    ]];
+                    if ($product->isService()) {
+                        foreach (['cup_size', 'cup_model', 'grammage', 'screen_printing_color', 'jenis_cetak'] as $field) {
+                            $item[$field] = null;
+                        }
+                        $item['description'] = $item['description'] ?? $product->description ?? $product->short_description;
+                    }
                     // Prefer the purchasing-module cost basis (built from real
                     // PO/Goods Receipt prices) over the legacy flat field,
                     // which nothing writes to anymore. Once written, this
                     // snapshot never changes even if the product's cost does.
-                    $item['purchase_cost_snapshot'] = $product->track_stock
+                    $item['purchase_cost_snapshot'] = $product->tracksInventory()
                         ? 0
-                        : ($product->average_purchase_cost
-                            ?? $product->last_purchase_price
-                            ?? $product->purchase_price);
+                        : $product->purchaseCostFallback();
                 }
 
                 return $item;

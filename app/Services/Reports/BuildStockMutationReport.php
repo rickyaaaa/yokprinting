@@ -29,6 +29,7 @@ class BuildStockMutationReport
         $excludedReferences = $this->cancelledReferences();
 
         $products = Product::query()
+            ->ofProductType(Product::TYPE_GOODS)
             ->when($productId, fn ($query) => $query->whereKey($productId))
             ->when(! $productId, fn ($query) => $query->whereHas('stockMovements', fn ($query) => $query->where('created_at', '<=', $end)))
             ->with([

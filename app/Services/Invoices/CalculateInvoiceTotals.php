@@ -58,7 +58,7 @@ class CalculateInvoiceTotals
                     'packaging_unit' => $item['packaging_unit'] ?? null,
                     'description' => $item['description'] ?? null,
                     'quantity' => $quantity,
-                    'unit' => 'Pcs',
+                    'unit' => $item['unit'] ?? $item['packaging_unit'] ?? 'Pcs',
                     'unit_price' => $unitPrice,
                     'purchase_cost_snapshot' => $purchaseCostSnapshot,
                     'hpp_total' => $this->money($quantity * $purchaseCostSnapshot),
@@ -68,6 +68,7 @@ class CalculateInvoiceTotals
                     'sort_order' => $index,
                     'metadata' => [
                         'industry' => 'sablon-cup-fnb',
+                        ...($item['metadata'] ?? []),
                     ],
                 ];
             });

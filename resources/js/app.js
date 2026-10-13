@@ -35,6 +35,7 @@ import {
     normalizeMinimumStock,
 } from './support/minimum-stock';
 import { printedItemNoun as printedNounForCategory } from './support/invoice-item-label';
+import { invoiceProductDefaults, productsOfType } from './support/product-type';
 import { defaultReceivableSort, initialDirectionFor, sortReceivables, withinInvoiceDateRange } from './support/receivable-table';
 import { formatProductQuantity, resolveProductMetrics } from './support/product-catalog';
 import { registerExpenseComponents } from './expenses';
@@ -245,7 +246,7 @@ const buildInvoicePreviewSnapshot = (payload) => {
         items: payload.items.map((item, index) => {
             const quantity = Math.max(0, Number(item.quantity) || 0);
             const price = Math.max(0, Number(item.price) || 0);
-            const unit = 'Pcs';
+            const unit = item.packaging_unit || 'Pcs';
             const orderIncrement = Number(item.order_increment) || null;
             const sku = item.sku || '';
             const note = [
@@ -1685,11 +1686,17 @@ Alpine.data('invoiceItems', () => ({
             restored.grammage = savedItem.grammage || product?.grammage || restored.grammage;
             restored.screenPrintingColor = savedItem.screen_printing_color || product?.screen_printing_color || restored.screenPrintingColor;
             restored.jenisCetak = savedItem.jenis_cetak || (product?.sides ? `${product.sides} warna` : restored.jenisCetak);
-            restored.moqQuantity = Number(savedItem.moq_quantity || product?.minimum_order_qty || product?.moq_quantity) || 500;
-            restored.orderIncrement = Number(savedItem.order_increment || product?.package_conversion || product?.order_increment) || 500;
+            restored.productType = savedItem.product_type ?? restored.productType;
+            restored.typeFilter = restored.productType;
+            restored.description = savedItem.description ?? restored.description;
+            restored.moqQuantity = Number(savedItem.moq_quantity) || restored.moqQuantity;
+            restored.orderIncrement = Number(savedItem.order_increment) || restored.orderIncrement;
             restored.packagingUnit = savedItem.packaging_unit || product?.unit || product?.packaging_unit || 'Pcs';
             restored.quantity = Number(savedItem.quantity) || restored.orderIncrement;
             restored.price = Number(savedItem.price) || 0;
+            if (restored.productType === 'service') {
+                Object.assign(restored, { cupSize: '', cupModel: '', grammage: '', screenPrintingColor: '', jenisCetak: '', orderIncrement: 1, moqQuantity: 1 });
+            }
 
             return restored;
         });
@@ -1704,15 +1711,7 @@ Alpine.data('invoiceItems', () => ({
             productSearch: product ? this.productLabel(product) : '',
             pickerOpen: false,
             pickerStyle: '',
-            cupSize: product?.cup_size ?? '12 Oz',
-            cupModel: product?.cup_model ?? 'Oval',
-            grammage: product?.grammage ?? '8gr',
-            screenPrintingColor: product?.screen_printing_color ?? 'Hitam',
-            jenisCetak: product?.sides ? `${product.sides} warna` : '1 warna',
-            moqQuantity: Number(product?.package_conversion || product?.order_increment || product?.minimum_order_qty || product?.moq_quantity) || 500,
-            orderIncrement: Number(product?.package_conversion || product?.order_increment || product?.minimum_order_qty || product?.moq_quantity) || 500,
-            packagingUnit: product?.unit ?? product?.packaging_unit ?? 'Pcs',
-            quantity: Number(product?.package_conversion || product?.order_increment || product?.minimum_order_qty || product?.moq_quantity) || 500,
+            ...invoiceProductDefaults(product),
             price: product?.price ?? 0,
         };
     },
@@ -1752,12 +1751,13 @@ Alpine.data('invoiceItems', () => ({
 
     filteredProductsFor(item) {
         const keyword = (item.productSearch ?? '').trim().toLowerCase();
+        const eligible = productsOfType(this.products, item.typeFilter);
 
         if (! keyword) {
-            return this.products.slice(0, 20);
+            return eligible.slice(0, 20);
         }
 
-        const matches = this.products
+        const matches = eligible
             .filter((product) => this.productSearchText(product).includes(keyword))
             .slice(0, 20);
         const selected = this.productFor(item.productId);
@@ -1771,15 +1771,22 @@ Alpine.data('invoiceItems', () => ({
 
     filteredSelectionProducts(item) {
         const selected = this.productFor(item.productId);
+        const eligible = productsOfType(this.products, item.typeFilter);
 
         if (! selected) {
-            return this.products;
+            return eligible;
         }
 
         return [
             selected,
-            ...this.products.filter((product) => Number(product.id) !== Number(selected.id)),
+            ...eligible.filter((product) => Number(product.id) !== Number(selected.id)),
         ];
+    },
+
+    changeItemType(item) {
+        Object.assign(item, invoiceProductDefaults({ product_type: item.typeFilter, unit: item.typeFilter === 'service' ? 'Pekerjaan' : 'Pcs' }), {
+            productId: null, productName: '', sku: '', productSearch: '', price: 0, pickerOpen: false,
+        });
     },
 
     openProductPicker(item, event) {
@@ -1812,6 +1819,7 @@ Alpine.data('invoiceItems', () => ({
     },
 
     selectProduct(item, product) {
+        Object.assign(item, invoiceProductDefaults(product), { price: product.price ?? 0 });
         item.productId = product.id;
         item.productSearch = this.productLabel(product);
         item.pickerOpen = false;
@@ -1822,21 +1830,12 @@ Alpine.data('invoiceItems', () => ({
         const product = this.productFor(item.productId);
 
         if (product) {
-            const currentPrice = Number(item.price) || 0;
+            Object.assign(item, invoiceProductDefaults(product));
 
             item.productName = product.name;
             item.sku = product.sku ?? '';
             item.productSearch = this.productLabel(product);
-            item.cupSize = product.cup_size ?? item.cupSize ?? '12 Oz';
-            item.cupModel = product.cup_model ?? item.cupModel;
-            item.grammage = product.grammage ?? item.grammage;
-            item.screenPrintingColor = product.screen_printing_color ?? item.screenPrintingColor;
-            item.jenisCetak = product.sides ? `${product.sides} warna` : item.jenisCetak;
-            item.orderIncrement = Number(product.package_conversion || product.order_increment || product.minimum_order_qty || product.moq_quantity) || item.orderIncrement;
-            item.moqQuantity = item.orderIncrement;
-            item.packagingUnit = product.unit ?? product.packaging_unit ?? item.packagingUnit;
-            item.quantity = Math.max(Number(item.quantity) || 0, item.orderIncrement || 1);
-            item.price = currentPrice > 0 ? currentPrice : (product.price ?? 0);
+            item.price = product.price ?? 0;
             this.normalizeQuantity(item);
         }
     },
@@ -1851,6 +1850,9 @@ Alpine.data('invoiceItems', () => ({
     },
 
     cupDescription(item) {
+        if (item.productType === 'service') {
+            return item.description || '';
+        }
         const specs = [item.cupSize, item.cupModel, item.grammage ? `(${item.grammage})` : '']
             .filter(Boolean)
             .join(' ');
@@ -2840,6 +2842,8 @@ Alpine.data('productIndexTable', (initialProducts = [], exportEndpoints = {}) =>
             sku: product.sku ?? product.code,
             name: product.name,
             category: product.category ?? 'Lainnya',
+            productType: product.product_type ?? 'goods',
+            productTypeLabel: product.product_type_label ?? (product.product_type === 'service' ? 'Jasa' : 'Produk'),
             brand: product.brand ?? '',
             unit: product.unit ?? 'Pcs',
             // "HPP FIFO": cost of the oldest available FIFO batch (what the
@@ -3136,6 +3140,8 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
         sku: initialForm.sku ?? 'PRN-NEW-01',
         name: initialForm.name ?? '',
         categoryId: initialForm.categoryId ?? initialForm.category_id ?? null,
+        productType: initialForm.productType ?? initialForm.product_type ?? 'goods',
+        typeUnclassified: false,
         category: initialForm.category ?? 'Cetak premium',
         brand: initialForm.brand ?? '',
         unit: initialForm.unit ?? 'Pcs',
@@ -3227,6 +3233,8 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
             id: product.id,
             sku: product.sku ?? product.code ?? '',
             name: product.name ?? '',
+            productType: product.product_type ?? 'goods',
+            typeUnclassified: product.product_type_unclassified ?? false,
             categoryId: product.category_id ?? null,
             category: product.category ?? product.category_detail?.name ?? 'Tanpa kategori',
             brand: product.brand ?? '',
@@ -3244,6 +3252,20 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
 
     get validationMessages() {
         return Object.values(this.fieldErrors);
+    },
+
+    typeChanged() {
+        this.form.typeUnclassified = false;
+        const service = this.form.productType === 'service';
+        this.form.trackStock = !service;
+        this.form.unit = service ? 'Pekerjaan' : 'Pcs';
+        this.form.minimumOrderQty = service ? 1 : 500;
+        this.form.packageConversion = service ? 1 : 500;
+        this.form.stock = 0;
+        this.manualUnitCost = null;
+        if (service && this.form.shortDescription === '1 Dus = 1.000 Pcs; kelipatan order 500 Pcs') {
+            this.form.shortDescription = '';
+        }
     },
 
     get formattedLastPurchasePrice() {
@@ -3325,9 +3347,7 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
             name: this.form.name.trim(),
             category: this.form.category,
             brand: this.form.brand || null,
-            unit: 'Pcs',
-            stock: this.form.trackStock ? Number(this.form.stock) || 0 : null,
-            minimum_stock: minimumStockForPayload(this.form.minimumStock, this.form.trackStock),
+            unit: this.form.productType === 'service' ? this.form.unit : 'Pcs',
             minimum_order_qty: Number(this.form.minimumOrderQty) || 500,
             package_conversion: Number(this.form.packageConversion) || 500,
             short_description: this.form.shortDescription || null,
@@ -3336,11 +3356,19 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
             status: this.form.status === 'Nonaktif' ? 'inactive' : 'active',
         };
 
+        if (!this.form.typeUnclassified) {
+            payload.product_type = this.form.productType;
+        }
+        if (this.form.productType !== 'service') {
+            payload.stock = this.form.trackStock ? Number(this.form.stock) || 0 : null;
+            payload.minimum_stock = minimumStockForPayload(this.form.minimumStock, this.form.trackStock);
+        }
+
         if (this.form.categoryId !== null && this.form.categoryId !== '') {
             payload.category_id = Number(this.form.categoryId);
         }
 
-        if (this.manualUnitCost !== this.initialManualUnitCost && this.manualUnitCost !== null && this.manualUnitCost !== '') {
+        if (this.form.productType !== 'service' && this.manualUnitCost !== this.initialManualUnitCost && this.manualUnitCost !== null && this.manualUnitCost !== '') {
             payload.manual_unit_cost = Number(this.manualUnitCost) || 0;
         }
 

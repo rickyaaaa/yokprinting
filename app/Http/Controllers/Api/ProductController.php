@@ -10,6 +10,8 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\SupplierPriceList;
 use App\Services\Inventory\ApplyManualOpeningCost;
+use App\Services\Inventory\NormalizeProductType;
+use App\Services\Security\ActivityLogger;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
@@ -32,6 +34,7 @@ class ProductController extends Controller
         $products = Product::query()
             ->with(['categoryModel', 'inventoryBatches'])
             ->withSum($this->salesQuantityRelation(), 'quantity')
+            ->when(filled($validated['product_type'] ?? null), fn (Builder $query) => $query->ofProductType($validated['product_type']))
             ->when(
                 filled($validated['ids'] ?? null),
                 fn (Builder $query): Builder => $query->whereIn('id', $validated['ids']),
@@ -88,9 +91,9 @@ class ProductController extends Controller
     /**
      * Store a newly created product.
      */
-    public function store(StoreProductRequest $request, ApplyManualOpeningCost $openingCost): JsonResponse
+    public function store(StoreProductRequest $request, ApplyManualOpeningCost $openingCost, NormalizeProductType $types): JsonResponse
     {
-        $validated = $request->validated();
+        $validated = $types->handle(['product_type' => Product::TYPE_GOODS, ...$request->validated()]);
         $manualCost = array_key_exists('manual_unit_cost', $validated) ? $validated['manual_unit_cost'] : null;
         unset($validated['manual_unit_cost']);
 
@@ -125,18 +128,23 @@ class ProductController extends Controller
     /**
      * Update a product.
      */
-    public function update(UpdateProductRequest $request, Product $product, ApplyManualOpeningCost $openingCost): JsonResponse
+    public function update(UpdateProductRequest $request, Product $product, ApplyManualOpeningCost $openingCost, NormalizeProductType $types, ActivityLogger $logger): JsonResponse
     {
         $validated = $request->validated();
         $hasManualCost = array_key_exists('manual_unit_cost', $validated) && $validated['manual_unit_cost'] !== null;
         $manualCost = $hasManualCost ? (float) $validated['manual_unit_cost'] : null;
         unset($validated['manual_unit_cost']);
 
-        DB::transaction(function () use ($product, $validated, $hasManualCost, $manualCost, $openingCost): void {
+        DB::transaction(function () use ($product, $validated, $hasManualCost, $manualCost, $openingCost, $types, $logger): void {
             $locked = Product::query()->lockForUpdate()->findOrFail($product->getKey());
-            $locked->update($this->normalizeCategory($validated));
-            if ($hasManualCost) {
+            $before = $locked->only(['product_type', 'track_stock', 'category_id', 'category']);
+            $locked->update($this->normalizeCategory($types->handle($validated, $locked)));
+            if ($hasManualCost && ! $locked->isService()) {
                 $openingCost->handle($locked->fresh(), $manualCost);
+            }
+            $after = $locked->only(['product_type', 'track_stock', 'category_id', 'category']);
+            if ($before !== $after) {
+                $logger->record(module: 'product', action: 'classification_updated', event: 'Product classification updated', subject: $locked, metadata: ['before' => $before, 'after' => $after]);
             }
         });
         $product->refresh()->load(['categoryModel', 'inventoryBatches']);
@@ -178,7 +186,7 @@ class ProductController extends Controller
                 : ($payload['category'] ?? null);
         }
 
-        if (array_key_exists('minimum_stock', $payload) && $payload['minimum_stock'] === null) {
+        if (($payload['product_type'] ?? null) !== Product::TYPE_SERVICE && array_key_exists('minimum_stock', $payload) && $payload['minimum_stock'] === null) {
             $payload['minimum_stock'] = Product::DEFAULT_MINIMUM_STOCK;
         }
 
@@ -220,6 +228,9 @@ class ProductController extends Controller
             'code' => $product->code,
             'sku' => $product->sku,
             'name' => $product->name,
+            'product_type' => $product->effectiveProductType(),
+            'product_type_label' => $product->productTypeLabel(),
+            'product_type_unclassified' => $product->product_type === null,
             'category_id' => $product->category_id,
             'category' => $product->categoryLabel(),
             'brand' => $product->brand,
@@ -260,9 +271,9 @@ class ProductController extends Controller
             // requirement 14/15: supplier's asking price vs what was actually paid).
             'last_supplier_price' => $this->serializeLastSupplierPrice($lastSupplierPrice ?? $this->lastSupplierPricesFor(collect([$product->getKey()]))->get($product->getKey())),
             'stock' => $product->stock === null ? null : (float) $product->stock,
-            'minimum_stock' => $product->minimumStockValue(),
-            'minimum_order_qty' => $product->minimum_order_qty,
-            'package_conversion' => $product->package_conversion,
+            'minimum_stock' => $product->isService() ? null : $product->minimumStockValue(),
+            'minimum_order_qty' => $product->isService() ? 1 : $product->minimum_order_qty,
+            'package_conversion' => $product->isService() ? 1 : $product->package_conversion,
             'length_cm' => $product->length_cm === null ? null : (float) $product->length_cm,
             'width_cm' => $product->width_cm === null ? null : (float) $product->width_cm,
             'height_cm' => $product->height_cm === null ? null : (float) $product->height_cm,
@@ -271,7 +282,7 @@ class ProductController extends Controller
             'moq_quantity' => $product->moq_quantity,
             'order_increment' => $product->order_increment,
             'packaging_unit' => $product->packaging_unit,
-            'track_stock' => $product->track_stock,
+            'track_stock' => $product->tracksInventory(),
             'status' => $product->status,
             'created_at' => $product->created_at?->toISOString(),
             'updated_at' => $product->updated_at?->toISOString(),

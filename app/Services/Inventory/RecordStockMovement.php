@@ -56,6 +56,9 @@ class RecordStockMovement
         bool $syncFifo,
     ): StockMovement {
         $stockBefore = (float) ($product->stock ?? 0);
+        if ($product->isService()) {
+            throw ValidationException::withMessages(['product_id' => 'Jasa tidak memiliki mutasi stok.']);
+        }
         $signedQuantity = round((float) $quantity, 4);
         $stockAfter = round($stockBefore + $signedQuantity, 4);
 
