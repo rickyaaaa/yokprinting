@@ -42,6 +42,7 @@ class GenerateInvoicePreviewPdfRequest extends FormRequest
             'items.*.product_name' => ['nullable', 'string', 'max:220'],
             'items.*.sku' => ['nullable', 'string', 'max:100'],
             'items.*.description' => ['nullable', 'string', 'max:300'],
+            'items.*.print_description' => ['nullable', 'string', 'max:500'],
             'items.*.quantity' => ['required', 'numeric', 'gt:0'],
             'items.*.unit' => ['nullable', 'string', 'max:20'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],

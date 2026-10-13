@@ -162,8 +162,8 @@
                                     </label>
                                     <label class="block">
                                         <span class="text-sm font-medium text-ink">Satuan</span>
-                                        <input class="form-control mt-1.5" x-model="form.unit" :readonly="form.productType !== 'service'" maxlength="20" placeholder="Pekerjaan, Paket, Jam atau Pcs" :aria-invalid="Boolean(fieldErrors.unit)">
-                                        <span class="mt-1 block text-xs text-muted" x-text="form.productType === 'service' ? 'Isi satuan penagihan jasa, misalnya Pekerjaan atau Pcs.' : 'Satuan produk dikunci ke Pcs.'"></span>
+                                        <input class="form-control mt-1.5" x-model="form.unit" :readonly="form.productType !== 'service'" maxlength="20" placeholder="Pcs" :aria-invalid="Boolean(fieldErrors.unit)">
+                                        <span class="mt-1 block text-xs text-muted" x-text="form.productType === 'service' ? 'Default jasa printing: Pcs. Satuan master lama tidak diubah otomatis.' : 'Satuan produk dikunci ke Pcs.'"></span>
                                         <span class="mt-1 block text-xs text-red-700" x-show="fieldErrors.unit" x-text="fieldErrors.unit"></span>
                                     </label>
                                     <label class="block md:col-span-2">

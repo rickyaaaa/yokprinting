@@ -36,7 +36,7 @@ class NormalizeProductType
             $payload['stock'] = null;
             $payload['minimum_stock'] = null;
             unset($payload['manual_unit_cost']);
-            $payload['unit'] = $payload['unit'] ?? ($product?->isService() ? $product->unit : 'Pekerjaan');
+            $payload['unit'] = $payload['unit'] ?? ($product?->isService() ? $product->unit : Product::UNIT_PCS);
             foreach (['minimum_order_qty', 'package_conversion', 'moq_quantity', 'order_increment'] as $field) {
                 $payload[$field] = 1;
             }

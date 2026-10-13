@@ -11,8 +11,8 @@ export function invoiceProductDefaults(product = null) {
         cupSize: service ? '' : product?.cup_size ?? '12 Oz',
         cupModel: service ? '' : product?.cup_model ?? 'Oval',
         grammage: service ? '' : product?.grammage ?? '8gr',
-        screenPrintingColor: service ? '' : product?.screen_printing_color ?? 'Hitam',
-        jenisCetak: service ? '' : product?.sides ? `${product.sides} warna` : '1 warna',
+        screenPrintingColor: product?.screen_printing_color ?? 'Hitam',
+        jenisCetak: product?.sides ? `${product.sides} warna` : '1 warna',
         description: service ? product?.description ?? product?.short_description ?? '' : '',
         moqQuantity: increment,
         orderIncrement: increment,
@@ -23,4 +23,8 @@ export function invoiceProductDefaults(product = null) {
 
 export function productsOfType(products, type) {
     return products.filter((product) => !type || productType(product) === type);
+}
+
+export function servicePrintDescription(description = '', ink = '', printType = '') {
+    return [description, ink ? `Tinta ${ink}` : '', printType].filter(Boolean).join(' · ');
 }

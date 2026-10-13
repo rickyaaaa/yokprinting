@@ -225,13 +225,14 @@
             <tbody>
                 @forelse ($document['items'] as $item)
                     <tr>
-                        {{-- Product name and nothing else. Both the SKU and the
-                             generated "Sablon 12 Oz Datar (8gr) …" description
-                             are working detail the client keeps on the in-app
-                             Rincian tagihan. Both still travel in the
-                             view-model, so printing either is one line here if
-                             that decision ever turns around. --}}
-                        <td><div class="item-name">{{ $item['name'] }}</div></td>
+                        {{-- Preserve the existing product layout. Printing services
+                             opt into their saved ink/print specs, without exposing SKU. --}}
+                        <td>
+                            <div class="item-name">{{ $item['name'] }}</div>
+                            @if (! empty($item['print_description']))
+                                <div class="item-desc">{{ $item['print_description'] }}</div>
+                            @endif
+                        </td>
                         <td class="num">{{ $item['quantity_label'] }}{{ $item['unit'] ? ' '.$item['unit'] : '' }}</td>
                         <td class="num">{{ number_format($item['unit_price'], 0, ',', '.') }}</td>
                         <td class="num">{{ number_format($item['discount_amount'], 0, ',', '.') }}</td>

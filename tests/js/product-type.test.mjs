@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { invoiceProductDefaults, productsOfType } from '../../resources/js/support/product-type.js';
+import { invoiceProductDefaults, productsOfType, servicePrintDescription } from '../../resources/js/support/product-type.js';
 import { minimumStockForForm, minimumStockForPayload } from '../../resources/js/support/minimum-stock.js';
 
 function component(name, nextName) {
@@ -21,7 +21,8 @@ test('service defaults use quantity one without cup specs or stale inventory rul
     assert.equal(service.quantity, 1);
     assert.equal(service.orderIncrement, 1);
     assert.equal(service.cupSize, '');
-    assert.equal(service.screenPrintingColor, '');
+    assert.equal(service.screenPrintingColor, 'Hitam');
+    assert.equal(service.jenisCetak, '1 warna');
     assert.equal(service.packagingUnit, 'Pekerjaan');
     assert.equal(service.description, 'Printing desain');
 });
@@ -52,7 +53,7 @@ test('product form smoke: selecting service omits hidden stock and manual FIFO c
     const payload = form.payload();
     assert.equal(payload.product_type, 'service');
     assert.equal(payload.track_stock, false);
-    assert.equal(payload.unit, 'Pekerjaan');
+    assert.equal(payload.unit, 'Pcs');
     assert.equal(payload.package_conversion, 1);
     assert.ok(!Object.hasOwn(payload, 'stock'));
     assert.ok(!Object.hasOwn(payload, 'minimum_stock'));
@@ -64,7 +65,7 @@ test('product form smoke: selecting service omits hidden stock and manual FIFO c
 
 test('invoice component smoke: switching type, mixed rows and restoring draft preserve service', () => {
     const editor = component('invoiceItems', 'invoicePreviewActions')();
-    const goods = { id: 1, name: 'Cup', product_type: 'goods', unit: 'Pcs', package_conversion: 500 };
+    const goods = { id: 1, name: 'Cup', product_type: 'goods', unit: 'Pcs', package_conversion: 500, screen_printing_color: 'Merah', sides: 3 };
     const service = { id: 2, name: 'Printing', product_type: 'service', unit: 'Paket' };
     editor.products = [goods, service];
     const item = editor.createItem(goods);
@@ -74,6 +75,7 @@ test('invoice component smoke: switching type, mixed rows and restoring draft pr
     assert.equal(item.productId, null);
     assert.equal(item.price, 0);
     assert.equal(item.quantity, 1);
+    assert.equal(item.packagingUnit, 'Pcs');
     assert.deepEqual(editor.filteredProductsFor(item).map(p => p.id), [2]);
     editor.selectProduct(item, service);
     item.price = 150000;
@@ -81,10 +83,49 @@ test('invoice component smoke: switching type, mixed rows and restoring draft pr
     editor.items = [editor.createItem(goods), item];
     assert.equal(editor.items[1].quantity, 1);
     assert.equal(editor.cupDescription(item), 'Printing sesuai desain');
-    editor.restoreItems([{ product_id: 2, product_type: 'service', unit: 'Paket', packaging_unit: 'Paket', quantity: 1, price: 150000, description: 'Printing sesuai desain' }]);
+    editor.restoreItems([{ product_id: 2, product_type: 'service', unit: 'Paket', packaging_unit: 'Paket', quantity: 1, price: 150000, screen_printing_color: 'Putih', jenis_cetak: '2 warna', description: 'Printing sesuai desain' }]);
     assert.equal(editor.items[0].typeFilter, 'service');
+    assert.equal(editor.items[0].productId, 2);
     assert.equal(editor.items[0].quantity, 1);
     assert.equal(editor.items[0].packagingUnit, 'Paket');
     assert.equal(editor.items[0].cupSize, '');
     assert.equal(editor.items[0].description, 'Printing sesuai desain');
+    assert.equal(editor.items[0].screenPrintingColor, 'Putih');
+    assert.equal(editor.items[0].jenisCetak, '2 warna');
+    editor.selectProduct(editor.items[0], goods);
+    assert.equal(editor.items[0].price, 0);
+    assert.equal(editor.items[0].screenPrintingColor, 'Merah');
+    assert.equal(editor.items[0].jenisCetak, '3 warna');
+    assert.equal(editor.items[0].description, '');
+});
+
+test('new service printing defaults to pcs but does not inherit a 500 pcs minimum', () => {
+    const item = invoiceProductDefaults({ product_type: 'service', package_conversion: 500 });
+    assert.equal(item.packagingUnit, 'Pcs');
+    assert.equal(item.quantity, 1);
+    assert.equal(item.orderIncrement, 1);
+    assert.equal(item.screenPrintingColor, 'Hitam');
+    assert.equal(item.jenisCetak, '1 warna');
+    item.quantity = 1000;
+    item.price = 200;
+    assert.equal(item.quantity * item.price, 200000);
+});
+
+test('legacy service restore uses snapshot unit and empty specs instead of new master defaults', () => {
+    const editor = component('invoiceItems', 'invoicePreviewActions')();
+    editor.products = [{ id: 2, product_type: 'service', name: 'Printing', unit: 'Pcs', screen_printing_color: 'Hitam', sides: 1 }];
+    editor.restoreItems([{ product_id: 2, product_type: 'service', unit: 'Pekerjaan', quantity: 1, price: 150000, screen_printing_color: null, jenis_cetak: null }]);
+    assert.equal(editor.items[0].packagingUnit, 'Pekerjaan');
+    assert.equal(editor.items[0].quantity, 1);
+    assert.equal(editor.items[0].price, 150000);
+    assert.equal(editor.items[0].screenPrintingColor, '');
+    assert.equal(editor.items[0].jenisCetak, '');
+});
+
+test('service preview description includes ink and print type without mutating raw notes', () => {
+    const item = { description: 'Printing desain pelanggan', screen_printing_color: 'Hitam', jenis_cetak: '1 warna' };
+    const formatted = servicePrintDescription(item.description, item.screen_printing_color, item.jenis_cetak);
+    assert.equal(formatted, 'Printing desain pelanggan · Tinta Hitam · 1 warna');
+    assert.equal(item.description, 'Printing desain pelanggan');
+    assert.equal(servicePrintDescription(), '');
 });

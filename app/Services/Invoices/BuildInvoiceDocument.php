@@ -4,6 +4,7 @@ namespace App\Services\Invoices;
 
 use App\Models\CompanyProfile;
 use App\Models\Invoice;
+use App\Models\Product;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -30,7 +31,7 @@ class BuildInvoiceDocument
      */
     public function fromInvoice(Invoice $invoice): array
     {
-        $invoice->loadMissing(['customer', 'items']);
+        $invoice->loadMissing(['customer', 'items.product']);
 
         return $this->compose(
             number: (string) $invoice->invoice_number,
@@ -46,7 +47,9 @@ class BuildInvoiceDocument
             items: $invoice->items->values()->map(fn ($item): array => [
                 'code' => $item->sku,
                 'name' => $item->product_name ?: $item->description,
-                'description' => $item->description,
+                'description' => $item->documentDescription(),
+                'print_description' => $item->productType() === Product::TYPE_SERVICE && ($item->screen_printing_color || $item->jenis_cetak)
+                    ? $item->documentDescription() : null,
                 'quantity' => (float) $item->quantity,
                 'unit' => $item->unit,
                 'unit_price' => (float) $item->unit_price,
@@ -97,6 +100,7 @@ class BuildInvoiceDocument
                 'code' => $item['code'] ?? $item['sku'] ?? null,
                 'name' => ($item['product_name'] ?? '') ?: ($item['name'] ?? ''),
                 'description' => $item['description'] ?? null,
+                'print_description' => $item['print_description'] ?? null,
                 'quantity' => (float) ($item['quantity'] ?? 0),
                 'unit' => $item['unit'] ?? null,
                 'unit_price' => (float) ($item['unit_price'] ?? 0),
@@ -176,6 +180,7 @@ class BuildInvoiceDocument
                 'code' => $this->blankToNull($item['code'] ?? null),
                 'name' => (string) ($item['name'] ?? ''),
                 'description' => $this->blankToNull($item['description'] ?? null),
+                'print_description' => $this->blankToNull($item['print_description'] ?? null),
                 'quantity' => (float) $item['quantity'],
                 'quantity_label' => $this->quantityLabel((float) $item['quantity']),
                 'unit' => $this->blankToNull($item['unit'] ?? null),

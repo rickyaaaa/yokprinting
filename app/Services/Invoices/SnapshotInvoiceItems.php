@@ -36,10 +36,15 @@ class SnapshotInvoiceItems
                     $item['cup_size'] = $product->cup_size ?: ($item['cup_size'] ?? null);
                     $item['cup_model'] = $product->cup_model ?: ($item['cup_model'] ?? null);
                     $item['grammage'] = $product->grammage ?: ($item['grammage'] ?? null);
-                    $item['screen_printing_color'] = $item['screen_printing_color'] ?? $product->screen_printing_color;
-                    $item['jenis_cetak'] = $item['jenis_cetak']
-                        ?? ($product->sides ? "{$product->sides} warna" : null);
-                    $item['description'] = $this->normalizeGeneratedDescription($item, $product);
+                    if (! $product->isService() || ! array_key_exists('screen_printing_color', $item)) {
+                        $item['screen_printing_color'] = $item['screen_printing_color'] ?? $product->screen_printing_color;
+                    }
+                    if (! $product->isService() || ! array_key_exists('jenis_cetak', $item)) {
+                        $item['jenis_cetak'] = $item['jenis_cetak'] ?? ($product->sides ? "{$product->sides} warna" : null);
+                    }
+                    if (! $product->isService()) {
+                        $item['description'] = $this->normalizeGeneratedDescription($item, $product);
+                    }
                     $item['order_increment'] = $product->orderIncrement();
                     $item['moq_quantity'] = $item['order_increment'];
                     $item['packaging_unit'] = $product->unit ?: Product::UNIT_PCS;
@@ -49,7 +54,7 @@ class SnapshotInvoiceItems
                         'track_stock' => $product->tracksInventory(),
                     ]];
                     if ($product->isService()) {
-                        foreach (['cup_size', 'cup_model', 'grammage', 'screen_printing_color', 'jenis_cetak'] as $field) {
+                        foreach (['cup_size', 'cup_model', 'grammage'] as $field) {
                             $item[$field] = null;
                         }
                         $item['description'] = $item['description'] ?? $product->description ?? $product->short_description;

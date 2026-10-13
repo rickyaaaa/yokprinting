@@ -172,37 +172,37 @@
                                 SKU: <span x-text="productFor(item.productId)?.sku"></span>
                             </p>
                             <input type="hidden" :name="`items[${index}][product_name]`" :value="item.productName || productName(item.productId)">
+                            <input type="hidden" :name="`items[${index}][product_type]`" :value="item.productType">
                             <input type="hidden" :name="`items[${index}][sku]`" :value="item.sku">
                             <input type="hidden" :name="`items[${index}][moq_quantity]`" :value="item.moqQuantity">
                             <input type="hidden" :name="`items[${index}][order_increment]`" :value="item.orderIncrement">
                             <input type="hidden" :name="`items[${index}][packaging_unit]`" :value="item.packagingUnit">
                             <input type="hidden" :name="`items[${index}][description]`" :value="cupDescription(item)">
 
-                            <label class="mt-3 block" x-cloak x-show="item.productType === 'service'">
-                                <span class="mb-1 block text-xs font-medium text-muted">Keterangan jasa</span>
-                                <textarea class="form-control" x-model="item.description" :aria-label="`Keterangan jasa baris ${index + 1}`" placeholder="Contoh: Jasa printing sesuai desain pelanggan"></textarea>
-                                <span class="mt-1 block text-xs text-muted">Jasa tidak mengurangi stok persediaan.</span>
-                            </label>
-                            <div x-show="item.productType !== 'service'" data-testid="{{ $hideLegacySpecs ? 'create-invoice-specs' : 'invoice-specs' }}" class="mt-4 grid {{ $hideLegacySpecs ? 'w-full max-w-[22rem] grid-cols-[minmax(0,1fr)_minmax(0,1fr)]' : 'min-w-[32rem] grid-cols-[5rem_5rem_4.75rem_5rem_7rem]' }} gap-2 rounded-lg border border-line bg-canvas p-3">
+                            <div data-testid="{{ $hideLegacySpecs ? 'create-invoice-specs' : 'invoice-specs' }}" class="mt-4 grid {{ $hideLegacySpecs ? 'w-full max-w-[22rem] grid-cols-[minmax(0,1fr)_minmax(0,1fr)]' : '' }} gap-2 rounded-lg border border-line bg-canvas p-3"
                                 @if (! $hideLegacySpecs)
-                                    <div>
+                                    :class="item.productType === 'service' ? 'w-full max-w-[22rem] grid-cols-[minmax(0,1fr)_minmax(0,1fr)]' : 'min-w-[32rem] grid-cols-[5rem_5rem_4.75rem_5rem_7rem]'"
+                                @endif
+                            >
+                                @if (! $hideLegacySpecs)
+                                    <div x-show="item.productType !== 'service'">
                                         <label class="mb-1 block text-[11px] font-semibold text-muted" :for="`cup-size-${item.key}`">Ukuran</label>
-                                        <select :id="`cup-size-${item.key}`" x-model="item.cupSize" :name="`items[${index}][cup_size]`" class="form-control spec-select">
+                                        <select :id="`cup-size-${item.key}`" x-model="item.cupSize" :name="`items[${index}][cup_size]`" :disabled="item.productType === 'service'" class="form-control spec-select">
                                             @foreach (\App\Models\Product::CUP_SIZES as $cupSize)
                                                 <option>{{ $cupSize }}</option>
                                             @endforeach
                                         </select>
                                     </div>
-                                    <div>
+                                    <div x-show="item.productType !== 'service'">
                                         <label class="mb-1 block text-[11px] font-semibold text-muted" :for="`cup-model-${item.key}`">Model</label>
-                                        <select :id="`cup-model-${item.key}`" x-model="item.cupModel" :name="`items[${index}][cup_model]`" class="form-control spec-select">
+                                        <select :id="`cup-model-${item.key}`" x-model="item.cupModel" :name="`items[${index}][cup_model]`" :disabled="item.productType === 'service'" class="form-control spec-select">
                                             <option>Datar</option>
                                             <option>Oval</option>
                                         </select>
                                     </div>
-                                    <div>
+                                    <div x-show="item.productType !== 'service'">
                                         <label class="mb-1 block text-[11px] font-semibold text-muted" :for="`grammage-${item.key}`">Gramasi</label>
-                                        <select :id="`grammage-${item.key}`" x-model="item.grammage" :name="`items[${index}][grammage]`" class="form-control spec-select">
+                                        <select :id="`grammage-${item.key}`" x-model="item.grammage" :name="`items[${index}][grammage]`" :disabled="item.productType === 'service'" class="form-control spec-select">
                                             <option>7gr</option>
                                             <option>8gr</option>
                                             <option>9gr</option>
@@ -217,12 +217,19 @@
                                 <div>
                                     <label class="mb-1 block text-[11px] font-semibold text-muted" :for="`jenis-cetak-${item.key}`">Jenis cetak</label>
                                     <select :id="`jenis-cetak-${item.key}`" x-model="item.jenisCetak" :name="`items[${index}][jenis_cetak]`" class="form-control spec-select {{ $hideLegacySpecs ? 'h-11 min-h-11' : '' }}">
+                                        <option value="">Pilih jenis cetak</option>
                                         <option>1 warna</option>
                                         <option>2 warna</option>
                                         <option>3 warna</option>
                                     </select>
                                 </div>
                             </div>
+
+                            <label class="mt-3 block" x-cloak x-show="item.productType === 'service'">
+                                <span class="mb-1 block text-xs font-medium text-muted">Keterangan jasa (opsional)</span>
+                                <textarea class="form-control" x-model="item.description" :aria-label="`Keterangan jasa baris ${index + 1}`" placeholder="Contoh: Jasa printing sesuai desain pelanggan"></textarea>
+                                <span class="mt-1 block text-xs text-muted">Jasa tidak mengurangi stok persediaan.</span>
+                            </label>
 
                             @if (! $hideLegacySpecs)
                                 <p class="mt-2 text-xs leading-5 text-muted" x-show="item.productId">
@@ -254,16 +261,17 @@
                                 <input
                                     x-model.number="item.price"
                                     :name="`items[${index}][price]`"
-                                    :aria-label="`Harga ${productName(item.productId)}`"
+                                    :aria-label="`Harga per ${item.packagingUnit} ${productName(item.productId)}`"
                                     type="number"
                                     data-validation-field="items"
                                     min="0"
-                                    step="500"
+                                    step="1"
                                     class="form-control pl-9 text-right"
                                     :class="{ 'border-red-400 ring-2 ring-red-100': fieldErrors?.items }"
                                     :aria-invalid="Boolean(fieldErrors?.items)"
                                 >
                             </div>
+                            <p class="mt-1 text-center text-xs text-muted" x-text="`Harga per ${item.packagingUnit}`"></p>
                         </td>
                         <td class="px-3 py-4 align-top text-right">
                             <p class="pt-3 text-sm font-semibold text-ink" x-text="formatCurrency(itemTotal(item))"></p>

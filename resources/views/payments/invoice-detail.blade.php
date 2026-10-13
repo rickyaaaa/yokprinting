@@ -76,14 +76,14 @@
 
         return [
             'name' => $item->product_name,
-            'spec' => $item->description ?: collect([
+            'spec' => $item->documentDescription() ?: collect([
                 $item->cup_size,
                 $item->cup_model,
                 $item->grammage,
                 $item->screen_printing_color ? "Tinta {$item->screen_printing_color}" : null,
                 $item->jenis_cetak,
             ])->filter()->implode(' · '),
-            'quantity' => trim("{$quantity} Pcs"),
+            'quantity' => trim($quantity.' '.($item->unit ?: 'Pcs')),
             'price' => $formatRupiah((float) $item->unit_price),
             'total' => $formatRupiah((float) $item->total_amount),
         ];

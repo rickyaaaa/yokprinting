@@ -144,6 +144,20 @@ class InvoiceItem extends Model
         return $this->metadata['inventory']['product_type'] ?? $this->product?->effectiveProductType() ?? Product::TYPE_GOODS;
     }
 
+    /** Present printing specs without rewriting the stored free-text description. */
+    public function documentDescription(): ?string
+    {
+        if ($this->productType() !== Product::TYPE_SERVICE) {
+            return $this->description;
+        }
+
+        return collect([
+            $this->description,
+            $this->screen_printing_color ? "Tinta {$this->screen_printing_color}" : null,
+            $this->jenis_cetak,
+        ])->filter()->implode(' · ') ?: null;
+    }
+
     /**
      * Build a human-readable production item description for sablon cup orders.
      */

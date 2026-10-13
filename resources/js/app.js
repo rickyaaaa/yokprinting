@@ -35,7 +35,7 @@ import {
     normalizeMinimumStock,
 } from './support/minimum-stock';
 import { printedItemNoun as printedNounForCategory } from './support/invoice-item-label';
-import { invoiceProductDefaults, productsOfType } from './support/product-type';
+import { invoiceProductDefaults, productsOfType, servicePrintDescription } from './support/product-type';
 import { defaultReceivableSort, initialDirectionFor, sortReceivables, withinInvoiceDateRange } from './support/receivable-table';
 import { formatProductQuantity, resolveProductMetrics } from './support/product-catalog';
 import { registerExpenseComponents } from './expenses';
@@ -88,7 +88,7 @@ const invoicePreviewStorageKey = 'yokprinting.invoice.previewDraft';
 // Bumped to 3 when design_notes and the due date joined the snapshot: a copy
 // stored by the previous bundle has neither, and rendering it would show a
 // document missing the very fields this version added.
-const previewSnapshotSchema = 3;
+const previewSnapshotSchema = 4;
 const invoiceDraftStorageKey = 'yokprinting.invoice.editorDraft';
 const persistedInvoiceDraftStorageKey = 'yokprinting.invoice.persistedDraft';
 const seedInvoiceEditorDraft = () => {
@@ -173,6 +173,7 @@ const buildInvoiceDraftPayload = (form) => {
         due_date: form.querySelector('[name="due_date"]')?.value ?? '',
         items: productFields.map((productField, index) => ({
             product_id: Number(productField.value),
+            product_type: form.querySelector(`[name="items[${index}][product_type]"]`)?.value ?? 'goods',
             product_name: form.querySelector(`[name="items[${index}][product_name]"]`)?.value ?? '',
             sku: form.querySelector(`[name="items[${index}][sku]"]`)?.value ?? '',
             cup_size: form.querySelector(`[name="items[${index}][cup_size]"]`)?.value ?? '',
@@ -249,8 +250,11 @@ const buildInvoicePreviewSnapshot = (payload) => {
             const unit = item.packaging_unit || 'Pcs';
             const orderIncrement = Number(item.order_increment) || null;
             const sku = item.sku || '';
+            const description = item.product_type === 'service'
+                ? servicePrintDescription(item.description, item.screen_printing_color, item.jenis_cetak)
+                : item.description || '';
             const note = [
-                item.description || '',
+                description,
                 sku ? `SKU: ${sku}` : '',
                 orderIncrement ? `Kelipatan jumlah ${formatNumber(orderIncrement)} ${unit}` : '',
             ].filter(Boolean).join(' · ');
@@ -266,7 +270,8 @@ const buildInvoicePreviewSnapshot = (payload) => {
                 // name behind it.
                 product_name: productName,
                 sku,
-                description: item.description || '',
+                description,
+                print_description: item.product_type === 'service' && (item.screen_printing_color || item.jenis_cetak) ? description : null,
                 // Kept for the server-side preview calculation, which spreads
                 // the row through untouched, and for anything still reading a
                 // single label.
@@ -1672,12 +1677,11 @@ Alpine.data('invoiceItems', () => ({
         this.items = savedItems.map((savedItem) => {
             const product = this.products.find((item) => (
                 Number(item.id) === Number(savedItem.product_id) ||
-                item.sku === savedItem.sku ||
-                item.code === savedItem.sku
+                (savedItem.sku && (item.sku === savedItem.sku || item.code === savedItem.sku))
             ));
             const restored = this.createItem(product);
 
-            restored.productId = product?.id ?? Number(savedItem.product_id) ?? null;
+            restored.productId = product?.id ?? (Number(savedItem.product_id) || null);
             restored.productName = savedItem.product_name || product?.name || '';
             restored.sku = savedItem.sku || product?.sku || product?.code || '';
             restored.productSearch = product ? this.productLabel(product) : [restored.sku, restored.productName].filter(Boolean).join(' — ');
@@ -1691,11 +1695,14 @@ Alpine.data('invoiceItems', () => ({
             restored.description = savedItem.description ?? restored.description;
             restored.moqQuantity = Number(savedItem.moq_quantity) || restored.moqQuantity;
             restored.orderIncrement = Number(savedItem.order_increment) || restored.orderIncrement;
-            restored.packagingUnit = savedItem.packaging_unit || product?.unit || product?.packaging_unit || 'Pcs';
+            restored.packagingUnit = savedItem.unit || savedItem.packaging_unit || product?.unit || product?.packaging_unit || 'Pcs';
             restored.quantity = Number(savedItem.quantity) || restored.orderIncrement;
             restored.price = Number(savedItem.price) || 0;
             if (restored.productType === 'service') {
-                Object.assign(restored, { cupSize: '', cupModel: '', grammage: '', screenPrintingColor: '', jenisCetak: '', orderIncrement: 1, moqQuantity: 1 });
+                Object.assign(restored, { cupSize: '', cupModel: '', grammage: '', orderIncrement: 1, moqQuantity: 1 });
+                // An explicit empty historical spec must stay empty, not acquire today's defaults.
+                if (Object.hasOwn(savedItem, 'screen_printing_color')) restored.screenPrintingColor = savedItem.screen_printing_color ?? '';
+                if (Object.hasOwn(savedItem, 'jenis_cetak')) restored.jenisCetak = savedItem.jenis_cetak ?? '';
             }
 
             return restored;
@@ -1784,7 +1791,7 @@ Alpine.data('invoiceItems', () => ({
     },
 
     changeItemType(item) {
-        Object.assign(item, invoiceProductDefaults({ product_type: item.typeFilter, unit: item.typeFilter === 'service' ? 'Pekerjaan' : 'Pcs' }), {
+        Object.assign(item, invoiceProductDefaults({ product_type: item.typeFilter, unit: 'Pcs' }), {
             productId: null, productName: '', sku: '', productSearch: '', price: 0, pickerOpen: false,
         });
     },
@@ -3258,7 +3265,7 @@ Alpine.data('productForm', (initialForm = {}, isEditMode = false) => ({
         this.form.typeUnclassified = false;
         const service = this.form.productType === 'service';
         this.form.trackStock = !service;
-        this.form.unit = service ? 'Pekerjaan' : 'Pcs';
+        this.form.unit = 'Pcs';
         this.form.minimumOrderQty = service ? 1 : 500;
         this.form.packageConversion = service ? 1 : 500;
         this.form.stock = 0;

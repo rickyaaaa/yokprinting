@@ -59,6 +59,7 @@ class InvoiceDraftController extends Controller
                 'id' => $item->id, 'product_id' => $item->product_id, 'product_type' => $item->productType(),
                 'track_stock' => $item->tracksInventory(), 'unit' => $item->unit,
                 'quantity' => (float) $item->quantity, 'description' => $item->description,
+                'screen_printing_color' => $item->screen_printing_color, 'jenis_cetak' => $item->jenis_cetak,
             ])->values(),
             'invoice_number' => $invoice->invoice_number,
             'status' => $invoice->status,

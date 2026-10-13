@@ -14,10 +14,15 @@ class AuditProductTypes extends Command
     public function handle(): int
     {
         $unclassified = Product::query()->whereNull('product_type')->orderBy('sku')->get();
+        $nonPcsServices = Product::query()->where('product_type', Product::TYPE_SERVICE)
+            ->where(fn ($query) => $query->whereNull('unit')->orWhereRaw('LOWER(TRIM(unit)) != ?', ['pcs']))
+            ->orderBy('sku')->get(['id', 'sku', 'name', 'unit']);
         $report = [
             'read_only' => true,
             'unclassified_count' => $unclassified->count(),
             'unclassified_non_stock_count' => $unclassified->where('track_stock', false)->count(),
+            'service_non_pcs_count' => $nonPcsServices->count(),
+            'services_needing_unit_review' => $nonPcsServices->toArray(),
             'products_needing_review' => $unclassified->map(fn (Product $product): array => [
                 'id' => $product->id, 'sku' => $product->sku, 'name' => $product->name,
                 'category' => $product->categoryLabel(), 'track_stock' => $product->track_stock,
