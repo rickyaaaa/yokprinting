@@ -138,6 +138,7 @@ class ProductController extends Controller
         DB::transaction(function () use ($product, $validated, $hasManualCost, $manualCost, $openingCost, $types, $logger): void {
             $locked = Product::query()->lockForUpdate()->findOrFail($product->getKey());
             $before = $locked->only(['product_type', 'track_stock', 'category_id', 'category']);
+            $unitBefore = $locked->only(['unit']);
             $locked->update($this->normalizeCategory($types->handle($validated, $locked)));
             if ($hasManualCost && ! $locked->isService()) {
                 $openingCost->handle($locked->fresh(), $manualCost);
@@ -145,6 +146,14 @@ class ProductController extends Controller
             $after = $locked->only(['product_type', 'track_stock', 'category_id', 'category']);
             if ($before !== $after) {
                 $logger->record(module: 'product', action: 'classification_updated', event: 'Product classification updated', subject: $locked, metadata: ['before' => $before, 'after' => $after]);
+            }
+            $unitAfter = $locked->only(['unit']);
+            if ($unitBefore !== $unitAfter) {
+                $logger->record(
+                    module: 'product', action: 'unit_updated', event: 'Product billing unit updated',
+                    subject: $locked,
+                    metadata: ['sku' => $locked->sku, 'before' => $unitBefore, 'after' => $unitAfter],
+                );
             }
         });
         $product->refresh()->load(['categoryModel', 'inventoryBatches']);

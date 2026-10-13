@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\ActivityLog;
 use App\Models\Customer;
+use App\Models\InventoryBatch;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Product;
@@ -31,6 +33,95 @@ class ServicePrintingPerPcsTest extends TestCase
         $this->getJson(route('api.products.show', $id))->assertOk()->assertJsonPath('data.unit', 'Pcs');
         $this->getJson(route('api.products.options.index', ['product_type' => 'service']))->assertOk()
             ->assertJsonPath('data.0.unit', 'Pcs')->assertJsonPath('data.0.track_stock', false);
+    }
+
+    public function test_official_unit_correction_is_audited_and_used_by_new_invoices_and_options(): void
+    {
+        $service = Product::create(['sku' => 'H-128', 'name' => 'Jasa Cetak', 'product_type' => 'service', 'unit' => 'Pekerjaan']);
+        $this->patchJson(route('api.products.update', $service), ['unit' => 'Pcs'])
+            ->assertOk()->assertJsonPath('data.unit', 'Pcs')->assertJsonPath('data.track_stock', false);
+        $log = ActivityLog::where('action', 'unit_updated')->sole();
+        $this->assertSame('Pekerjaan', $log->metadata['before']['unit']);
+        $this->assertSame('Pcs', $log->metadata['after']['unit']);
+        $this->assertSame('H-128', $log->metadata['sku']);
+        $this->assertEquals($service->id, $log->subject_id);
+        $this->assertSame(Product::class, $log->subject_type);
+        $this->assertEquals(auth()->id(), $log->user_id);
+        $this->assertSame('api.products.update', $log->metadata['route']);
+        $this->getJson(route('api.products.show', $service))->assertOk()->assertJsonPath('data.unit', 'Pcs');
+        $this->getJson(route('api.products.options.index', ['search' => 'H-128', 'product_type' => 'service']))
+            ->assertOk()->assertJsonPath('data.0.unit', 'Pcs')->assertJsonPath('data.0.package_conversion', 1);
+
+        $payload = $this->payload($service);
+        $payload['items'][0] += ['unit' => 'Pekerjaan', 'packaging_unit' => 'Pekerjaan', 'product_type' => 'goods', 'track_stock' => true];
+        $id = $this->postJson(route('api.invoices.drafts.store'), $payload)->assertCreated()
+            ->assertJsonPath('data.items.0.unit', 'Pcs')->assertJsonPath('data.items.0.track_stock', false)->json('data.id');
+        $invoice = Invoice::findOrFail($id);
+        $this->assertEquals(200000, $invoice->total_amount);
+        $item = $invoice->items()->firstOrFail();
+        $this->assertSame('Pcs', $item->packaging_unit);
+        $this->assertEquals(0, $item->hpp_total);
+        $this->assertEquals(0, $service->fresh()->purchaseCostFallback());
+        $this->assertSame('Pcs', $this->get(route('invoices.edit', $invoice->invoice_number))
+            ->assertOk()->viewData('draftPayload')['items'][0]['unit']);
+        $this->assertSame('Pcs', app(BuildInvoiceDocument::class)->fromInvoice($invoice)['items'][0]['unit']);
+        $this->assertStringStartsWith('%PDF-', $this->get(route('api.invoices.pdf.download', $id))->assertOk()->getContent());
+        $this->assertStringContainsString('1.000 Pcs', $this->get(route('api.invoices.export.orders.csv', [
+            'date_from' => '2026-10-13', 'date_to' => '2026-10-13',
+        ]))->assertOk()->getContent());
+        $this->assertDatabaseCount('inventory_batches', 0);
+        $this->assertDatabaseCount('stock_movements', 0);
+        $this->assertDatabaseCount('invoice_item_cost_layers', 0);
+    }
+
+    public function test_no_op_unit_save_does_not_create_a_duplicate_audit_event(): void
+    {
+        $service = Product::create(['name' => 'Jasa Printing', 'product_type' => 'service', 'unit' => 'Pekerjaan']);
+        foreach (['Pcs', 'Pcs'] as $unit) {
+            $this->patchJson(route('api.products.update', $service), ['unit' => $unit])->assertOk();
+        }
+        $this->patchJson(route('api.products.update', $service), ['name' => 'Jasa Printing Baru'])->assertOk();
+        $this->assertSame(1, ActivityLog::where('action', 'unit_updated')->count());
+        $this->assertSame(0, ActivityLog::where('action', 'classification_updated')->count());
+        $this->assertSame('Pcs', $service->fresh()->unit);
+    }
+
+    public function test_corrected_pcs_service_in_mixed_invoice_never_consumes_stock_on_dp_settlement_or_resave(): void
+    {
+        $service = Product::create(['name' => 'Jasa Cetak', 'product_type' => 'service', 'unit' => 'Pekerjaan']);
+        $this->patchJson(route('api.products.update', $service), ['unit' => 'Pcs'])->assertOk();
+        $goods = Product::create(['name' => 'Cup', 'product_type' => 'goods', 'track_stock' => true, 'stock' => 1000]);
+        $batch = InventoryBatch::create(['product_id' => $goods->id, 'purchase_date' => '2026-10-01',
+            'qty_received' => 1000, 'qty_remaining' => 1000, 'unit_cost' => 400, 'source_type' => 'manual_opening']);
+        $payload = $this->payload($service);
+        $payload['items'][] = ['product_id' => $goods->id, 'quantity' => 500, 'price' => 1000];
+        $id = $this->postJson(route('api.invoices.drafts.store'), $payload)->assertCreated()->json('data.id');
+        $invoice = Invoice::findOrFail($id);
+        $this->assertEquals(700000, $invoice->total_amount);
+        $this->assertEquals(1000, $goods->fresh()->stock);
+        $this->assertDatabaseCount('stock_movements', 0);
+        foreach ([350000, 350000] as $amount) {
+            $this->postJson(route('api.invoices.payments.store', $invoice->invoice_number), [
+                'payment_date' => '2026-10-13', 'method' => Payment::METHOD_TRANSFER_BCA, 'amount' => $amount,
+            ])->assertCreated();
+            $this->assertEquals(500, $goods->fresh()->stock);
+            $this->assertEquals(500, $batch->fresh()->qty_remaining);
+            $this->assertDatabaseCount('stock_movements', 1);
+        }
+        foreach ([1, 2] as $attempt) {
+            $this->patchJson(route('api.invoices.update', $invoice->invoice_number), $payload)->assertOk();
+        }
+        $this->assertSame(Invoice::PAYMENT_PAID, $invoice->fresh()->payment_status);
+        $this->assertEquals(500, $goods->fresh()->stock);
+        $this->assertEquals(500, $batch->fresh()->qty_remaining);
+        $this->assertDatabaseCount('stock_movements', 1);
+        $this->assertDatabaseCount('inventory_batches', 1);
+        $serviceItem = $invoice->items()->where('product_id', $service->id)->firstOrFail();
+        $this->assertSame('Pcs', $serviceItem->unit);
+        $this->assertEquals(1000, $serviceItem->quantity);
+        $this->assertSame(0, $serviceItem->costLayers()->count());
+        $this->assertSame(0, $service->stockMovements()->count());
+        $this->assertSame(0, $service->inventoryBatches()->count());
     }
 
     public function test_printing_acceptance_1000_pcs_at_200_keeps_specs_without_inventory(): void
@@ -98,9 +189,16 @@ class ServicePrintingPerPcsTest extends TestCase
         $payload['items'] = [['product_id' => $service->id, 'quantity' => 1, 'price' => 150000, 'description' => 'Desain lama', 'screen_printing_color' => null, 'jenis_cetak' => null]];
         $id = $this->postJson(route('api.invoices.drafts.store'), $payload)->assertCreated()->json('data.id');
         $invoice = Invoice::findOrFail($id);
+        $snapshotBefore = $invoice->items()->firstOrFail()->only([
+            'unit', 'packaging_unit', 'quantity', 'unit_price', 'purchase_cost_snapshot', 'unit_hpp', 'hpp_total', 'subtotal', 'total_amount',
+        ]);
+        $invoiceBefore = $invoice->only(['subtotal', 'total_amount', 'total_hpp']);
         $this->patchJson(route('api.products.update', $service), ['unit' => 'Pcs', 'screen_printing_color' => 'Hitam'])->assertOk();
+        $this->assertSame($snapshotBefore, $invoice->items()->firstOrFail()->only(array_keys($snapshotBefore)));
+        $this->assertSame($invoiceBefore, $invoice->fresh()->only(array_keys($invoiceBefore)));
         $this->patchJson(route('api.invoices.update', $invoice->invoice_number), $payload)->assertOk();
         $item = $invoice->items()->firstOrFail();
+        $this->assertSame($snapshotBefore, $item->only(array_keys($snapshotBefore)));
         $this->assertSame('Pekerjaan', $item->unit);
         $this->assertEquals(1, $item->quantity);
         $this->assertEquals(150000, $item->unit_price);

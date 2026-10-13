@@ -111,6 +111,36 @@ test('new service printing defaults to pcs but does not inherit a 500 pcs minimu
     assert.equal(item.quantity * item.price, 200000);
 });
 
+test('corrected H-128 stays Pcs after actual selection update and API draft hydration', () => {
+    const editor = component('invoiceItems', 'invoicePreviewActions')();
+    const service = { id: 130, sku: 'H-128', name: 'Jasa Cetak', product_type: 'service', unit: 'Pcs', track_stock: false, package_conversion: 1 };
+    editor.products = [service];
+    const item = editor.createItem({ product_type: 'goods', price: 150000, cup_size: '14 Oz' });
+    item.typeFilter = 'service';
+    editor.changeItemType(item);
+    assert.equal(item.packagingUnit, 'Pcs');
+    editor.selectProduct(item, service);
+    assert.equal(item.productId, 130);
+    assert.equal(item.packagingUnit, 'Pcs');
+    assert.equal(item.price, 0);
+    assert.equal(item.quantity, 1);
+    assert.equal(item.cupSize, '');
+    item.price = 200;
+    item.quantity = 1000;
+    assert.equal(editor.itemTotal(item), 200000);
+    editor.products = [{ ...service }];
+    editor.restoreItems([{ product_id: 130, sku: 'H-128', product_type: 'service', unit: 'Pcs', packaging_unit: 'Pcs', quantity: 1000, price: 200, screen_printing_color: 'Hitam', jenis_cetak: '1 warna' }]);
+    assert.equal(editor.items[0].packagingUnit, 'Pcs');
+    assert.equal(editor.items[0].quantity, 1000);
+    assert.equal(editor.items[0].price, 200);
+    assert.equal(editor.items[0].screenPrintingColor, 'Hitam');
+    assert.equal(editor.items[0].jenisCetak, '1 warna');
+    editor.updateProduct(editor.items[0]);
+    assert.equal(editor.items[0].packagingUnit, 'Pcs');
+    assert.equal(editor.items[0].orderIncrement, 1);
+    assert.equal(editor.items[0].price, 0);
+});
+
 test('legacy service restore uses snapshot unit and empty specs instead of new master defaults', () => {
     const editor = component('invoiceItems', 'invoicePreviewActions')();
     editor.products = [{ id: 2, product_type: 'service', name: 'Printing', unit: 'Pcs', screen_printing_color: 'Hitam', sides: 1 }];
