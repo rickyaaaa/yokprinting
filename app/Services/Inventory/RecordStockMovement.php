@@ -98,7 +98,16 @@ class RecordStockMovement
             // opname counting more than the ledger shows) pays down any
             // open FIFO deficit first, so FIFO availability stays
             // reconciled with product.stock instead of double-counting.
-            $leftover = InventoryBatch::closeDeficitFor($product->getKey(), $quantity);
+            $leftover = InventoryBatch::closeDeficitFor(
+                $product->getKey(),
+                $quantity,
+                [
+                    'unit_cost' => $product->purchaseCostFallback(),
+                    'source_type' => 'stock_adjustment',
+                    'source_reference' => $referenceNumber,
+                    'source_date' => now()->toDateString(),
+                ],
+            );
 
             if ($leftover > 0) {
                 InventoryBatch::query()->create([

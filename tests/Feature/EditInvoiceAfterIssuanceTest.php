@@ -6,8 +6,8 @@ use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\GoodsReceipt;
 use App\Models\InventoryBatch;
+use App\Models\InventoryDeficitSettlement;
 use App\Models\Invoice;
-use App\Models\InvoiceItem;
 use App\Models\InvoiceItemCostLayer;
 use App\Models\Payment;
 use App\Models\Product;
@@ -143,6 +143,8 @@ class EditInvoiceAfterIssuanceTest extends TestCase
         $this->assertSame(550000.0, (float) $invoice2->refresh()->total_hpp);
         $this->assertSame('0.0000', $product->refresh()->stock);
 
+        $originalItemId = $invoice1->items()->firstOrFail()->id;
+
         $invoice1->forceFill([
             'status' => Invoice::STATUS_SENT,
             'sent_at' => now(),
@@ -156,13 +158,7 @@ class EditInvoiceAfterIssuanceTest extends TestCase
         )->assertOk();
 
         $item1 = $invoice1->refresh()->items()->firstOrFail();
-        // Editing an issued invoice soft-deletes the superseded item (see
-        // InvoiceItem::SoftDeletes) instead of hard-deleting it, precisely so
-        // its now-reversed cost layer survives for audit - find it explicitly.
-        $oldItem1 = InvoiceItem::withTrashed()
-            ->where('invoice_id', $invoice1->id)
-            ->where('id', '!=', $item1->id)
-            ->firstOrFail();
+        $this->assertSame($originalItemId, $item1->id, 'same-product quantity edits retain the item and adjust only the delta');
 
         // Old 1000 restored to batch #1 (540), then 800 re-consumed from it -
         // batch #1 must end with 200 remaining, never touching batch #2.
@@ -171,8 +167,8 @@ class EditInvoiceAfterIssuanceTest extends TestCase
         $this->assertSame(1, $item1->costLayers()->whereNull('reversed_at')->count(), 'no duplicate active cost layer');
         $this->assertSame(
             1,
-            InvoiceItemCostLayer::query()->where('invoice_item_id', $oldItem1->id)->whereNotNull('reversed_at')->count(),
-            'the old layer must be reversed, not deleted',
+            InvoiceItemCostLayer::query()->where('invoice_item_id', $item1->id)->whereNotNull('reversed_at')->count(),
+            'the restored delta must remain as a reversed audit layer',
         );
         $this->assertDatabaseHas('invoice_item_cost_layers', [
             'invoice_item_id' => $item1->id,
@@ -180,6 +176,12 @@ class EditInvoiceAfterIssuanceTest extends TestCase
             'unit_cost' => 540,
             'total_cost' => 432000,
             'reversed_at' => null,
+        ]);
+        $this->assertDatabaseHas('invoice_item_cost_layers', [
+            'invoice_item_id' => $item1->id,
+            'qty_consumed' => 200,
+            'unit_cost' => 540,
+            'total_cost' => 108000,
         ]);
 
         // Invoice #2's own HPP/batch must be completely untouched by editing invoice #1.
@@ -432,6 +434,74 @@ class EditInvoiceAfterIssuanceTest extends TestCase
         $this->assertSame(Invoice::PRODUCTION_IN_PRODUCTION, $log->metadata['production_status']);
         $this->assertEqualsWithDelta(1000000.0, (float) $log->metadata['total_before'], 0.001);
         $this->assertEqualsWithDelta(1500000.0, (float) $log->metadata['total_after'], 0.001);
+    }
+
+    public function test_price_only_edit_after_partial_deficit_settlement_does_not_touch_fifo(): void
+    {
+        $customer = Customer::query()->create(['name' => 'PT Noop Deficit Edit']);
+        $product = $this->product('NOOP-DEFICIT-0057', trackStock: true);
+        $product->forceFill(['average_purchase_cost' => 500])->save();
+        $invoice = $this->createInvoiceDraft($customer, $product, quantity: 10, price: 1000);
+        $this->verifiedPayment($invoice, 1000);
+        $this->receiveGoods($product, quantity: 4, unitCost: 725);
+
+        $stockBefore = (float) $product->refresh()->stock;
+        $activeLayerIds = $invoice->items()->firstOrFail()->costLayers()->whereNull('reversed_at')->pluck('id')->all();
+        $settlementIds = InventoryDeficitSettlement::query()->whereNull('reversed_at')->pluck('id')->all();
+
+        $this->patchJson(
+            route('api.invoices.update', $invoice),
+            $this->payload($customer, $product, quantity: 10, price: 1200),
+        )->assertOk();
+
+        $this->assertSame($stockBefore, (float) $product->refresh()->stock);
+        $this->assertSame($activeLayerIds, $invoice->refresh()->items()->firstOrFail()->costLayers()->whereNull('reversed_at')->pluck('id')->all());
+        $this->assertSame($settlementIds, InventoryDeficitSettlement::query()->whereNull('reversed_at')->pluck('id')->all());
+        $this->assertDatabaseCount('stock_movements', 2); // original sale + goods receipt
+    }
+
+    public function test_quantity_decrease_after_partial_deficit_settlement_restores_only_the_delta(): void
+    {
+        $customer = Customer::query()->create(['name' => 'PT Delta Turun 0057']);
+        $product = $this->product('DELTA-DOWN-0057', trackStock: true);
+        $product->forceFill(['average_purchase_cost' => 500])->save();
+        $invoice = $this->createInvoiceDraft($customer, $product, quantity: 10, price: 1000);
+        $this->verifiedPayment($invoice, 1000);
+        $this->receiveGoods($product, quantity: 4, unitCost: 725);
+        $this->assertSame('-6.0000', $product->refresh()->stock);
+
+        $this->patchJson(
+            route('api.invoices.update', $invoice),
+            $this->payload($customer, $product, quantity: 2, price: 1000),
+        )->assertOk();
+
+        $this->assertSame('2.0000', $product->refresh()->stock);
+        $this->assertSame('0.0000', InventoryBatch::query()->where('source_type', 'deficit')->firstOrFail()->qty_remaining);
+        $this->assertSame(2.0, (float) InventoryBatch::query()->where('source_type', 'deficit_compensation')->sum('qty_remaining'));
+        $this->assertSame('2.0000', $invoice->refresh()->items()->firstOrFail()->quantity);
+        $this->assertSame(1000.0, (float) $invoice->total_hpp);
+        $this->assertSame(2.0, round((float) InventoryBatch::query()->where('product_id', $product->id)->sum('qty_remaining'), 4));
+    }
+
+    public function test_quantity_increase_after_partial_deficit_settlement_consumes_only_the_delta(): void
+    {
+        $customer = Customer::query()->create(['name' => 'PT Delta Naik 0058']);
+        $product = $this->product('DELTA-UP-0058', trackStock: true);
+        $product->forceFill(['average_purchase_cost' => 500])->save();
+        $invoice = $this->createInvoiceDraft($customer, $product, quantity: 10, price: 1000);
+        $this->verifiedPayment($invoice, 1000);
+        $this->receiveGoods($product, quantity: 4, unitCost: 725);
+
+        $this->patchJson(
+            route('api.invoices.update', $invoice),
+            $this->payload($customer, $product, quantity: 15, price: 1000),
+        )->assertOk();
+
+        $this->assertSame('-11.0000', $product->refresh()->stock);
+        $this->assertSame('-11.0000', InventoryBatch::query()->where('source_type', 'deficit')->firstOrFail()->qty_remaining);
+        $this->assertSame(2, $invoice->refresh()->items()->firstOrFail()->costLayers()->whereNull('reversed_at')->count());
+        $this->assertSame(8625.0, (float) $invoice->total_hpp); // old 10×500 + added 5×725
+        $this->assertSame(-11.0, round((float) InventoryBatch::query()->where('product_id', $product->id)->sum('qty_remaining'), 4));
     }
 
     private function verifiedPayment(Invoice $invoice, float $amount): Payment

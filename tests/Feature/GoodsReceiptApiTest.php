@@ -410,6 +410,15 @@ class GoodsReceiptApiTest extends TestCase
         $newBatch = InventoryBatch::query()->where('goods_receipt_item_id', $receiptItem->id)->firstOrFail();
         $this->assertSame('5.0000', $newBatch->qty_remaining);
         $this->assertSame('5.0000', $newBatch->qty_received);
+        $this->assertDatabaseHas('inventory_deficit_settlements', [
+            'inventory_batch_id' => $deficitBatch->id,
+            'invoice_item_cost_layer_id' => null,
+            'goods_receipt_item_id' => $receiptItem->id,
+            'quantity' => 5,
+            'unit_cost' => 950,
+            'source_type' => 'goods_receipt',
+            'source_reference' => $receipt->receipt_number,
+        ]);
 
         // FIFO availability now reconciles exactly with product.stock.
         $available = InventoryBatch::query()->where('product_id', $product->id)->where('qty_remaining', '>', 0)->sum('qty_remaining');
@@ -432,6 +441,14 @@ class GoodsReceiptApiTest extends TestCase
 
         $deficitBatch = InventoryBatch::query()->where('product_id', $product->id)->where('source_type', 'deficit')->firstOrFail();
         $this->assertSame('-5.0000', $deficitBatch->qty_remaining);
+        $receiptItem = $receipt->items()->firstOrFail();
+        $this->assertDatabaseHas('inventory_deficit_settlements', [
+            'inventory_batch_id' => $deficitBatch->id,
+            'goods_receipt_item_id' => $receiptItem->id,
+            'quantity' => 3,
+            'unit_cost' => 950,
+            'source_type' => 'goods_receipt',
+        ]);
 
         // Fully absorbed by the deficit - no available batch was created.
         $available = InventoryBatch::query()->where('product_id', $product->id)->where('qty_remaining', '>', 0)->sum('qty_remaining');

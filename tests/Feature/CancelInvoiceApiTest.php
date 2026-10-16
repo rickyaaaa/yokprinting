@@ -3,12 +3,18 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\InventoryBatch;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\Product;
 use App\Models\Role;
+use App\Models\StockMovement;
 use App\Models\User;
 use App\Services\CashBank\CashBankService;
+use App\Services\Inventory\FifoInventoryService;
+use App\Services\Security\ActivityLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use RuntimeException;
 use Tests\TestCase;
 
 class CancelInvoiceApiTest extends TestCase
@@ -155,6 +161,88 @@ class CancelInvoiceApiTest extends TestCase
             ->assertJsonPath('data.status', Invoice::STATUS_CANCELLED);
     }
 
+    public function test_client_invoice_0057_can_be_cancelled_after_receipt_partially_closed_its_deficit(): void
+    {
+        [$invoice, $product] = $this->createConsumedDeficitInvoice('INV-2026-10-0057', 10);
+        $this->settleFromReceipt($product, 4, 725, 'GR-0057');
+        $this->actingAs(User::factory()->create(['role' => User::ROLE_OWNER]));
+
+        $this->postJson(route('api.invoices.cancel.store', $invoice->invoice_number), [
+            'reason' => 'Customer membatalkan order.',
+        ])->assertOk()->assertJsonPath('data.status', Invoice::STATUS_CANCELLED);
+
+        $this->assertSame('4.0000', $product->refresh()->stock);
+        $this->assertSame(4.0, (float) InventoryBatch::query()->where('product_id', $product->id)->sum('qty_remaining'));
+        $this->assertDatabaseHas('inventory_batches', [
+            'product_id' => $product->id,
+            'source_type' => 'deficit_compensation',
+            'source_reference' => 'GR-0057',
+            'qty_remaining' => 4,
+            'unit_cost' => 725,
+        ]);
+    }
+
+    public function test_client_invoice_0058_can_be_cancelled_after_receipt_fully_closed_its_deficit(): void
+    {
+        [$invoice, $product] = $this->createConsumedDeficitInvoice('INV-2026-10-0058', 10);
+        $this->settleFromReceipt($product, 10, 810, 'GR-0058');
+        $this->actingAs(User::factory()->create(['role' => User::ROLE_OWNER]));
+
+        $this->postJson(route('api.invoices.cancel.store', $invoice->invoice_number))
+            ->assertOk()
+            ->assertJsonPath('data.status', Invoice::STATUS_CANCELLED);
+
+        $this->assertSame('10.0000', $product->refresh()->stock);
+        $this->assertSame(10.0, (float) InventoryBatch::query()->where('product_id', $product->id)->sum('qty_remaining'));
+        $this->assertDatabaseHas('inventory_batches', [
+            'product_id' => $product->id,
+            'source_type' => 'deficit_compensation',
+            'source_reference' => 'GR-0058',
+            'qty_remaining' => 10,
+            'unit_cost' => 810,
+        ]);
+
+        $this->postJson(route('api.invoices.cancel.store', $invoice->invoice_number))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
+        $this->assertSame('10.0000', $product->refresh()->stock, 'a repeated request must not restore stock twice');
+    }
+
+    public function test_cancellation_rolls_back_fifo_cash_bank_and_status_when_audit_write_fails(): void
+    {
+        [$invoice, $product] = $this->createConsumedDeficitInvoice('INV-ROLLBACK-DEFICIT', 10);
+        $this->settleFromReceipt($product, 4, 725, 'GR-ROLLBACK');
+        $payment = Payment::query()->create([
+            'invoice_id' => $invoice->id,
+            'payment_number' => 'PAY-ROLLBACK-DEFICIT',
+            'payment_date' => '2026-10-16',
+            'method' => Payment::METHOD_CASH,
+            'amount' => 1000,
+            'status' => Payment::STATUS_VERIFIED,
+        ]);
+        $cashTransaction = app(CashBankService::class)->recordPayment($payment);
+        $this->actingAs(User::factory()->create(['role' => User::ROLE_OWNER]));
+
+        $logger = \Mockery::mock(ActivityLogger::class);
+        $logger->shouldReceive('record')->once()->andThrow(new RuntimeException('simulated audit database failure'));
+        $this->app->instance(ActivityLogger::class, $logger);
+
+        $this->withoutExceptionHandling();
+        try {
+            $this->postJson(route('api.invoices.cancel.store', $invoice->invoice_number));
+            $this->fail('The simulated audit failure should escape the request.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('simulated audit database failure', $exception->getMessage());
+        }
+
+        $this->assertSame(Invoice::STATUS_SENT, $invoice->refresh()->status);
+        $this->assertSame('-6.0000', $product->refresh()->stock);
+        $this->assertSame(-6.0, (float) InventoryBatch::query()->where('product_id', $product->id)->sum('qty_remaining'));
+        $this->assertSame('posted', $cashTransaction->refresh()->status);
+        $this->assertSame(0, InventoryBatch::query()->where('source_type', 'deficit_compensation')->count());
+        $this->assertSame(0, $invoice->items()->firstOrFail()->costLayers()->whereNotNull('reversed_at')->count());
+    }
+
     private function createInvoice(): Invoice
     {
         $customer = Customer::query()->create([
@@ -171,6 +259,78 @@ class CancelInvoiceApiTest extends TestCase
             'status' => Invoice::STATUS_SENT,
             'payment_status' => Invoice::PAYMENT_UNPAID,
             'total_amount' => 5000000,
+        ]);
+    }
+
+    /** @return array{0: Invoice, 1: Product} */
+    private function createConsumedDeficitInvoice(string $number, float $quantity): array
+    {
+        $customer = Customer::query()->create(['name' => "Customer {$number}"]);
+        $product = Product::query()->create([
+            'name' => "Produk {$number}",
+            'sku' => str_replace('INV-', 'SKU-', $number),
+            'track_stock' => true,
+            'stock' => 0,
+            'minimum_order_qty' => 1,
+            'package_conversion' => 1,
+        ]);
+        $product->forceFill(['average_purchase_cost' => 500])->save();
+        $invoice = Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => $number,
+            'issue_date' => '2026-10-16',
+            'due_date' => '2026-10-30',
+            'status' => Invoice::STATUS_SENT,
+            'payment_status' => Invoice::PAYMENT_PARTIAL,
+            'total_amount' => $quantity * 1000,
+        ]);
+        $item = $invoice->items()->create([
+            'product_id' => $product->id,
+            'product_name' => $product->name,
+            'sku' => $product->sku,
+            'quantity' => $quantity,
+            'unit_price' => 1000,
+            'purchase_cost_snapshot' => 500,
+            'subtotal' => $quantity * 1000,
+            'total_amount' => $quantity * 1000,
+        ]);
+
+        app(FifoInventoryService::class)->consume($invoice, $item);
+
+        return [$invoice->refresh(), $product->refresh()];
+    }
+
+    private function settleFromReceipt(Product $product, float $quantity, float $unitCost, string $reference): void
+    {
+        $before = (float) $product->refresh()->stock;
+        $leftover = InventoryBatch::closeDeficitFor($product->id, $quantity, [
+            'unit_cost' => $unitCost,
+            'source_type' => 'goods_receipt',
+            'source_reference' => $reference,
+            'source_date' => '2026-10-16',
+        ]);
+
+        if ($leftover > 0) {
+            InventoryBatch::query()->create([
+                'product_id' => $product->id,
+                'purchase_date' => '2026-10-16',
+                'qty_received' => $leftover,
+                'qty_remaining' => $leftover,
+                'unit_cost' => $unitCost,
+                'source_type' => 'goods_receipt',
+                'source_reference' => $reference,
+            ]);
+        }
+
+        $product->forceFill(['stock' => round($before + $quantity, 4)])->save();
+        StockMovement::query()->create([
+            'product_id' => $product->id,
+            'type' => StockMovement::TYPE_PURCHASE,
+            'quantity' => $quantity,
+            'stock_before' => $before,
+            'stock_after' => round($before + $quantity, 4),
+            'reference_number' => $reference,
+            'notes' => "Penerimaan barang {$reference}.",
         ]);
     }
 }

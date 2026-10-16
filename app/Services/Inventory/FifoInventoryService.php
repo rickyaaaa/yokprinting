@@ -5,12 +5,13 @@ namespace App\Services\Inventory;
 use App\Models\GoodsReceipt;
 use App\Models\GoodsReceiptItem;
 use App\Models\InventoryBatch;
+use App\Models\InventoryDeficitSettlement;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use App\Models\InvoiceItemCostLayer;
 use App\Models\Product;
 use App\Models\StockMovement;
 use Illuminate\Support\Carbon;
-use Illuminate\Validation\ValidationException;
 
 class FifoInventoryService
 {
@@ -31,7 +32,17 @@ class FifoInventoryService
         // leftover, if any, becomes a new available batch - this is what
         // keeps SUM(inventory_batches.qty_remaining) reconciled against
         // product.stock instead of double-counting the same physical units.
-        $qty = InventoryBatch::closeDeficitFor($product->getKey(), round((float) $item->quantity_received, 4));
+        $qty = InventoryBatch::closeDeficitFor(
+            $product->getKey(),
+            round((float) $item->quantity_received, 4),
+            [
+                'goods_receipt_item_id' => $item->getKey(),
+                'unit_cost' => (float) $item->unit_price,
+                'source_type' => 'goods_receipt',
+                'source_reference' => $goodsReceipt->receipt_number,
+                'source_date' => $goodsReceipt->receipt_date,
+            ],
+        );
 
         return InventoryBatch::query()->create([
             'product_id' => $product->getKey(),
@@ -61,10 +72,46 @@ class FifoInventoryService
         }
 
         $quantity = round((float) $item->quantity, 4);
+        $this->consumeTrackedQuantity($invoice, $item, $product, $quantity);
+
+        $this->recordStockMovement->record(
+            product: $product,
+            type: StockMovement::TYPE_SALE,
+            quantity: -$quantity,
+            referenceNumber: $invoice->invoice_number,
+            notes: "Penjualan FIFO invoice {$invoice->invoice_number}",
+            userId: $actorId,
+        );
+
+        return $this->refreshItemCost($item);
+    }
+
+    /** Add only the extra quantity introduced by an invoice edit. */
+    public function consumeAdditional(Invoice $invoice, InvoiceItem $item, float $quantity, ?int $actorId = null): void
+    {
+        $quantity = round($quantity, 4);
+        if ($quantity <= 0 || ! $item->tracksInventory()) {
+            return;
+        }
+
+        $product = Product::query()->whereKey($item->product_id)->lockForUpdate()->firstOrFail();
+        $this->consumeTrackedQuantity($invoice, $item, $product, $quantity);
+
+        $this->recordStockMovement->record(
+            product: $product,
+            type: StockMovement::TYPE_SALE,
+            quantity: -$quantity,
+            referenceNumber: $invoice->invoice_number,
+            notes: "Tambahan quantity invoice {$invoice->invoice_number}",
+            userId: $actorId,
+        );
+    }
+
+    private function consumeTrackedQuantity(Invoice $invoice, InvoiceItem $item, Product $product, float $quantity): void
+    {
         $batches = $this->availableBatches($product);
 
         $remaining = $quantity;
-        $hpp = 0.0;
 
         foreach ($batches as $batch) {
             if ($remaining <= 0) {
@@ -86,7 +133,6 @@ class FifoInventoryService
             ]);
 
             $remaining = round($remaining - $consumed, 4);
-            $hpp += $cost;
         }
 
         // Stock ran out before fully covering this sale - let the invoice
@@ -100,7 +146,6 @@ class FifoInventoryService
             $fallbackCost = $this->bestKnownUnitCost($product);
 
             $deficitCost = round($remaining * $fallbackCost, 2);
-            $hpp += $deficitCost;
 
             $deficitBatch = InventoryBatch::recordDeficitFor(
                 $product->getKey(),
@@ -116,25 +161,23 @@ class FifoInventoryService
                 'total_cost' => $deficitCost,
             ]);
         }
-
-        $this->recordStockMovement->record(
-            product: $product,
-            type: StockMovement::TYPE_SALE,
-            quantity: -$quantity,
-            referenceNumber: $invoice->invoice_number,
-            notes: "Penjualan FIFO invoice {$invoice->invoice_number}",
-            userId: $actorId,
-        );
-
-        $hpp = round($hpp, 2);
-        $this->saveItemCost($item, $hpp);
-
-        return $hpp;
     }
 
     public function restoreInvoice(Invoice $invoice, ?int $actorId = null, ?string $reason = null): void
     {
-        foreach ($invoice->items()->with('costLayers')->get() as $item) {
+        $items = $invoice->items()->with('costLayers')->orderBy('product_id')->orderBy('id')->get();
+
+        // Every inventory workflow locks products first. Lock all products in
+        // a stable order before touching batches/layers so two invoice
+        // reversals with overlapping products cannot deadlock in opposite
+        // item order.
+        Product::query()
+            ->whereIn('id', $items->pluck('product_id')->filter()->unique()->sort()->values())
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($items as $item) {
             $product = Product::query()->whereKey($item->product_id)->lockForUpdate()->first();
 
             if (! $product instanceof Product || ! $item->tracksInventory()) {
@@ -182,37 +225,194 @@ class FifoInventoryService
                 continue;
             }
 
-            foreach ($layers as $layer) {
-                $batch = InventoryBatch::query()->lockForUpdate()->findOrFail($layer->inventory_batch_id);
+            $this->restoreItemQuantity(
+                $invoice,
+                $item,
+                (float) $layers->sum('qty_consumed'),
+                $actorId,
+                $reason,
+            );
+        }
+    }
 
-                // A deficit batch should never show a positive/sellable
-                // balance - it isn't real received stock. That can only
-                // happen if a goods receipt already closed part of this
-                // same deficit since the sale, which means we can no longer
-                // cleanly reconstruct what to give back (the receipt's
-                // physical units were already spoken for). Refuse rather
-                // than fabricate available inventory that was never
-                // actually received.
-                if ($batch->source_type === 'deficit'
-                    && round((float) $batch->qty_remaining + (float) $layer->qty_consumed, 4) > 0) {
-                    throw ValidationException::withMessages([
-                        'status' => "Kekurangan stok FIFO untuk {$product->name} sudah sebagian ditutup oleh penerimaan barang berikutnya, jadi invoice ini tidak bisa dibatalkan/diedit otomatis. Sesuaikan stok secara manual lewat Penyesuaian Stok jika memang perlu.",
-                    ]);
-                }
+    /** Restore only the quantity removed by an invoice edit or cancellation. */
+    public function restoreItemQuantity(
+        Invoice $invoice,
+        InvoiceItem $item,
+        float $quantity,
+        ?int $actorId = null,
+        ?string $reason = null,
+    ): void {
+        $quantity = round($quantity, 4);
+        if ($quantity <= 0 || ! $item->tracksInventory()) {
+            return;
+        }
 
-                $batch->increment('qty_remaining', (float) $layer->qty_consumed);
-                $layer->forceFill(['reversed_at' => now()])->save();
+        $product = Product::query()->whereKey($item->product_id)->lockForUpdate()->firstOrFail();
+        $layers = $item->costLayers()
+            ->whereNull('reversed_at')
+            ->orderByDesc('id')
+            ->get();
+        $remaining = $quantity;
+
+        foreach ($layers as $layer) {
+            if ($remaining <= 0) {
+                break;
             }
 
-            $this->recordStockMovement->record(
-                product: $product,
-                type: StockMovement::TYPE_ADJUSTMENT,
-                quantity: (float) $item->quantity,
-                referenceNumber: $invoice->invoice_number,
-                notes: $reason ?? "Pengembalian layer FIFO invoice {$invoice->invoice_number}",
-                userId: $actorId,
-                syncFifo: false,
-            );
+            $restored = min($remaining, (float) $layer->qty_consumed);
+            $this->restoreLayerQuantity($product, $layer, $restored, $invoice);
+            $remaining = round($remaining - $restored, 4);
+        }
+
+        // Legacy invoices can have a net sale movement without cost-layer
+        // rows. Keep their existing explicit fallback behavior, but label the
+        // resulting layer so the estimated provenance is visible in audit.
+        if ($remaining > 0) {
+            $legacyUnitCost = (float) ($item->unit_hpp
+                ?: $item->purchase_cost_snapshot
+                ?: $product->purchaseCostFallback());
+
+            InventoryBatch::query()->create([
+                'product_id' => $product->getKey(),
+                'purchase_date' => Carbon::parse($invoice->issue_date ?? now())->toDateString(),
+                'qty_received' => $remaining,
+                'qty_remaining' => $remaining,
+                'unit_cost' => $legacyUnitCost,
+                'source_type' => 'legacy_return',
+                'source_reference' => $invoice->invoice_number,
+            ]);
+        }
+
+        $this->recordStockMovement->record(
+            product: $product,
+            type: StockMovement::TYPE_ADJUSTMENT,
+            quantity: $quantity,
+            referenceNumber: $invoice->invoice_number,
+            notes: $reason ?? "Pengembalian layer FIFO invoice {$invoice->invoice_number}",
+            userId: $actorId,
+            syncFifo: false,
+        );
+    }
+
+    private function restoreLayerQuantity(
+        Product $product,
+        InvoiceItemCostLayer $layer,
+        float $quantity,
+        Invoice $invoice,
+    ): void {
+        $batch = InventoryBatch::query()->lockForUpdate()->findOrFail($layer->inventory_batch_id);
+        $layer = InvoiceItemCostLayer::query()->lockForUpdate()->findOrFail($layer->getKey());
+        $settled = 0.0;
+
+        if ($batch->source_type === 'deficit') {
+            $settled = round((float) InventoryDeficitSettlement::query()
+                ->where('invoice_item_cost_layer_id', $layer->getKey())
+                ->whereNull('reversed_at')
+                ->sum('quantity'), 4);
+            $unresolved = max(0, round((float) $layer->qty_consumed - $settled, 4));
+            $unresolvedToRestore = min($quantity, $unresolved);
+
+            if ($unresolvedToRestore > 0) {
+                $batch->increment('qty_remaining', $unresolvedToRestore);
+            }
+
+            $settled = round($quantity - $unresolvedToRestore, 4);
+        } else {
+            $batch->increment('qty_remaining', $quantity);
+        }
+
+        $reversedLayer = $this->splitOrReverseCostLayer($layer, $quantity);
+
+        if ($settled > 0) {
+            $this->restoreSettledQuantity($product, $layer, $reversedLayer, $settled, $invoice);
+        }
+    }
+
+    private function splitOrReverseCostLayer(InvoiceItemCostLayer $layer, float $quantity): InvoiceItemCostLayer
+    {
+        $originalQuantity = round((float) $layer->qty_consumed, 4);
+        if ($quantity >= $originalQuantity) {
+            $layer->forceFill(['reversed_at' => now()])->save();
+
+            return $layer;
+        }
+
+        $remaining = round($originalQuantity - $quantity, 4);
+        $layer->forceFill([
+            'qty_consumed' => $remaining,
+            'total_cost' => round($remaining * (float) $layer->unit_cost, 2),
+        ])->save();
+
+        return InvoiceItemCostLayer::query()->create([
+            'invoice_item_id' => $layer->invoice_item_id,
+            'inventory_batch_id' => $layer->inventory_batch_id,
+            'qty_consumed' => $quantity,
+            'unit_cost' => $layer->unit_cost,
+            'total_cost' => round($quantity * (float) $layer->unit_cost, 2),
+            'reversed_at' => now(),
+        ]);
+    }
+
+    private function restoreSettledQuantity(
+        Product $product,
+        InvoiceItemCostLayer $activeLayer,
+        InvoiceItemCostLayer $reversedLayer,
+        float $quantity,
+        Invoice $invoice,
+    ): void {
+        $remaining = $quantity;
+        $settlements = InventoryDeficitSettlement::query()
+            ->where('invoice_item_cost_layer_id', $activeLayer->getKey())
+            ->whereNull('reversed_at')
+            ->orderByDesc('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($settlements as $settlement) {
+            if ($remaining <= 0) {
+                break;
+            }
+
+            $restored = min($remaining, (float) $settlement->quantity);
+            $compensation = InventoryBatch::query()->create([
+                'product_id' => $product->getKey(),
+                // Keep the exact receipt link on the settlement row. A
+                // GoodsReceiptItem owns one original FIFO batch; attaching a
+                // later compensation batch to it as well would violate that
+                // has-one contract and make receipt inspection ambiguous.
+                'goods_receipt_item_id' => null,
+                'purchase_date' => $settlement->source_date,
+                'qty_received' => $restored,
+                'qty_remaining' => $restored,
+                'unit_cost' => $settlement->unit_cost,
+                'source_type' => 'deficit_compensation',
+                'source_reference' => $settlement->source_reference ?? $invoice->invoice_number,
+            ]);
+
+            if ($restored >= (float) $settlement->quantity) {
+                $settlement->forceFill([
+                    'invoice_item_cost_layer_id' => $reversedLayer->getKey(),
+                    'compensation_batch_id' => $compensation->getKey(),
+                    'reversed_at' => now(),
+                ])->save();
+            } else {
+                $settlement->decrement('quantity', $restored);
+                InventoryDeficitSettlement::query()->create([
+                    'inventory_batch_id' => $settlement->inventory_batch_id,
+                    'invoice_item_cost_layer_id' => $reversedLayer->getKey(),
+                    'goods_receipt_item_id' => $settlement->goods_receipt_item_id,
+                    'compensation_batch_id' => $compensation->getKey(),
+                    'quantity' => $restored,
+                    'unit_cost' => $settlement->unit_cost,
+                    'source_type' => $settlement->source_type,
+                    'source_reference' => $settlement->source_reference,
+                    'source_date' => $settlement->source_date,
+                    'reversed_at' => now(),
+                ]);
+            }
+
+            $remaining = round($remaining - $restored, 4);
         }
     }
 
@@ -279,6 +479,14 @@ class FifoInventoryService
         return $batches;
     }
 
+    public function refreshItemCost(InvoiceItem $item): float
+    {
+        $hpp = round((float) $item->costLayers()->whereNull('reversed_at')->sum('total_cost'), 2);
+        $this->saveItemCost($item, $hpp);
+
+        return $hpp;
+    }
+
     private function saveItemCost(InvoiceItem $item, float $hpp): void
     {
         $quantity = (float) $item->quantity;
@@ -287,11 +495,6 @@ class FifoInventoryService
             'unit_hpp' => $quantity > 0 ? round($hpp / $quantity, 2) : 0,
             'purchase_cost_snapshot' => $quantity > 0 ? round($hpp / $quantity, 2) : 0,
         ])->save();
-    }
-
-    private function formatQuantity(float $quantity): string
-    {
-        return rtrim(rtrim(number_format($quantity, 4, ',', '.'), '0'), ',');
     }
 
     private function bestKnownUnitCost(Product $product): float

@@ -4,8 +4,11 @@ namespace App\Services\Invoices;
 
 use App\Models\ActivityLog;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
+use App\Models\Product;
 use App\Services\Inventory\FifoInventoryService;
 use App\Services\Security\ActivityLogger;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -28,13 +31,10 @@ class UpdateInvoiceDraft
      * unless the caller explicitly sent a new value for them.
      *
      * Sale stock movements are deducted at the first verified payment. An
-     * unpaid invoice has no inventory impact, while an invoice with a DP must
-     * reverse and re-consume its FIFO layers only when its item identities or
-     * quantities change. This reuses the
-     * exact same FifoInventoryService::restoreInvoice()/consume() pair the
-     * cancel flow relies on, so a partially-closed FIFO deficit (or any other
-     * state restoreInvoice() already refuses to unwind) blocks the edit with
-     * the same clear error instead of corrupting inventory.
+     * unpaid invoice has no inventory impact. Once paid, same-product quantity
+     * edits adjust only their delta; removed products are compensated and new
+     * products are consumed. Deficit settlements preserve the receipt or
+     * adjustment cost needed to make those compensations auditable.
      *
      * @param  array<string, mixed>  $data
      */
@@ -97,23 +97,7 @@ class UpdateInvoiceDraft
             ])->values()->all();
             $itemsChanged = $this->inventoryIdentity($itemsBefore) !== $this->inventoryIdentity($totals['items']);
 
-            // Restore the old items' FIFO/stock impact only when this invoice
-            // actually crossed the DP boundary. An unpaid draft has no sale
-            // movement or cost layer and must remain stock-neutral when it is
-            // edited.
             $hasConsumedInventory = $this->fifoInventory->hasConsumedInventory($locked);
-            if ($hasConsumedInventory && $itemsChanged) {
-                // restoreInvoice() itself can still refuse (e.g. a receipt
-                // already closed a FIFO deficit), which correctly aborts the
-                // whole edit via the transaction rollback.
-                $before = collect($itemsBefore)->map(fn (array $item): string => ($item['sku'] ?: '#'.$item['product_id']).' ('.$item['quantity'].' pcs)')->implode(', ');
-                $after = collect($totals['items'])->map(fn (array $item): string => ($item['sku'] ?: '#'.$item['product_id']).' ('.$item['quantity'].' pcs)')->implode(', ');
-                $this->fifoInventory->restoreInvoice(
-                    $locked,
-                    $actorId,
-                    "Pengembalian FIFO karena perubahan item invoice {$locked->invoice_number} dari {$before} ke {$after}",
-                );
-            }
 
             $locked->update([
                 'customer_id' => $data['customer_id'],
@@ -153,7 +137,17 @@ class UpdateInvoiceDraft
                 'design_notes' => $data['design_notes'] ?? null,
             ]);
 
-            if ($itemsChanged) {
+            if ($verifiedPaid > 0 && $itemsChanged && $hasConsumedInventory) {
+                // Reconcile product-by-product and apply only the quantity
+                // delta. This preserves historical cost layers for unchanged
+                // quantities and avoids temporarily reversing an entire sale
+                // merely because one line changed.
+                $currentItems = $this->reconcilePaidItems(
+                    $locked,
+                    $totals['items'],
+                    $actorId,
+                );
+            } elseif ($itemsChanged) {
                 // Soft deletion preserves reversed FIFO layers for the audit trail.
                 $locked->items()->delete();
                 $currentItems = $locked->items()->createMany($totals['items']);
@@ -174,9 +168,11 @@ class UpdateInvoiceDraft
                 }
             }
 
-            $stockAlerts = $verifiedPaid > 0 && ($itemsChanged || ! $hasConsumedInventory)
-                ? $this->recordInvoiceSaleMovements->handle($locked, $currentItems, $actorId)
-                : ($locked->metadata['inventory_alerts'] ?? []);
+            $stockAlerts = match (true) {
+                $verifiedPaid > 0 && $itemsChanged && $hasConsumedInventory => $this->stockAlertsFor($currentItems),
+                $verifiedPaid > 0 && ! $hasConsumedInventory => $this->recordInvoiceSaleMovements->handle($locked, $currentItems, $actorId),
+                default => $locked->metadata['inventory_alerts'] ?? [],
+            };
 
             $totalHpp = (float) $locked->items()->sum('hpp_total');
             $companyShipping = $locked->shipping_type === Invoice::SHIPPING_COMPANY_FREE_SHIPPING
@@ -248,11 +244,130 @@ class UpdateInvoiceDraft
             $identity[] = $this->itemIdentity($item['product_id'], $item['quantity']);
         }
 
+        sort($identity, SORT_STRING);
+
         return $identity;
     }
 
     private function itemIdentity(int|string $productId, float|string $quantity): string
     {
         return (int) $productId.':'.number_format((float) $quantity, 4, '.', '');
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $newItems
+     * @return Collection<int, InvoiceItem>
+     */
+    private function reconcilePaidItems(Invoice $invoice, array $newItems, ?int $actorId): Collection
+    {
+        $oldItems = $invoice->items()
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        Product::query()
+            ->whereIn('id', collect($newItems)->pluck('product_id')->merge($oldItems->pluck('product_id'))->filter()->unique()->sort()->values())
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        $unused = $oldItems->keyBy(fn (InvoiceItem $item): int => $item->getKey());
+        $current = collect();
+
+        foreach ($newItems as $attributes) {
+            /** @var InvoiceItem|null $match */
+            $match = $unused->first(fn (InvoiceItem $item): bool => (int) $item->product_id === (int) $attributes['product_id']);
+
+            if (! $match instanceof InvoiceItem) {
+                /** @var InvoiceItem $created */
+                $created = $invoice->items()->create($attributes);
+                $this->fifoInventory->consume($invoice, $created, $actorId);
+                $current->push($created->refresh());
+
+                continue;
+            }
+
+            $unused->forget($match->getKey());
+            $oldQuantity = round((float) $match->quantity, 4);
+            $newQuantity = round((float) $attributes['quantity'], 4);
+            $delta = round($newQuantity - $oldQuantity, 4);
+
+            if ($match->tracksInventory()) {
+                unset(
+                    $attributes['purchase_cost_snapshot'],
+                    $attributes['unit_hpp'],
+                    $attributes['hpp_total'],
+                );
+            }
+
+            $match->update($attributes);
+
+            if ($match->tracksInventory() && $delta > 0) {
+                $this->fifoInventory->consumeAdditional($invoice, $match, $delta, $actorId);
+                $this->fifoInventory->refreshItemCost($match->refresh());
+            } elseif ($match->tracksInventory() && $delta < 0) {
+                $this->fifoInventory->restoreItemQuantity(
+                    $invoice,
+                    $match,
+                    abs($delta),
+                    $actorId,
+                    "Pengembalian FIFO karena quantity invoice {$invoice->invoice_number} turun dari {$oldQuantity} ke {$newQuantity}",
+                );
+                $this->fifoInventory->refreshItemCost($match->refresh());
+            }
+
+            $current->push($match->refresh());
+        }
+
+        foreach ($unused as $removed) {
+            if ($removed->tracksInventory() && $removed->costLayers()->whereNull('reversed_at')->exists()) {
+                $this->fifoInventory->restoreItemQuantity(
+                    $invoice,
+                    $removed,
+                    (float) $removed->quantity,
+                    $actorId,
+                    "Pengembalian FIFO karena item dihapus dari invoice {$invoice->invoice_number}",
+                );
+            }
+
+            $removed->delete();
+        }
+
+        return $current;
+    }
+
+    /**
+     * @param  Collection<int, InvoiceItem>  $items
+     * @return list<array<string, mixed>>
+     */
+    private function stockAlertsFor(Collection $items): array
+    {
+        return $items
+            ->filter(fn (InvoiceItem $item): bool => $item->tracksInventory())
+            ->map(function (InvoiceItem $item): ?array {
+                $product = $item->product?->refresh();
+                if (! $product instanceof Product) {
+                    return null;
+                }
+
+                $stock = (float) ($product->stock ?? 0);
+                $minimumStock = $product->minimumStockValue();
+                if ($stock >= 0 && $stock > $minimumStock) {
+                    return null;
+                }
+
+                return [
+                    'product_id' => $product->getKey(),
+                    'sku' => $product->sku,
+                    'name' => $product->name,
+                    'stock' => $stock,
+                    'minimum_stock' => $minimumStock,
+                    'is_negative' => $stock < 0,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
     }
 }

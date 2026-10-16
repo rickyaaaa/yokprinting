@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class InvoiceItemCostLayer extends Model
 {
@@ -34,5 +35,10 @@ class InvoiceItemCostLayer extends Model
     public function inventoryBatch(): BelongsTo
     {
         return $this->belongsTo(InventoryBatch::class);
+    }
+
+    public function deficitSettlements(): HasMany
+    {
+        return $this->hasMany(InventoryDeficitSettlement::class);
     }
 }

@@ -446,9 +446,17 @@ Alpine.data('invoiceDraftForm', (config = {}) => ({
                 }));
             }
         } catch (error) {
-            this.errorTitle = this.config.isEdit ? 'Invoice gagal diperbarui' : 'Invoice gagal disimpan';
-            this.errorMessage = error?.message ?? 'Invoice belum dapat disimpan. Coba lagi.';
             this.fieldErrors = error?.errors ?? {};
+            if (Object.keys(this.fieldErrors).length > 0) {
+                // Inline validation summary already presents the actionable
+                // server message. Do not repeat the same long text in a toast
+                // that can cover the form controls the user needs to fix.
+                this.errorTitle = 'Form perlu diperiksa';
+                this.errorMessage = '';
+            } else {
+                this.errorTitle = this.config.isEdit ? 'Invoice gagal diperbarui' : 'Invoice gagal disimpan';
+                this.errorMessage = error?.message ?? 'Invoice belum dapat disimpan. Coba lagi.';
+            }
         } finally {
             this.savingDraft = false;
         }

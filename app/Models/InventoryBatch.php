@@ -45,13 +45,18 @@ class InventoryBatch extends Model
         return $this->hasMany(InvoiceItemCostLayer::class);
     }
 
+    public function deficitSettlements(): HasMany
+    {
+        return $this->hasMany(InventoryDeficitSettlement::class);
+    }
+
     /**
      * Pay down any open FIFO deficit for this product before new stock
      * becomes available. Returns the leftover quantity (0 if the receipt
      * was fully absorbed by the deficit) that the caller should turn into
      * a normal available batch.
      */
-    public static function closeDeficitFor(int $productId, float $quantity): float
+    public static function closeDeficitFor(int $productId, float $quantity, array $source = []): float
     {
         $deficit = self::query()
             ->where('product_id', $productId)
@@ -71,7 +76,73 @@ class InventoryBatch extends Model
             'qty_remaining' => round((float) $deficit->qty_remaining + $closeAmount, 4),
         ])->save();
 
+        self::recordDeficitSettlements($deficit, $closeAmount, $source);
+
         return round($quantity - $closeAmount, 4);
+    }
+
+    /**
+     * Attribute every deficit closure to the oldest still-open sale layer.
+     * This is the provenance restoreInvoice() needs if that sale is later
+     * edited or cancelled after stock has already arrived.
+     *
+     * @param  array<string, mixed>  $source
+     */
+    private static function recordDeficitSettlements(self $deficit, float $quantity, array $source): void
+    {
+        $remaining = round($quantity, 4);
+        $layers = InvoiceItemCostLayer::query()
+            ->where('inventory_batch_id', $deficit->getKey())
+            ->whereNull('reversed_at')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($layers as $layer) {
+            if ($remaining <= 0) {
+                break;
+            }
+
+            $settled = round((float) InventoryDeficitSettlement::query()
+                ->where('invoice_item_cost_layer_id', $layer->getKey())
+                ->whereNull('reversed_at')
+                ->sum('quantity'), 4);
+            $open = max(0, round((float) $layer->qty_consumed - $settled, 4));
+
+            if ($open <= 0) {
+                continue;
+            }
+
+            $allocated = min($remaining, $open);
+            InventoryDeficitSettlement::query()->create([
+                'inventory_batch_id' => $deficit->getKey(),
+                'invoice_item_cost_layer_id' => $layer->getKey(),
+                'goods_receipt_item_id' => $source['goods_receipt_item_id'] ?? null,
+                'quantity' => $allocated,
+                'unit_cost' => $source['unit_cost'] ?? $layer->unit_cost,
+                'source_type' => $source['source_type'] ?? 'legacy_unknown',
+                'source_reference' => $source['source_reference'] ?? null,
+                'source_date' => $source['source_date'] ?? now()->toDateString(),
+            ]);
+
+            $remaining = round($remaining - $allocated, 4);
+        }
+
+        // Manually-created legacy deficits may have no invoice cost layer.
+        // Preserve the incoming source anyway so the unexplained quantity is
+        // visible to audit/reconciliation tooling rather than disappearing.
+        if ($remaining > 0) {
+            InventoryDeficitSettlement::query()->create([
+                'inventory_batch_id' => $deficit->getKey(),
+                'invoice_item_cost_layer_id' => null,
+                'goods_receipt_item_id' => $source['goods_receipt_item_id'] ?? null,
+                'quantity' => $remaining,
+                'unit_cost' => $source['unit_cost'] ?? $deficit->unit_cost,
+                'source_type' => $source['source_type'] ?? 'legacy_unknown',
+                'source_reference' => $source['source_reference'] ?? null,
+                'source_date' => $source['source_date'] ?? now()->toDateString(),
+            ]);
+        }
     }
 
     /**
