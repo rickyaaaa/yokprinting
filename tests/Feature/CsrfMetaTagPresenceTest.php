@@ -28,6 +28,11 @@ class CsrfMetaTagPresenceTest extends TestCase
         $this->actingAs(User::factory()->create(['role' => User::ROLE_OWNER]));
     }
 
+    public function test_dashboard_page_has_csrf_meta_tag(): void
+    {
+        $this->get(route('dashboard'))->assertSee('name="csrf-token"', false);
+    }
+
     public function test_customer_create_page_has_csrf_meta_tag(): void
     {
         $this->get(route('customers.create'))->assertSee('name="csrf-token"', false);

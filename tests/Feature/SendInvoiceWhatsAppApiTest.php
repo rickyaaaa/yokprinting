@@ -27,7 +27,7 @@ class SendInvoiceWhatsAppApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('message', 'Invoice ditandai terkirim via WhatsApp.')
             ->assertJsonPath('data.status', Invoice::STATUS_SENT)
-            ->assertJsonPath('data.recipient', '081299001188')
+            ->assertJsonPath('data.recipient', '6281299001188')
             ->assertJsonPath('data.purpose', 'invoice')
             ->assertJsonPath('data.whatsapp_url', fn (string $url): bool => str_starts_with($url, 'https://wa.me/6281299001188?text='));
 
@@ -36,13 +36,57 @@ class SendInvoiceWhatsAppApiTest extends TestCase
         $this->assertSame(Invoice::STATUS_SENT, $invoice->status);
         $this->assertNotNull($invoice->sent_at);
         $this->assertSame(MarkInvoiceDelivered::CHANNEL_WHATSAPP, $invoice->metadata['delivery']['last_channel']);
-        $this->assertSame('081299001188', $invoice->metadata['delivery']['last_recipient']);
+        $this->assertSame('6281299001188', $invoice->metadata['delivery']['last_recipient']);
+    }
+
+    public function test_payment_reminder_uses_database_data_without_marking_the_invoice_delivered(): void
+    {
+        $this->actingAsUserWithInvoiceUpdatePermission();
+        $customer = $this->createCustomer(phone: '0812-9900-1188');
+        $invoice = $this->createInvoice($customer, 'INV-WA-REMINDER', 1250000);
+
+        $this->postJson(route('api.invoices.send-whatsapp', ['invoice' => $invoice]), [
+            'purpose' => 'reminder',
+        ])
+            ->assertOk()
+            ->assertJsonPath('message', 'Pengingat WhatsApp siap dibuka.')
+            ->assertJsonPath('data.invoice_number', 'INV-WA-REMINDER')
+            ->assertJsonPath('data.recipient', '6281299001188')
+            ->assertJsonPath('data.status', Invoice::STATUS_DRAFT)
+            ->assertJsonPath('data.sent_at', null)
+            ->assertJsonPath('data.purpose', 'reminder')
+            ->assertJsonPath('data.whatsapp_url', function (string $url): bool {
+                return str_starts_with($url, 'https://wa.me/6281299001188?text=')
+                    && str_contains($url, rawurlencode('Invoice: INV-WA-REMINDER'))
+                    && str_contains($url, rawurlencode('Sisa pelunasan: Rp1.250.000'));
+            });
+
+        $invoice->refresh();
+        $this->assertSame(Invoice::STATUS_DRAFT, $invoice->status);
+        $this->assertNull($invoice->sent_at);
+        $this->assertNull($invoice->metadata);
     }
 
     public function test_whatsapp_delivery_requires_a_valid_customer_phone_number(): void
     {
         $this->actingAsUserWithInvoiceUpdatePermission();
         $invoice = $this->createInvoice($this->createCustomer(), 'INV-WA-NO-PHONE', 500000);
+
+        $this->postJson(route('api.invoices.send-whatsapp', ['invoice' => $invoice]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['recipient']);
+
+        $this->assertSame(Invoice::STATUS_DRAFT, $invoice->refresh()->status);
+    }
+
+    public function test_whatsapp_delivery_rejects_an_invalid_indonesian_number(): void
+    {
+        $this->actingAsUserWithInvoiceUpdatePermission();
+        $invoice = $this->createInvoice(
+            $this->createCustomer(phone: '12345'),
+            'INV-WA-INVALID-PHONE',
+            500000,
+        );
 
         $this->postJson(route('api.invoices.send-whatsapp', ['invoice' => $invoice]))
             ->assertUnprocessable()

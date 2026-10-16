@@ -26,29 +26,36 @@ class InvoiceDeliveryController extends Controller
             ['purpose' => ['nullable', 'string', 'in:invoice,reminder']],
         )->validate()['purpose'] ?? 'invoice';
         $invoice->loadMissing(['customer', 'items', 'payments']);
-        $recipient = preg_replace('/\D+/', '', $invoice->customer?->phone ?? '') ?? '';
+        $recipient = $buildWhatsAppLink->normalizePhone($invoice->customer?->phone ?? '');
 
         Validator::make(
             ['recipient' => $recipient],
-            ['recipient' => ['required', 'string', 'min:9', 'max:15']],
-            ['recipient.required' => 'Invoice tersimpan belum memiliki nomor WhatsApp pelanggan yang valid.'],
+            ['recipient' => ['required', 'string', 'regex:/^62[1-9][0-9]{7,12}$/']],
+            [
+                'recipient.required' => 'Invoice tersimpan belum memiliki nomor WhatsApp pelanggan yang valid.',
+                'recipient.regex' => 'Nomor WhatsApp pelanggan harus berupa nomor Indonesia yang valid.',
+            ],
         )->validate();
 
         $whatsAppUrl = $buildWhatsAppLink->build($invoice, null, $purpose === 'reminder');
-        $invoice = $markInvoiceDelivered->handle(
-            $invoice,
-            MarkInvoiceDelivered::CHANNEL_WHATSAPP,
-            $recipient,
-        );
+        if ($purpose === 'invoice') {
+            $invoice = $markInvoiceDelivered->handle(
+                $invoice,
+                MarkInvoiceDelivered::CHANNEL_WHATSAPP,
+                $recipient,
+            );
+        }
 
         return response()->json([
-            'message' => 'Invoice ditandai terkirim via WhatsApp.',
+            'message' => $purpose === 'reminder'
+                ? 'Pengingat WhatsApp siap dibuka.'
+                : 'Invoice ditandai terkirim via WhatsApp.',
             'data' => [
                 'invoice_id' => $invoice->getKey(),
                 'invoice_number' => $invoice->invoice_number,
                 'recipient' => $recipient,
                 'status' => $invoice->status,
-                'sent_at' => $invoice->sent_at->toISOString(),
+                'sent_at' => $invoice->sent_at?->toISOString(),
                 'purpose' => $purpose,
                 'whatsapp_url' => $whatsAppUrl,
             ],

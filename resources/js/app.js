@@ -966,43 +966,32 @@ Alpine.data('invoiceWhatsAppDelivery', () => ({
             return;
         }
 
-        const popup = window.open('', '_blank');
-
-        if (popup) {
-            popup.opener = null;
-        }
-
         this.sending = true;
         this.message = '';
 
         try {
-            const response = await fetch(this.endpoint, {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: {
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
-                },
-                body: JSON.stringify({ purpose: this.purpose }),
+            const response = await sendInvoiceWhatsApp({
+                endpoint: this.endpoint,
+                purpose: this.purpose,
             });
-            const payload = await response.json().catch(() => ({}));
+            const whatsAppUrl = response.data?.whatsapp_url;
 
-            if (!response.ok) {
-                throw new Error(payload.message ?? 'Invoice belum dapat dikirim via WhatsApp.');
+            if (!whatsAppUrl) {
+                throw new Error('Link WhatsApp tidak tersedia pada respons server.');
             }
 
-            this.sent = payload.data?.status === 'sent';
-            this.message = 'WhatsApp dibuka dan invoice ditandai terkirim.';
+            this.sent = response.data?.status === 'sent';
+            this.message = this.purpose === 'reminder'
+                ? 'Pengingat WhatsApp siap dibuka.'
+                : 'WhatsApp dibuka dan invoice ditandai terkirim.';
             this.messageType = 'success';
 
-            if (popup) {
-                popup.location.assign(payload.data.whatsapp_url);
-            } else {
-                window.location.assign(payload.data.whatsapp_url);
+            const popup = window.open(whatsAppUrl, '_blank', 'noopener,noreferrer');
+
+            if (!popup) {
+                window.location.assign(whatsAppUrl);
             }
         } catch (error) {
-            popup?.close();
             this.message = error instanceof Error ? error.message : 'Invoice belum dapat dikirim via WhatsApp.';
             this.messageType = 'error';
         } finally {

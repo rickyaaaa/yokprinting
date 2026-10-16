@@ -69,4 +69,13 @@ class BuildInvoiceWhatsAppLinkTest extends TestCase
         $this->assertStringContainsString(rawurlencode('Pengingat pembayaran dari YokPrinting.ID:'), $link);
         $this->assertStringContainsString(rawurlencode('Mohon konfirmasi apabila pembayaran sudah dilakukan.'), $link);
     }
+
+    public function test_it_normalizes_local_indonesian_mobile_number_variants(): void
+    {
+        $builder = app(BuildInvoiceWhatsAppLink::class);
+
+        $this->assertSame('6281299001188', $builder->normalizePhone('0812-9900-1188'));
+        $this->assertSame('6281299001188', $builder->normalizePhone('812-9900-1188'));
+        $this->assertSame('6281299001188', $builder->normalizePhone('+62 812-9900-1188'));
+    }
 }

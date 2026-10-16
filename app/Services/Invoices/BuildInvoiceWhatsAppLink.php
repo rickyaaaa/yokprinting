@@ -48,7 +48,7 @@ class BuildInvoiceWhatsAppLink
         return implode("\n", $lines);
     }
 
-    private function normalizePhone(string $phone): string
+    public function normalizePhone(string $phone): string
     {
         $digits = preg_replace('/\D+/', '', $phone) ?? '';
 
@@ -56,7 +56,11 @@ class BuildInvoiceWhatsAppLink
             return '62'.substr($digits, 1);
         }
 
-        return $digits !== '' ? $digits : '6280000000000';
+        if (str_starts_with($digits, '8')) {
+            return '62'.$digits;
+        }
+
+        return $digits;
     }
 
     private function rupiah(float $amount): string

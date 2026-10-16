@@ -13,6 +13,67 @@ class BrowserSessionApiIntegrationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_dashboard_whatsapp_reminder_uses_the_real_web_session_and_csrf_token(): void
+    {
+        $this->app['env'] = 'local';
+
+        $customer = Customer::query()->create([
+            'code' => 'CUS-WA-SESSION',
+            'name' => 'PT WhatsApp Session',
+            'phone' => '0812-3456-7890',
+        ]);
+        $invoice = Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-WA-SESSION-001',
+            'issue_date' => today(),
+            'due_date' => today()->addDays(3),
+            'status' => Invoice::STATUS_SENT,
+            'payment_status' => Invoice::PAYMENT_UNPAID,
+            'total_amount' => 9500000,
+        ]);
+
+        $endpoint = route('api.invoices.send-whatsapp', $invoice);
+        $this->postJson($endpoint, ['purpose' => 'reminder'])->assertUnauthorized();
+
+        $user = User::factory()->create([
+            'username' => 'dashboard-whatsapp-owner',
+            'password' => Hash::make('session-password'),
+            'role' => User::ROLE_OWNER,
+            'status' => User::STATUS_ACTIVE,
+        ]);
+        $loginPage = $this->get(route('login'))->assertOk();
+
+        $this->withHeader('X-CSRF-TOKEN', $this->csrfTokenFromMeta($loginPage->getContent()))
+            ->post(route('login.store'), [
+                'username' => $user->username,
+                'password' => 'session-password',
+            ])
+            ->assertRedirect(route('dashboard'));
+
+        $dashboard = $this->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('name="csrf-token"', false)
+            ->assertSee($endpoint, false);
+        $dashboardToken = $this->csrfTokenFromMeta($dashboard->getContent());
+
+        $this->post($endpoint, ['purpose' => 'reminder'], ['Accept' => 'application/json'])
+            ->assertStatus(419);
+
+        $this->post($endpoint, ['purpose' => 'reminder'], [
+            'Accept' => 'application/json',
+            'X-CSRF-TOKEN' => $dashboardToken,
+        ])
+            ->assertOk()
+            ->assertJsonPath('message', 'Pengingat WhatsApp siap dibuka.')
+            ->assertJsonPath('data.recipient', '6281234567890')
+            ->assertJsonPath('data.purpose', 'reminder')
+            ->assertJsonPath('data.status', Invoice::STATUS_SENT)
+            ->assertJsonPath('data.whatsapp_url', fn (string $url): bool => str_starts_with(
+                $url,
+                'https://wa.me/6281234567890?text=',
+            ));
+    }
+
     public function test_real_web_login_session_can_download_invoice_pdf_and_open_sales_report_api(): void
     {
         User::factory()->create([
@@ -50,5 +111,12 @@ class BrowserSessionApiIntegrationTest extends TestCase
         $this->getJson(route('api.reports.sales.summary'))
             ->assertOk()
             ->assertJsonPath('status', 'success');
+    }
+
+    private function csrfTokenFromMeta(string $html): string
+    {
+        preg_match('/name="csrf-token"[^>]*content="([^"]+)"/', $html, $matches);
+
+        return html_entity_decode($matches[1] ?? '');
     }
 }
