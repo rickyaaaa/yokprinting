@@ -113,6 +113,56 @@ class BrowserSessionApiIntegrationTest extends TestCase
             ->assertJsonPath('status', 'success');
     }
 
+    public function test_notification_read_uses_real_web_session_and_requires_csrf(): void
+    {
+        $this->app['env'] = 'local';
+
+        $user = User::factory()->create([
+            'username' => 'notification-session-owner',
+            'password' => Hash::make('session-password'),
+            'role' => User::ROLE_OWNER,
+            'status' => User::STATUS_ACTIVE,
+        ]);
+        $customer = Customer::query()->create([
+            'code' => 'CUS-NOTIFICATION-SESSION',
+            'name' => 'PT Notification Session',
+        ]);
+        Invoice::query()->create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'INV-NOTIFICATION-SESSION-001',
+            'issue_date' => today(),
+            'due_date' => today()->addDays(2),
+            'status' => Invoice::STATUS_SENT,
+            'payment_status' => Invoice::PAYMENT_UNPAID,
+            'total_amount' => 1500000,
+        ]);
+
+        $endpoint = route('api.notifications.due-invoices.read');
+        $this->postJson($endpoint)->assertUnauthorized();
+
+        $loginPage = $this->get(route('login'))->assertOk();
+        $this->withHeader('X-CSRF-TOKEN', $this->csrfTokenFromMeta($loginPage->getContent()))
+            ->post(route('login.store'), [
+                'username' => $user->username,
+                'password' => 'session-password',
+            ])
+            ->assertRedirect(route('dashboard'));
+
+        $dashboard = $this->get(route('dashboard'))->assertOk();
+        $dashboardToken = $this->csrfTokenFromMeta($dashboard->getContent());
+
+        $this->post($endpoint, [], ['Accept' => 'application/json'])
+            ->assertStatus(419);
+
+        $this->post($endpoint, [], [
+            'Accept' => 'application/json',
+            'X-CSRF-TOKEN' => $dashboardToken,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.marked_count', 1)
+            ->assertJsonPath('data.unread_count', 0);
+    }
+
     private function csrfTokenFromMeta(string $html): string
     {
         preg_match('/name="csrf-token"[^>]*content="([^"]+)"/', $html, $matches);

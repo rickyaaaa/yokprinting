@@ -31,7 +31,7 @@
         <div class="flex items-start justify-between gap-4 border-b border-line px-4 py-3">
             <div>
                 <p class="text-sm font-semibold text-ink">Notifikasi pembayaran</p>
-                <p class="mt-0.5 text-xs text-muted" x-text="count ? `${count} invoice perlu perhatian` : 'Tidak ada invoice prioritas'"></p>
+                <p class="mt-0.5 text-xs text-muted" x-text="count ? `${count} notifikasi belum dibaca` : (notifications.length ? 'Semua notifikasi sudah dibaca' : 'Tidak ada invoice prioritas')"></p>
             </div>
             <span class="badge badge-danger !px-2 !py-1 !text-[10px]">Jatuh tempo</span>
         </div>
@@ -39,6 +39,7 @@
         <div class="max-h-80 overflow-y-auto">
             <div x-show="loading" class="px-4 py-6 text-center text-sm text-muted" role="status">Memuat notifikasi...</div>
             <div x-show="!loading && error" class="px-4 py-6 text-center text-sm text-red-800" role="alert" x-text="error"></div>
+            <div x-show="!loading && readError" x-cloak class="border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert" x-text="readError"></div>
             <div x-show="!loading && !error && notifications.length === 0" class="px-4 py-6 text-center text-sm text-muted">Belum ada invoice yang perlu ditindaklanjuti.</div>
 
             <template x-for="notification in notifications.slice(0, 3)" :key="notification.invoice_number">

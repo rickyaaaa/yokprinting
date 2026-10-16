@@ -303,6 +303,9 @@ Route::middleware(['web', 'auth'])->group(function (): void {
     Route::get('/notifications/due-invoices', [DueInvoiceNotificationController::class, 'index'])
         ->middleware('permission:payment.view')
         ->name('api.notifications.due-invoices.index');
+    Route::post('/notifications/due-invoices/read', [DueInvoiceNotificationController::class, 'markRead'])
+        ->middleware('permission:payment.view')
+        ->name('api.notifications.due-invoices.read');
 
     Route::post('/invoices/drafts', [InvoiceDraftController::class, 'store'])
         ->middleware('permission:invoice.create')

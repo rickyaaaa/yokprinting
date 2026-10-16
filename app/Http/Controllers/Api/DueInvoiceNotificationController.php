@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ListDueInvoiceNotificationsRequest;
+use App\Http\Requests\MarkDueInvoiceNotificationsReadRequest;
+use App\Models\DueInvoiceNotificationRead;
 use App\Models\Invoice;
 use App\Models\Payment;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class DueInvoiceNotificationController extends Controller
 {
@@ -63,9 +66,20 @@ class DueInvoiceNotificationController extends Controller
             });
         }
 
+        $invoices = $query->get();
+        $readInvoiceIds = DueInvoiceNotificationRead::query()
+            ->where('user_id', $request->user()->getKey())
+            ->whereIn('invoice_id', $invoices->modelKeys())
+            ->pluck('invoice_id')
+            ->flip();
+        $allNotifications = $invoices
+            ->map(fn (Invoice $invoice): array => $this->formatInvoice(
+                $invoice,
+                $today,
+                $readInvoiceIds->has($invoice->getKey()),
+            ));
         $notifications = $this->sortNotifications(
-            $query->get()
-                ->map(fn (Invoice $invoice): array => $this->formatInvoice($invoice, $today)),
+            $allNotifications,
             $sort,
             $direction,
         )
@@ -75,7 +89,7 @@ class DueInvoiceNotificationController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => $notifications,
-            'summary' => $this->summarize($notifications),
+            'summary' => $this->summarize($allNotifications),
             'meta' => [
                 'count' => $notifications->count(),
                 'limit' => $limit,
@@ -94,9 +108,55 @@ class DueInvoiceNotificationController extends Controller
     }
 
     /**
+     * Mark every due-invoice notification currently visible to this user as read.
+     *
+     * Invoice identifiers deliberately are not accepted from the client. The
+     * eligible set is rebuilt under the same authorization boundary as index().
+     */
+    public function markRead(MarkDueInvoiceNotificationsReadRequest $request): JsonResponse
+    {
+        $days = (int) ($request->validated('days') ?? 7);
+        $invoiceIds = Invoice::query()
+            ->receivable()
+            ->whereDate('due_date', '<=', today()->addDays($days))
+            ->pluck('id');
+
+        if ($invoiceIds->isEmpty()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Tidak ada notifikasi baru untuk ditandai.',
+                'data' => ['marked_count' => 0, 'unread_count' => 0],
+            ]);
+        }
+
+        $now = now();
+        $rows = $invoiceIds->map(fn (int $invoiceId): array => [
+            'user_id' => $request->user()->getKey(),
+            'invoice_id' => $invoiceId,
+            'read_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ])->all();
+
+        $markedCount = DB::transaction(
+            fn (): int => DB::table('due_invoice_notification_reads')->insertOrIgnore($rows),
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Notifikasi telah ditandai sudah dibaca.',
+            'data' => [
+                'marked_count' => $markedCount,
+                'unread_count' => 0,
+                'read_at' => $now->toIso8601String(),
+            ],
+        ]);
+    }
+
+    /**
      * @return array<string, mixed>
      */
-    private function formatInvoice(Invoice $invoice, Carbon $today): array
+    private function formatInvoice(Invoice $invoice, Carbon $today, bool $isRead): array
     {
         $paidAmount = (float) ($invoice->verified_paid_amount ?? 0);
         $totalAmount = (float) $invoice->total_amount;
@@ -127,6 +187,7 @@ class DueInvoiceNotificationController extends Controller
             'outstanding_amount' => $outstandingAmount,
             'outstanding_amount_formatted' => $this->formatRupiah($outstandingAmount),
             'payment_status' => $invoice->payment_status,
+            'is_read' => $isRead,
             'notification_status' => $status,
             'notification_label' => match ($status) {
                 'overdue' => 'Lewat jatuh tempo',
@@ -146,6 +207,7 @@ class DueInvoiceNotificationController extends Controller
 
         return [
             'total_count' => $notifications->count(),
+            'unread_count' => $notifications->where('is_read', false)->count(),
             'overdue_count' => $notifications->where('notification_status', 'overdue')->count(),
             'due_today_count' => $notifications->where('notification_status', 'due_today')->count(),
             'due_soon_count' => $notifications->where('notification_status', 'due_soon')->count(),
