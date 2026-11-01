@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\CompanyProfile;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\Payment;
 use App\Models\User;
 use App\Services\Invoices\BuildInvoiceDocument;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -215,6 +216,28 @@ class InvoiceDocumentLayoutTest extends TestCase
         $this->assertStringContainsString('INVOICE', $html);
         $this->assertStringNotContainsString('Invoice tersimpan', $html);
         $this->assertStringNotContainsString('Terkirim', $html);
+    }
+
+    public function test_a_paid_invoice_shows_lunas_and_does_not_show_the_dp_charge(): void
+    {
+        $invoice = $this->fixtureInvoice();
+        $invoice->payments()->create([
+            'payment_number' => 'PAY-DOC-PAID',
+            'payment_date' => '2026-09-09',
+            'method' => Payment::METHOD_TRANSFER_BCA,
+            'amount' => $invoice->total_amount,
+            'status' => Payment::STATUS_VERIFIED,
+        ]);
+        $invoice->forceFill([
+            'payment_status' => Invoice::PAYMENT_PAID,
+            'paid_at' => '2026-09-09 10:00:00',
+        ])->save();
+
+        $html = $this->render($invoice->fresh(['customer', 'items']));
+
+        $this->assertStringContainsString('Status Pembayaran', $html);
+        $this->assertStringContainsString('Lunas', $html);
+        $this->assertStringNotContainsString('Minimal DP', $html);
     }
 
     /**

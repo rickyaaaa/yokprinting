@@ -31,7 +31,12 @@ class BuildInvoiceDocument
      */
     public function fromInvoice(Invoice $invoice): array
     {
-        $invoice->loadMissing(['customer', 'items.product']);
+        $invoice->loadMissing(['customer', 'items.product', 'payments']);
+
+        $paidAmount = $invoice->verifiedPaidAmount();
+        $totalAmount = (float) $invoice->total_amount;
+        $isPaid = $invoice->payment_status === Invoice::PAYMENT_PAID
+            || ($totalAmount > 0 && $paidAmount >= $totalAmount);
 
         return $this->compose(
             number: (string) $invoice->invoice_number,
@@ -65,9 +70,11 @@ class BuildInvoiceDocument
             shippingCost: (float) $invoice->shipping_cost,
             isFreeShipping: (bool) $invoice->is_free_shipping,
             shippingType: $invoice->shipping_type,
-            totalAmount: (float) $invoice->total_amount,
+            totalAmount: $totalAmount,
             dpRequiredPercent: (float) $invoice->dp_required_percent,
             dpAmount: $invoice->requiredDpAmount(),
+            paidAmount: $paidAmount,
+            isPaid: $isPaid,
             designNotes: $invoice->design_notes,
             customerNotes: $invoice->notes,
             terms: $invoice->terms,
@@ -119,6 +126,8 @@ class BuildInvoiceDocument
             totalAmount: (float) ($preview['total_amount'] ?? 0),
             dpRequiredPercent: (float) ($preview['dp_required_percent'] ?? 50),
             dpAmount: (float) ($preview['dp_amount'] ?? 0),
+            paidAmount: 0,
+            isPaid: false,
             designNotes: $preview['design_notes'] ?? null,
             customerNotes: $preview['notes'] ?? null,
             terms: $preview['terms'] ?? null,
@@ -149,6 +158,8 @@ class BuildInvoiceDocument
         float $totalAmount,
         float $dpRequiredPercent,
         float $dpAmount,
+        float $paidAmount,
+        bool $isPaid,
         ?string $designNotes,
         ?string $customerNotes,
         ?string $terms,
@@ -202,6 +213,8 @@ class BuildInvoiceDocument
 
             'dp_required_percent' => $dpRequiredPercent,
             'dp_amount' => $dpAmount,
+            'paid_amount' => $paidAmount,
+            'is_paid' => $isPaid,
 
             // Kept apart all the way to the template. One is for the workshop,
             // the other is addressed to the customer, and merging them once

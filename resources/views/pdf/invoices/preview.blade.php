@@ -53,7 +53,7 @@
                 padding: 26px 30px 22px;
                 color: #111;
                 font-family: "DejaVu Sans", sans-serif;
-                font-size: 9px;
+                font-size: 10px;
                 line-height: 1.5;
             }
 
@@ -63,8 +63,8 @@
             .header td { padding-bottom: 14px; vertical-align: top; }
             .header .logo { display: block; width: 92px; height: auto; }
             .company-name { font-size: 15px; font-weight: 700; letter-spacing: 0.2px; }
-            .company-legal { font-size: 8px; }
-            .company-meta { padding-top: 4px; font-size: 8px; line-height: 1.55; }
+            .company-legal { font-size: 9px; }
+            .company-meta { padding-top: 4px; font-size: 9px; line-height: 1.55; }
             .doc-title { font-size: 20px; font-weight: 700; letter-spacing: 1px; text-align: right; }
 
             .rule { height: 1px; background: #111; font-size: 0; line-height: 0; }
@@ -74,15 +74,15 @@
             .parties .to { width: 52%; padding-right: 18px; }
             .parties .info { width: 48%; }
 
-            .block-label { font-size: 8px; font-weight: 700; letter-spacing: 0.4px; }
-            .customer-name { padding-top: 5px; font-size: 11px; font-weight: 700; }
-            .customer-line { padding-top: 3px; font-size: 8.5px; line-height: 1.55; }
+            .block-label { font-size: 9px; font-weight: 700; letter-spacing: 0.4px; }
+            .customer-name { padding-top: 5px; font-size: 12px; font-weight: 700; }
+            .customer-line { padding-top: 3px; font-size: 9.5px; line-height: 1.55; }
 
             .info-grid { border: 1px solid #111; }
             .info-grid td { padding: 5px 8px; border-bottom: 1px solid #111; }
             .info-grid tr:last-child td { border-bottom: 0; }
-            .info-grid .k { width: 38%; border-right: 1px solid #111; font-size: 8px; }
-            .info-grid .v { font-size: 8.5px; font-weight: 700; }
+            .info-grid .k { width: 38%; border-right: 1px solid #111; font-size: 9px; }
+            .info-grid .v { font-size: 9.5px; font-weight: 700; }
 
             .items { margin-top: 14px; border: 1px solid #111; }
             .items thead { display: table-header-group; }
@@ -90,7 +90,7 @@
                 padding: 6px 8px;
                 border-right: 1px solid #111;
                 border-bottom: 1px solid #111;
-                font-size: 8px;
+                font-size: 9px;
                 font-weight: 700;
                 text-align: left;
             }
@@ -99,13 +99,13 @@
             .items tbody tr:last-child td { border-bottom: 0; }
             .items tr { page-break-inside: avoid; }
             .items .num { text-align: right; }
-            .item-name { font-size: 9px; font-weight: 700; }
-            .item-desc { padding-top: 2px; font-size: 7.5px; line-height: 1.45; }
+            .item-name { font-size: 10px; font-weight: 700; }
+            .item-desc { padding-top: 2px; font-size: 8.5px; line-height: 1.45; }
 
             .terbilang { margin-top: 10px; border: 1px solid #111; }
             .terbilang td { padding: 5px 8px; }
-            .terbilang .k { width: 15%; border-right: 1px solid #111; font-size: 8px; font-weight: 700; }
-            .terbilang .v { font-size: 8.5px; font-style: italic; }
+            .terbilang .k { width: 15%; border-right: 1px solid #111; font-size: 9px; font-weight: 700; }
+            .terbilang .v { font-size: 9.5px; font-style: italic; }
 
             .lower { margin-top: 10px; }
             .lower > tbody > tr > td { padding: 0; }
@@ -114,28 +114,31 @@
 
             .keterangan { border: 1px solid #111; }
             .keterangan td { padding: 6px 8px; }
-            .note-label { font-size: 7.5px; font-weight: 700; letter-spacing: 0.3px; }
-            .note-body { padding-top: 1px; font-size: 8px; line-height: 1.5; }
+            .note-label { font-size: 8.5px; font-weight: 700; letter-spacing: 0.3px; }
+            .note-body { padding-top: 1px; font-size: 9px; line-height: 1.5; }
             .note-group + .note-group { padding-top: 7px; }
 
             .totals { border: 1px solid #111; }
             .totals td { padding: 5px 8px; border-bottom: 1px solid #111; }
             .totals tr:last-child td { border-bottom: 0; }
-            .totals .k { width: 55%; border-right: 1px solid #111; font-size: 8.5px; }
-            .totals .v { font-size: 8.5px; font-weight: 700; text-align: right; }
-            .totals .grand td { border-top: 1px solid #111; font-size: 10px; font-weight: 700; }
+            .totals .k { width: 55%; border-right: 1px solid #111; font-size: 9.5px; }
+            .totals .v { font-size: 9.5px; font-weight: 700; text-align: right; }
+            .totals .grand td { border-top: 1px solid #111; font-size: 11px; font-weight: 700; }
             .totals .grand .k { font-weight: 700; }
 
             .dp { margin-top: 6px; border: 1px solid #111; }
-            .dp td { padding: 5px 8px; font-size: 8.5px; font-weight: 700; }
+            .dp td { padding: 5px 8px; font-size: 9.5px; font-weight: 700; }
             .dp .v { text-align: right; }
 
-            .approval { margin-top: 26px; }
-            .approval td { width: 33%; font-size: 8.5px; }
-            .approval .sign-space { height: 46px; }
-            .sign-rule { border-top: 1px solid #111; padding-top: 3px; font-size: 8px; }
+            .paid td { padding: 5px 8px; font-size: 9.5px; font-weight: 700; }
+            .paid .v { color: #111; text-align: right; text-transform: uppercase; }
 
-            .foot { margin-top: 18px; font-size: 7px; line-height: 1.4; }
+            .approval { margin-top: 26px; }
+            .approval td { width: 33%; font-size: 9.5px; }
+            .approval .sign-space { height: 46px; }
+            .sign-rule { border-top: 1px solid #111; padding-top: 3px; font-size: 9px; }
+
+            .foot { margin-top: 18px; font-size: 8px; line-height: 1.4; }
         </style>
     </head>
     <body>
@@ -328,9 +331,15 @@
                             <td class="k">Total</td>
                             <td class="v">{{ $money($document['total_amount']) }}</td>
                         </tr>
+                        @if ($document['is_paid'])
+                            <tr class="paid">
+                                <td class="k">Status Pembayaran</td>
+                                <td class="v">Lunas</td>
+                            </tr>
+                        @endif
                     </table>
 
-                    @if ($document['dp_amount'] > 0)
+                    @if (! $document['is_paid'] && $document['dp_amount'] > 0)
                         <table class="dp">
                             <tr>
                                 <td>Minimal DP {{ $percent($document['dp_required_percent']) }}%</td>
