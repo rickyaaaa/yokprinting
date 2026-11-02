@@ -3,6 +3,7 @@
 namespace App\Services\Invoices;
 
 use App\Models\Invoice;
+use App\Models\InvoiceNumberHistory;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
@@ -82,13 +83,19 @@ class GenerateInvoiceNumber
     }
 
     /**
+     * Numbers of the month that are taken: current numbers (soft-deleted
+     * invoices included) and previous numbers of renumbered invoices.
+     *
      * @return array<string, int> invoice numbers of the month, keyed for lookup
      */
     private function persistedInvoiceNumbers(int $year, int $month): array
     {
+        $pattern = sprintf('%s-%d-%02d-%%', self::PREFIX, $year, $month);
+
         return Invoice::withTrashed()
-            ->where('invoice_number', 'like', sprintf('%s-%d-%02d-%%', self::PREFIX, $year, $month))
+            ->where('invoice_number', 'like', $pattern)
             ->pluck('invoice_number')
+            ->merge(InvoiceNumberHistory::query()->where('invoice_number', 'like', $pattern)->pluck('invoice_number'))
             ->flip()
             ->all();
     }

@@ -1,5 +1,12 @@
 @php
     $invoiceEditorDraft = base64_encode(json_encode($draftPayload, JSON_THROW_ON_ERROR));
+    $invoiceFormConfig = [
+        'isEdit' => true,
+        'invoiceNumber' => $invoiceModel->invoice_number,
+        'issueDate' => $invoiceModel->issue_date?->toDateString(),
+        'renumberNeedsConfirmation' => $invoiceModel->renumberNeedsConfirmation(),
+        'indexUrl' => route('invoices.index'),
+    ];
 @endphp
 
 <!DOCTYPE html>
@@ -75,7 +82,7 @@
                         action="#"
                         method="post"
                         novalidate
-                        x-data='invoiceDraftForm(@json(["isEdit" => true, "invoiceNumber" => $invoiceModel->invoice_number, "indexUrl" => route("invoices.index")]))'
+                        x-data='invoiceDraftForm(@json($invoiceFormConfig))'
                         @submit.prevent="submitDraft($event)"
                         @input="clearFieldError($event.target.dataset.validationField || $event.target.name)"
                         @change="clearFieldError($event.target.dataset.validationField || $event.target.name)"
@@ -109,20 +116,22 @@
                                     <div class="grid gap-5 md:grid-cols-3">
                                         <div>
                                             <label for="invoice-number" class="mb-2 block text-sm font-medium text-ink">Nomor invoice</label>
-                                            <div class="relative">
-                                                <input
-                                                    id="invoice-number"
-                                                    name="invoice_number"
-                                                    data-validation-field="invoice_number"
-                                                    type="text"
-                                                    value="{{ $invoiceModel->invoice_number }}"
-                                                    readonly
-                                                    class="form-control pr-10 bg-canvas font-medium text-muted"
-                                                    aria-describedby="invoice-number-error"
-                                                >
-                                                <i class="iconify tabler--lock pointer-events-none absolute right-3 top-1/2 text-base -translate-y-1/2 text-muted"></i>
-                                            </div>
-                                            <p class="mt-1.5 text-xs text-muted">Nomor invoice terkunci, tidak berubah walau diedit.</p>
+                                            <input
+                                                id="invoice-number"
+                                                name="invoice_number"
+                                                data-validation-field="invoice_number"
+                                                type="text"
+                                                maxlength="50"
+                                                autocomplete="off"
+                                                value="{{ $invoiceModel->invoice_number }}"
+                                                class="form-control font-medium"
+                                                :class="{ 'border-red-400 ring-2 ring-red-100': fieldErrors.invoice_number }"
+                                                :aria-invalid="Boolean(fieldErrors.invoice_number)"
+                                                aria-describedby="invoice-number-error invoice-number-help"
+                                                @input="invoiceNumberInput = $event.target.value"
+                                            >
+                                            <p id="invoice-number-error" x-show="fieldErrors.invoice_number" x-text="fieldErrors.invoice_number" class="mt-1.5 text-xs font-medium text-red-700"></p>
+                                            <p id="invoice-number-help" class="mt-1.5 text-xs text-muted">Nomor invoice dapat diubah secara manual. Pastikan nomor belum digunakan.</p>
                                         </div>
                                         <div>
                                             <label for="issue-date" class="mb-2 block text-sm font-medium text-ink">Tanggal invoice</label>
@@ -136,6 +145,7 @@
                                                 :class="{ 'border-red-400 ring-2 ring-red-100': fieldErrors.issue_date }"
                                                 :aria-invalid="Boolean(fieldErrors.issue_date)"
                                                 aria-describedby="issue-date-error"
+                                                @input="issueDateInput = $event.target.value"
                                             >
                                             <p id="issue-date-error" x-show="fieldErrors.issue_date" x-text="fieldErrors.issue_date" class="mt-1.5 text-xs font-medium text-red-700"></p>
                                         </div>
@@ -153,6 +163,34 @@
                                                 aria-describedby="due-date-error"
                                             >
                                             <p id="due-date-error" x-show="fieldErrors.due_date" x-text="fieldErrors.due_date" class="mt-1.5 text-xs font-medium text-red-700"></p>
+                                        </div>
+                                    </div>
+
+                                    <div x-cloak x-show="invoiceNumberChanged" class="space-y-4" data-testid="invoice-number-change">
+                                        <div
+                                            x-show="invoiceNumberPeriodWarning"
+                                            class="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+                                            role="status"
+                                        >
+                                            <i class="iconify tabler--alert-triangle mt-0.5 shrink-0 text-lg text-amber-700"></i>
+                                            <p class="leading-5" x-text="invoiceNumberPeriodWarning"></p>
+                                        </div>
+                                        <div>
+                                            <label for="invoice-number-change-reason" class="mb-2 block text-sm font-medium text-ink">Alasan perubahan nomor invoice</label>
+                                            <textarea
+                                                id="invoice-number-change-reason"
+                                                name="invoice_number_change_reason"
+                                                data-validation-field="invoice_number_change_reason"
+                                                rows="2"
+                                                maxlength="500"
+                                                class="form-control"
+                                                :class="{ 'border-red-400 ring-2 ring-red-100': fieldErrors.invoice_number_change_reason }"
+                                                :aria-invalid="Boolean(fieldErrors.invoice_number_change_reason)"
+                                                aria-describedby="invoice-number-change-reason-error"
+                                                placeholder="Contoh: Menyesuaikan nomor dokumen pesanan Shopee bulan Oktober"
+                                            ></textarea>
+                                            <p id="invoice-number-change-reason-error" x-show="fieldErrors.invoice_number_change_reason" x-text="fieldErrors.invoice_number_change_reason" class="mt-1.5 text-xs font-medium text-red-700"></p>
+                                            <p class="mt-1.5 text-xs text-muted">Tercatat di log aktivitas. Nomor lama <span class="font-medium text-ink">{{ $invoiceModel->invoice_number }}</span> tetap tersimpan sebagai riwayat dan tidak bisa dipakai invoice lain.</p>
                                         </div>
                                     </div>
                                 </div>

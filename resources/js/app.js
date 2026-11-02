@@ -354,8 +354,59 @@ const validateInvoiceDraft = (payload) => {
     return errors;
 };
 
+const invoiceNumberPattern = /^INV-\d{4}-(0[1-9]|1[0-2])-\d{4,}$/;
+
+const formatInvoicePeriod = (period) => new Intl.DateTimeFormat('id-ID', {
+    month: 'long',
+    year: 'numeric',
+}).format(new Date(`${period}-01T00:00:00`));
+
+// A manual number may name a different month than the issue date (e.g. a
+// Shopee order from October). That is allowed, but the issue date and the
+// report period do not follow the number, so say so explicitly.
+const invoiceNumberPeriodWarning = (invoiceNumber, issueDate) => {
+    if (!invoiceNumberPattern.test(invoiceNumber) || !/^\d{4}-\d{2}/.test(issueDate ?? '')) {
+        return '';
+    }
+
+    const numberPeriod = invoiceNumber.slice(4, 11);
+    const issuePeriod = issueDate.slice(0, 7);
+
+    if (numberPeriod === issuePeriod) {
+        return '';
+    }
+
+    return `Bulan pada nomor (${formatInvoicePeriod(numberPeriod)}) berbeda dengan tanggal invoice (${formatInvoicePeriod(issuePeriod)}). `
+        + 'Tanggal invoice dan periode laporan tidak ikut berubah. Ubah tanggal invoice hanya jika transaksinya memang terjadi di bulan tersebut.';
+};
+
+const validateInvoiceNumberChange = (payload, originalNumber) => {
+    const errors = {};
+
+    if (!payload.invoice_number) {
+        errors.invoice_number = 'Nomor invoice wajib diisi.';
+        return errors;
+    }
+
+    if (payload.invoice_number === originalNumber) {
+        return errors;
+    }
+
+    if (!invoiceNumberPattern.test(payload.invoice_number)) {
+        errors.invoice_number = 'Format nomor invoice harus INV-YYYY-MM-NNNN, contoh INV-2026-10-0205.';
+    }
+
+    if (payload.invoice_number_change_reason.length < 5) {
+        errors.invoice_number_change_reason = 'Alasan perubahan nomor invoice minimal 5 karakter.';
+    }
+
+    return errors;
+};
+
 Alpine.data('invoiceDraftForm', (config = {}) => ({
     config,
+    invoiceNumberInput: config.invoiceNumber ?? '',
+    issueDateInput: config.issueDate ?? '',
     savingDraft: false,
     draftSaved: false,
     savedDraftId: '',
@@ -371,6 +422,14 @@ Alpine.data('invoiceDraftForm', (config = {}) => ({
 
     get validationMessages() {
         return [...new Set(Object.values(this.fieldErrors))];
+    },
+
+    get invoiceNumberChanged() {
+        return Boolean(this.config.isEdit) && this.invoiceNumberInput.trim() !== (this.config.invoiceNumber ?? '');
+    },
+
+    get invoiceNumberPeriodWarning() {
+        return invoiceNumberPeriodWarning(this.invoiceNumberInput.trim(), this.issueDateInput);
     },
 
     clearFieldError(field) {
@@ -396,7 +455,16 @@ Alpine.data('invoiceDraftForm', (config = {}) => ({
         const form = event.currentTarget;
         const payload = buildInvoiceDraftPayload(form);
 
-        this.fieldErrors = validateInvoiceDraft(payload);
+        if (this.config.isEdit) {
+            payload.invoice_number = payload.invoice_number.trim();
+            payload.invoice_number_change_reason = form
+                .querySelector('[name="invoice_number_change_reason"]')?.value.trim() ?? '';
+        }
+
+        this.fieldErrors = {
+            ...validateInvoiceDraft(payload),
+            ...(this.config.isEdit ? validateInvoiceNumberChange(payload, this.config.invoiceNumber) : {}),
+        };
         this.savingDraft = true;
         this.draftSaved = false;
         this.errorMessage = '';
@@ -414,6 +482,22 @@ Alpine.data('invoiceDraftForm', (config = {}) => ({
                     ?.focus();
             });
             return;
+        }
+
+        if (
+            this.config.isEdit
+            && this.config.renumberNeedsConfirmation
+            && payload.invoice_number !== this.config.invoiceNumber
+        ) {
+            if (!window.confirm(
+                `Invoice ini sudah dikirim atau sudah ada pembayaran. Ubah nomor ${this.config.invoiceNumber} menjadi ${payload.invoice_number}? `
+                + 'Dokumen yang sudah diterima pelanggan masih memakai nomor lama.',
+            )) {
+                this.savingDraft = false;
+                return;
+            }
+
+            payload.confirm_invoice_number_change = true;
         }
 
         try {
