@@ -36,6 +36,7 @@ class ResetDummyData extends Command
             'payments',
             'invoices',
             'invoice_number_sequences',
+            'invoice_monthly_number_sequences',
             'expense_proof_cleanup_tasks',
             'expenses',
             'cash_bank_transactions',

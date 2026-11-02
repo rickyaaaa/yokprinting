@@ -52,6 +52,30 @@ class StoreInvoiceDraftApiTest extends TestCase
         $this->assertDatabaseCount('invoice_items', 2);
     }
 
+    public function test_invoice_numbers_reset_monthly_and_backdated_drafts_use_their_issue_month(): void
+    {
+        $this->travelTo(now()->setDate(2026, 11, 2));
+        $payload = $this->validPayload();
+
+        $this->postJson(route('api.invoices.drafts.store'), [
+            ...$payload,
+            'issue_date' => '2026-11-02',
+            'due_date' => '2026-11-16',
+        ])->assertCreated()->assertJsonPath('data.invoice_number', 'INV-2026-11-0001');
+
+        $this->postJson(route('api.invoices.drafts.store'), [
+            ...$payload,
+            'issue_date' => '2026-10-30',
+            'due_date' => '2026-11-13',
+        ])->assertCreated()->assertJsonPath('data.invoice_number', 'INV-2026-10-0001');
+
+        $this->postJson(route('api.invoices.drafts.store'), [
+            ...$payload,
+            'issue_date' => '2026-11-02',
+            'due_date' => '2026-11-16',
+        ])->assertCreated()->assertJsonPath('data.invoice_number', 'INV-2026-11-0002');
+    }
+
     public function test_invoice_draft_stores_yokprinting_cup_specs_and_production_fields(): void
     {
         $payload = $this->validPayload();
