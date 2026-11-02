@@ -69,7 +69,45 @@ error). `.cpanel.yml` sengaja tidak memanggil `storage:link`.
 found`). Cron job **harus** ditambahkan lewat hPanel web UI → **Advanced** →
 **Cron Jobs**, bukan lewat SSH. Lihat langkah 5.
 
-## 4. Alur deploy (setelah setup awal ini)
+## 4a. Deploy otomatis (GitHub Actions) — jalur utama
+
+Setiap push ke `main` menjalankan workflow [CI](../.github/workflows/ci.yml):
+job `test` dulu, lalu job `deploy` **menunggu approval** di environment
+`production` (GitHub → Actions → run-nya → *Review deployments* → Approve).
+Setelah di-approve, runner SSH ke server dan menjalankan
+[scripts/deploy-production.sh](../scripts/deploy-production.sh) versi commit
+itu sendiri:
+
+1. Preflight (belum menyentuh situs): cek php/composer/mysqldump, checkout
+   server ada di `main` dan tidak ada perubahan lokal, commit target ada.
+2. `artisan down`
+3. Backup database → `~/backups/yokprinting/yokprinting-<waktu>-<sha>.sql.gz`
+   (14 terbaru disimpan). Backup gagal = deploy berhenti.
+4. `git merge --ff-only <sha>` → `composer install` → `migrate --force` →
+   cache → rsync `public/` ke `public_html`.
+5. `artisan up` (selalu jalan) → `operations:health --skip-heartbeat`.
+
+Push baru menggantikan deploy yang masih menunggu approval. Deploy ulang
+manual: Actions → CI → *Run workflow* di branch `main` (test jalan lagi, lalu
+minta approval).
+
+Konfigurasi di GitHub → Settings → Environments → `production`:
+- Required reviewer + branch policy hanya `main`.
+- Variables: `SSH_HOST`, `SSH_PORT`, `SSH_USER`, `SSH_KNOWN_HOSTS`
+  (output `ssh-keyscan -p 65002 72.61.212.217`).
+- Secret: `SSH_PRIVATE_KEY` — key khusus deploy; public key-nya terdaftar di
+  hPanel → Advanced → SSH Access → SSH Keys.
+
+**Restore backup** (kalau migrasi merusak data):
+`gunzip -c ~/backups/yokprinting/<file>.sql.gz | mysql -u <user> -p <database>`
+
+`public/build` tetap dari git (build lokal + commit, lihat langkah 1 di §4) —
+build di CI sengaja tidak dipakai karena hasil CSS-nya berbeda dari build lokal.
+
+Hindari tombol "Deploy HEAD Commit" cPanel (`.cpanel.yml`) selama jalur ini
+dipakai, supaya dua jalur deploy tidak saling menimpa.
+
+## 4. Alur deploy manual (cadangan kalau GitHub Actions tidak bisa dipakai)
 
 Manual SSH deploy **bukan** mirror langkah-per-langkah dari `.cpanel.yml` —
 mekanismenya beda karena `yokprinting_app/` di server ini memang git repo
