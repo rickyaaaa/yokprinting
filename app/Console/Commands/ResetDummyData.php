@@ -34,6 +34,7 @@ class ResetDummyData extends Command
         $tablesToWipe = [
             'invoice_items',
             'payments',
+            'invoice_number_histories',
             'invoices',
             'invoice_number_sequences',
             'invoice_monthly_number_sequences',

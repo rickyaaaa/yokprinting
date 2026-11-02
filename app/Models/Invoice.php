@@ -16,6 +16,15 @@ class Invoice extends Model
     /** @use HasFactory<InvoiceFactory> */
     use HasFactory, SoftDeletes;
 
+    /**
+     * Standard invoice number format (INV-YYYY-MM-NNNN, at least 4 digits),
+     * required for manually entered numbers. Legacy stored numbers are kept
+     * as-is unless the user changes them.
+     */
+    public const NUMBER_PATTERN = '/^INV-\d{4}-(0[1-9]|1[0-2])-\d{4,}$/';
+
+    public const NUMBER_TAKEN_MESSAGE = 'Nomor invoice sudah digunakan. Silakan pilih nomor lain.';
+
     public const STATUS_DRAFT = 'draft';
 
     public const STATUS_SENT = 'sent';
@@ -200,6 +209,15 @@ class Invoice extends Model
     }
 
     /**
+     * Renumbering a document the customer may already hold (sent, or with a
+     * recorded payment) needs an explicit confirmation.
+     */
+    public function renumberNeedsConfirmation(): bool
+    {
+        return $this->status !== self::STATUS_DRAFT || $this->hasRecordedPayment();
+    }
+
+    /**
      * Determine whether the invoice can still be cancelled ("close order").
      */
     public function canBeCancelled(): bool
@@ -246,6 +264,53 @@ class Invoice extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Get the numbers this invoice carried before being renumbered.
+     */
+    public function numberHistories(): HasMany
+    {
+        return $this->hasMany(InvoiceNumberHistory::class);
+    }
+
+    /**
+     * Whether a number is already taken by another invoice, either as its
+     * current number (soft-deleted invoices included) or as a previous one.
+     */
+    public static function numberIsTaken(string $number, ?int $exceptInvoiceId = null): bool
+    {
+        return static::withTrashed()
+            ->where('invoice_number', $number)
+            ->when($exceptInvoiceId, fn (Builder $query) => $query->whereKeyNot($exceptInvoiceId))
+            ->exists()
+            || InvoiceNumberHistory::query()
+                ->where('invoice_number', $number)
+                ->when($exceptInvoiceId, fn ($query) => $query->where('invoice_id', '!=', $exceptInvoiceId))
+                ->exists();
+    }
+
+    /**
+     * Resolve {invoice:invoice_number} route bindings, falling back to a
+     * previous number so links issued before a renumbering keep opening the
+     * same invoice. Previous numbers are unique and never reassigned, so the
+     * fallback cannot point at a different invoice.
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        $invoice = parent::resolveRouteBinding($value, $field);
+
+        if ($invoice === null && $field === 'invoice_number') {
+            $invoiceId = InvoiceNumberHistory::query()
+                ->where('invoice_number', $value)
+                ->value('invoice_id');
+
+            $invoice = $invoiceId === null
+                ? null
+                : parent::resolveRouteBinding($invoiceId, $this->getKeyName());
+        }
+
+        return $invoice;
     }
 
     /**
@@ -476,13 +541,21 @@ class Invoice extends Model
             return $this->delivery_note_number;
         }
 
-        $number = Str::startsWith($this->invoice_number, 'INV-')
-            ? Str::replaceFirst('INV-', 'SJ-', $this->invoice_number)
-            : 'SJ-'.$this->invoice_number;
+        $number = $this->deliveryNoteNumberFor($this->invoice_number);
 
         $this->delivery_note_number = $number;
         $this->saveQuietly();
 
         return $number;
+    }
+
+    /**
+     * The default delivery note number derived from an invoice number.
+     */
+    public function deliveryNoteNumberFor(string $invoiceNumber): string
+    {
+        return Str::startsWith($invoiceNumber, 'INV-')
+            ? Str::replaceFirst('INV-', 'SJ-', $invoiceNumber)
+            : 'SJ-'.$invoiceNumber;
     }
 }

@@ -5,9 +5,11 @@ namespace App\Services\Invoices;
 use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use App\Models\InvoiceNumberHistory;
 use App\Models\Product;
 use App\Services\Inventory\FifoInventoryService;
 use App\Services\Security\ActivityLogger;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -48,6 +50,18 @@ class UpdateInvoiceDraft
                 throw ValidationException::withMessages([
                     'status' => 'Invoice yang sudah dibatalkan tidak bisa diedit.',
                 ]);
+            }
+
+            $newNumber = isset($data['invoice_number']) ? (string) $data['invoice_number'] : null;
+
+            if ($newNumber !== null && $newNumber !== $locked->invoice_number) {
+                $this->renumber(
+                    $locked,
+                    $newNumber,
+                    (string) ($data['invoice_number_change_reason'] ?? ''),
+                    (string) $data['issue_date'],
+                    $actorId,
+                );
             }
 
             $items = $this->snapshotInvoiceItems->handle($data['items']);
@@ -234,6 +248,83 @@ class UpdateInvoiceDraft
 
             return $locked->refresh()->load('items');
         });
+    }
+
+    /**
+     * Change the invoice number in place. Only the number (and a delivery
+     * note number derived from it) changes - the invoice ID and everything
+     * keyed on it (items, payments, stock movements, cash/bank entries) stay
+     * as they are. The old number is kept in invoice_number_histories so old
+     * links still resolve and the number is never handed out again.
+     */
+    private function renumber(Invoice $invoice, string $newNumber, string $reason, string $issueDate, ?int $actorId): void
+    {
+        // Re-checked under the invoice row lock; the unique indexes on
+        // invoices.invoice_number and invoice_number_histories.invoice_number
+        // remain the final guard against a concurrent renumbering.
+        if (Invoice::numberIsTaken($newNumber, $invoice->getKey())) {
+            throw ValidationException::withMessages([
+                'invoice_number' => Invoice::NUMBER_TAKEN_MESSAGE,
+            ]);
+        }
+
+        $oldNumber = $invoice->invoice_number;
+
+        try {
+            // Reverting to one of this invoice's own previous numbers. Looked
+            // up first and deleted by key: a DELETE on a number that is not
+            // there takes a gap lock on MySQL, which deadlocks with other
+            // renumberings inserting into the same index range.
+            $restoredHistoryId = $invoice->numberHistories()->where('invoice_number', $newNumber)->value('id');
+
+            if ($restoredHistoryId !== null) {
+                InvoiceNumberHistory::query()->whereKey($restoredHistoryId)->delete();
+            }
+
+            $invoice->numberHistories()->create([
+                'invoice_number' => $oldNumber,
+                'replaced_by' => $newNumber,
+                'changed_by' => $actorId,
+                'reason' => $reason,
+            ]);
+
+            $invoice->forceFill([
+                'invoice_number' => $newNumber,
+                // Regenerated from the new number on next use, unless it was
+                // set to something other than the default derived number.
+                'delivery_note_number' => $invoice->delivery_note_number === $invoice->deliveryNoteNumberFor($oldNumber)
+                    ? null
+                    : $invoice->delivery_note_number,
+            ])->save();
+        } catch (UniqueConstraintViolationException) {
+            throw ValidationException::withMessages([
+                'invoice_number' => Invoice::NUMBER_TAKEN_MESSAGE,
+            ]);
+        }
+
+        $numberPeriod = preg_match(Invoice::NUMBER_PATTERN, $newNumber) === 1 ? substr($newNumber, 4, 7) : null;
+        $issuePeriod = substr($issueDate, 0, 7);
+
+        $this->activityLogger->record(
+            module: 'invoice',
+            action: 'number_changed',
+            event: 'Invoice number changed',
+            description: "Nomor invoice {$oldNumber} diubah menjadi {$newNumber}.",
+            subject: $invoice,
+            metadata: [
+                'invoice_id' => $invoice->getKey(),
+                'old_invoice_number' => $oldNumber,
+                'new_invoice_number' => $newNumber,
+                'reason' => $reason,
+                'changed_by' => $actorId,
+                'changed_at' => now()->toISOString(),
+                'status' => $invoice->status,
+                'payment_status' => $invoice->payment_status,
+                'issue_date' => $issueDate,
+                'number_period_differs_from_issue_date' => $numberPeriod !== null && $numberPeriod !== $issuePeriod,
+            ],
+            riskLevel: ActivityLog::RISK_HIGH,
+        );
     }
 
     /** @param iterable<array<string, mixed>> $items */
