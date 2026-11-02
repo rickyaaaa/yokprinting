@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ListSalesReportInvoicesRequest;
 use App\Models\Invoice;
-use App\Services\Reports\GenerateSalesReportSpreadsheet;
 use App\Services\Reports\GeneratedReportFile;
+use App\Services\Reports\GenerateSalesReportSpreadsheet;
 use App\Support\SalesReportPeriodPresets;
 use Illuminate\Http\Response;
 
@@ -18,8 +18,7 @@ class SalesReportExportController extends Controller
     public function __invoke(
         ListSalesReportInvoicesRequest $request,
         GenerateSalesReportSpreadsheet $spreadsheet,
-    ): Response
-    {
+    ): Response {
         $filters = $request->validated();
         $rows = $this->rows($filters);
         $range = SalesReportPeriodPresets::resolve($filters['date_from'] ?? null, $filters['date_to'] ?? null);
